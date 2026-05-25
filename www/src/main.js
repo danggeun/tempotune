@@ -960,7 +960,7 @@ if(window.innerWidth<700){
   setTimeout(()=>{
     _metroBodyEl.classList.add('collapsed');
     document.getElementById('metro-collapse-btn').textContent='▲';
-  },80);
+  },250);
 }
 
 // ── Event listeners (replacing all inline HTML handlers) ──
