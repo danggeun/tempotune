@@ -282,7 +282,7 @@ function drawHistory(){
   const ppc=(W/2)/50,tol=CFG.tuner.tolCents,N=S.histData.length,rH=H/N;
   c.fillStyle='rgba(34,197,94,.65)';
   c.fillRect(W/2-tol*ppc,0,tol*2*ppc,H);
-  c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=1.5;
+  c.strokeStyle='rgba(255,255,255,.38)';c.lineWidth=1;
   c.beginPath();c.moveTo(W/2,0);c.lineTo(W/2,H);c.stroke();
   c.lineWidth=2.5;c.lineCap='round';
   for(let i=0;i<N-1;i++){

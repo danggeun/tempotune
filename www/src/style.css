@@ -176,7 +176,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .rec-player-top{display:flex;align-items:center;gap:8px;}
 .rec-item-btns{display:flex;gap:5px;}
 .menu-action{width:100%;padding:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:700;cursor:pointer;text-align:center;}
-#rec-toggle-btn{border-color:rgba(229,48,48,.35);}
 .menu-action.rec-active{border-color:var(--red);color:var(--red);}
 
 /* ── 설정 페이지 ── */
@@ -228,14 +227,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 #ed-pos-hit{position:absolute;inset:-16px;}
 #ed-ab-times{display:none;justify-content:space-between;margin-top:4px;}
 #ed-a-time,#ed-b-time{font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-weight:700;}
-#ed-play-row{display:flex;align-items:center;justify-content:center;padding:12px 22px 6px;flex-shrink:0;}
-#ed-play-btn{width:56px;height:56px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-#ed-speed-wrap{padding:0 22px 14px;flex-shrink:0;}
-#ed-speed-card{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;}
-#ed-speed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+#ed-transport{display:flex;align-items:center;gap:16px;padding:14px 16px;margin:6px 22px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;flex-shrink:0;}
+#ed-play-btn{width:52px;height:52px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+#ed-speed-ctrl{flex:1;display:flex;flex-direction:column;}
+#ed-speed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+#ed-speed-lbl{font-size:13px;font-weight:700;color:var(--text);}
+#ed-speed-val{font-family:'DM Mono',monospace;font-size:13px;color:var(--red);font-weight:700;}
 #ed-speed{width:100%;}
-#ed-speed-lbl{font-size:14px;font-weight:700;color:var(--text);}
-#ed-speed-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--red);font-weight:700;}
 #ed-speed-ticks{display:flex;justify-content:space-between;margin-top:5px;}
 #ed-speed-ticks span{font-size:10px;color:var(--dim);}
 #ed-ab-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 22px 14px;flex-shrink:0;}
