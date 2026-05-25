@@ -1,4 +1,7 @@
 import './style.css'
+import { yin as _yinPure } from './core/yin.js'
+import { bufToWav } from './core/wav.js'
+import { fmt, fmtT } from './core/format.js'
 
 const CFG={
   detect:{fftSize:4096,fftSmooth:.88,hzMin:80,hzMax:4800,noiseFloor:-44,peakMargin:8,harmonicDrop:35,harmonicMin:2,holdFrames:45},
@@ -136,7 +139,7 @@ function resetTimer(){
   document.getElementById('timer-elapsed').textContent='00:00';
   document.getElementById('timer-detected').textContent='00:00';
 }
-function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+// fmt imported from ./core/format.js
 
 // ── REC 헤더 시간 ──
 function startRecTimer(){
@@ -188,13 +191,9 @@ async function runYamnet(){
 let _yf=0,_ly=-1,_lastRms=0,_noiseEst=-65;
 function yin(buf,sr){
   if(++_yf%4!==0)return _ly;
-  const N=buf.length,half=Math.floor(N/2);let rms=0;for(let i=0;i<N;i++)rms+=buf[i]*buf[i];_lastRms=Math.sqrt(rms/N);if(_lastRms<CFG.tuner.rmsMin)return _ly=-1;
-  const d=new Float32Array(half);for(let tau=1;tau<half;tau++){let s=0;for(let j=0;j<half;j++){const dif=buf[j]-buf[j+tau];s+=dif*dif;}d[tau]=s;}
-  const c=new Float32Array(half);c[0]=1;let run=0;for(let tau=1;tau<half;tau++){run+=d[tau];c[tau]=run===0?0:d[tau]/(run/tau);}
-  let t=-1;for(let tau=2;tau<half-1;tau++){if(c[tau]<CFG.tuner.yinThreshold){while(tau+1<half&&c[tau+1]<c[tau])tau++;t=tau;break;}}
-  if(t===-1){let mn=Infinity;for(let tau=2;tau<half;tau++){if(c[tau]<mn){mn=c[tau];t=tau;}}if(t===-1||mn>.5)return _ly=-1;}
-  const b=(t>0&&t<half-1)?t+(c[t+1]-c[t-1])/(2*(2*c[t]-c[t-1]-c[t+1])):t;
-  return _ly=b<=0?-1:sr/b;
+  const N=buf.length;let rms=0;for(let i=0;i<N;i++)rms+=buf[i]*buf[i];_lastRms=Math.sqrt(rms/N);
+  if(_lastRms<CFG.tuner.rmsMin)return _ly=-1;
+  return _ly=_yinPure(buf,sr,CFG.tuner.yinThreshold);
 }
 
 // ── 튜너 UI ──
@@ -430,7 +429,7 @@ function stopRec(){
   const tb=document.getElementById('rec-toggle-btn');tb.innerHTML='녹음 시작';tb.classList.remove('rec-active');
   stopRecTimer();toast('녹음 완료');
 }
-function fmtT(s){if(!isFinite(s)||isNaN(s)||s<0)return '00:00';return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');}
+// fmtT imported from ./core/format.js
 const _recPlayers={};
 function getRecPlayer(idx){if(!_recPlayers[idx]){const a=new Audio(recItems[idx].url);a.ontimeupdate=()=>{const sk=document.getElementById('rec-seek-'+idx),tm=document.getElementById('rec-time-'+idx);if(sk&&a.duration){sk.max=a.duration;sk.value=a.currentTime;}if(tm)tm.textContent=fmtT(a.currentTime);};a.onended=()=>{const btn=document.getElementById('rec-pb-'+idx);if(btn)btn.textContent='▶';const sk=document.getElementById('rec-seek-'+idx);if(sk)sk.value=0;const tm=document.getElementById('rec-time-'+idx);if(tm)tm.textContent='0:00';a.currentTime=0;};_recPlayers[idx]=a;}return _recPlayers[idx];}
 function recPlayPause(idx){const a=getRecPlayer(idx),btn=document.getElementById('rec-pb-'+idx);Object.keys(_recPlayers).forEach(i=>{if(+i!==idx&&!_recPlayers[i].paused){_recPlayers[i].pause();const b=document.getElementById('rec-pb-'+i);if(b)b.textContent='▶';}});if(a.paused){a.play();if(btn)btn.textContent='■';}else{a.pause();if(btn)btn.textContent='▶';}}
@@ -444,21 +443,21 @@ function renderRecList(){
     const m=Math.floor(item.dur/60),s=String(item.dur%60).padStart(2,'0');
     const _ext=item.mime&&item.mime.includes('mp4')?'m4a':'webm';
     div.innerHTML=`
-      <div onclick="toggleRecItem(${idx})" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+      <div data-action="toggle" data-idx="${idx}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
         <span class="rec-item-name" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;"></span>
         <span style="font-size:13px;color:var(--muted);">${m}:${s}</span>
       </div>
       <div class="rec-item-detail${defaultOpen?' open':''}" id="rec-detail-${idx}">
         <div class="rec-player">
           <div class="rec-player-top">
-            <button class="rec-play-btn" id="rec-pb-${idx}" onclick="recPlayPause(${idx})">▶</button>
-            <input type="range" class="rec-seek" id="rec-seek-${idx}" value="0" min="0" step="0.01" oninput="recSeek(${idx})">
+            <button class="rec-play-btn" id="rec-pb-${idx}" data-action="play" data-idx="${idx}">▶</button>
+            <input type="range" class="rec-seek" id="rec-seek-${idx}" value="0" min="0" step="0.01" data-action="seek" data-idx="${idx}">
             <span class="rec-time" id="rec-time-${idx}">00:00</span>
           </div>
           <div class="rec-item-btns">
-            <button class="rec-item-btn" onclick="openEditor(${idx})" style="font-size:12px;font-weight:700;letter-spacing:.04em;">편집</button>
+            <button class="rec-item-btn" data-action="edit" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">편집</button>
             <a class="rec-item-btn rec-dl-link" href="${item.url}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">다운로드</a>
-            <button class="rec-item-btn del" onclick="deleteRec(${idx})">🗑</button>
+            <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">🗑</button>
           </div>
         </div>
       </div>`;
@@ -799,7 +798,7 @@ async function edExportAB(){
     for(let c=0;c<ch;c++)buf.copyToChannel(decoded.getChannelData(c).slice(s0,s1),c);
     const src=offAC.createBufferSource();src.buffer=buf;src.connect(offAC.destination);src.start();
     const rendered=await offAC.startRendering();
-    const wav=_bufToWav(rendered);
+    const wav=bufToWav(rendered);
     const blob=new Blob([wav],{type:'audio/wav'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
@@ -808,22 +807,7 @@ async function edExportAB(){
     setTimeout(()=>URL.revokeObjectURL(url),3000);
   }catch(e){toast('저장 실패: '+e.message);}
 }
-function _bufToWav(buf){
-  const ch=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
-  const ab=new ArrayBuffer(44+len*ch*2);const dv=new DataView(ab);
-  const s=(o,v)=>{for(let i=0;i<v.length;i++)dv.setUint8(o+i,v.charCodeAt(i));};
-  s(0,'RIFF');dv.setUint32(4,ab.byteLength-8,true);s(8,'WAVE');
-  s(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);
-  dv.setUint16(22,ch,true);dv.setUint32(24,sr,true);
-  dv.setUint32(28,sr*ch*2,true);dv.setUint16(32,ch*2,true);dv.setUint16(34,16,true);
-  s(36,'data');dv.setUint32(40,len*ch*2,true);
-  let off=44;
-  for(let i=0;i<len;i++)for(let c=0;c<ch;c++){
-    const v=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));
-    dv.setInt16(off,v<0?v*0x8000:v*0x7FFF,true);off+=2;
-  }
-  return ab;
-}
+// _bufToWav → bufToWav imported from ./core/wav.js
 
 // ── 메뉴 ──
 function toggleMenu(){
@@ -909,14 +893,79 @@ loadSettings();
 setTimeout(()=>{drawGauge(null);drawHistory();},200);
 document.getElementById('metro-body').style.maxHeight='420px';
 
-// Expose functions for inline HTML event handlers
-Object.assign(window, {
-  adjBPM, adjRefOct, allowMic, closeEditor, closeMicPopup,
-  closeRefAll, closeSettings, deleteRec, edAddBookmark, edEditTitle,
-  edExportAB, edSetSpeed, edToggleA, edToggleB, edToggleLoop,
-  edTogglePlay, openEditor, openMic, openSettings, playRef,
-  playRefHigh, recPlayPause, recSeek, resetTimer, setAiMode,
-  setCentsStep, setMetroVol, setRmsStep, setSD, setSmoothStep,
-  setTS, setWakeLock, tbRec, toggleFullscreen, toggleMenu,
-  toggleMetro, toggleMetroCollapse, toggleRecItem, toggleTimer,
+// ── Event listeners (replacing all inline HTML handlers) ──
+
+// Mic popup
+document.getElementById('mic-popup-btn').addEventListener('click', allowMic);
+document.getElementById('mic-popup-cancel').addEventListener('click', closeMicPopup);
+
+// Header
+document.getElementById('logo').addEventListener('click', toggleFullscreen);
+document.getElementById('hdr-mic-btn').addEventListener('click', ()=>openMic().then(ok=>{if(ok)toast('마이크가 켜졌어요');}));
+document.getElementById('rec-hdr-btn').addEventListener('click', tbRec);
+document.getElementById('menu-btn').addEventListener('click', toggleMenu);
+
+// Metronome
+document.getElementById('metro-play-hdr-btn').addEventListener('click', toggleMetro);
+document.getElementById('metro-collapse-btn').addEventListener('click', toggleMetroCollapse);
+document.getElementById('metro-play-btn').addEventListener('click', toggleMetro);
+document.querySelectorAll('.m-adj').forEach(b=>b.addEventListener('click', ()=>adjBPM(b.textContent==='−'?-1:1)));
+document.querySelectorAll('.m-adj-pad').forEach(b=>b.addEventListener('click', ()=>adjBPM(b.textContent==='−'?-1:1)));
+const _volMain=document.getElementById('metro-vol'),_volPad=document.getElementById('metro-vol-pad-input');
+_volMain.addEventListener('input', ()=>{setMetroVol(+_volMain.value);_volPad.value=_volMain.value;});
+_volPad.addEventListener('input', ()=>{setMetroVol(+_volPad.value);_volMain.value=_volPad.value;});
+document.querySelectorAll('[data-ts]').forEach(b=>b.addEventListener('click', ()=>setTS(+b.dataset.ts)));
+document.querySelectorAll('[data-sd]').forEach(b=>b.addEventListener('click', ()=>setSD(b.dataset.sd==='d'?'d':+b.dataset.sd)));
+
+// Reference note panel
+document.querySelector('#ref-panel .panel-close').addEventListener('click', closeRefAll);
+document.querySelectorAll('#ref-panel .ref-oct-btn').forEach(b=>b.addEventListener('click', ()=>adjRefOct(b.textContent==='−'?-1:1)));
+document.querySelectorAll('#ref-panel .ref-note-btn').forEach(b=>b.addEventListener('click', ()=>{
+  if(b.dataset.note==='도2')playRefHigh();else playRef(b.dataset.note);
+}));
+
+// Menu overlay
+document.querySelector('.menu-close-btn').addEventListener('click', toggleMenu);
+document.getElementById('settings-open-btn').addEventListener('click', openSettings);
+document.getElementById('rec-toggle-btn').addEventListener('click', tbRec);
+document.querySelectorAll('#menu-overlay .ref-oct-btn').forEach(b=>b.addEventListener('click', ()=>adjRefOct(b.textContent==='−'?-1:1)));
+document.querySelectorAll('#menu-overlay .ref-note-btn').forEach(b=>b.addEventListener('click', ()=>{
+  if(b.dataset.note==='도2')playRefHigh();else playRef(b.dataset.note);
+}));
+
+// Timer
+document.getElementById('timer-toggle-btn').addEventListener('click', toggleTimer);
+document.getElementById('timer-reset-btn').addEventListener('click', resetTimer);
+
+// Settings page
+document.getElementById('settings-back-btn').addEventListener('click', closeSettings);
+document.querySelectorAll('#cents-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setCentsStep(+b.dataset.v)));
+document.querySelectorAll('#smooth-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setSmoothStep(+b.dataset.v)));
+document.querySelectorAll('#rms-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setRmsStep(+b.dataset.v)));
+document.querySelectorAll('#aimode-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setAiMode(+b.dataset.v)));
+document.querySelectorAll('#wakelock-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setWakeLock(+b.dataset.v)));
+
+// Recording list (event delegation)
+const _recList=document.getElementById('rec-list');
+_recList.addEventListener('click', e=>{
+  const t=e.target.closest('[data-action]');if(!t)return;
+  const idx=+t.dataset.idx;
+  if(t.dataset.action==='toggle')toggleRecItem(idx);
+  else if(t.dataset.action==='play')recPlayPause(idx);
+  else if(t.dataset.action==='edit')openEditor(idx);
+  else if(t.dataset.action==='delete')deleteRec(idx);
 });
+_recList.addEventListener('input', e=>{
+  if(e.target.dataset.action==='seek')recSeek(+e.target.dataset.idx);
+});
+
+// Editor page
+document.getElementById('ed-back-btn').addEventListener('click', closeEditor);
+document.getElementById('ed-title-edit').addEventListener('click', edEditTitle);
+document.getElementById('ed-play-btn').addEventListener('click', edTogglePlay);
+document.getElementById('ed-speed').addEventListener('input', e=>edSetSpeed(+e.target.value));
+document.getElementById('ed-a-btn').addEventListener('click', edToggleA);
+document.getElementById('ed-b-btn').addEventListener('click', edToggleB);
+document.getElementById('ed-loop-btn').addEventListener('click', edToggleLoop);
+document.getElementById('ed-bm-add-btn').addEventListener('click', edAddBookmark);
+document.getElementById('ed-export-btn').addEventListener('click', edExportAB);
