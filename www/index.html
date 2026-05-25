@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Go practice">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Go practice</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Noto+Sans+KR:wght@300;400;500;700;900&family=Cormorant+Garamond:ital,wght@1,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff;--surface:#f2f2f2;--surface2:#e4e4e4;--border:#c8c8c8;
+  --text:#111111;--muted:#555555;--dim:#999999;
+  --red:#e53030;--green:#22c55e;--blue:#2563eb;
+  --r:14px;--gap:8px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0f0f0f;--surface:#1c1c1c;--surface2:#282828;--border:#383838;
+  --text:#f0f0f0;--muted:#888888;--dim:#555555;
+}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-weight:400;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes metroflash{0%{background:rgba(229,48,48,.32);border-color:var(--red)}60%{background:rgba(229,48,48,.12);border-color:var(--red)}100%{background:transparent;border-color:var(--border)}}
+
+/* ── 팝업 ── */
+#mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+#mic-popup-bg.show{opacity:1;pointer-events:all;}
+#mic-popup{background:#fff;border-radius:18px;padding:32px 24px;max-width:300px;width:90%;display:flex;flex-direction:column;gap:18px;text-align:center;}
+#mic-popup-title{font-size:19px;font-weight:700;color:#111;}
+#mic-popup-desc{font-size:15px;color:#555;line-height:1.65;}
+#mic-popup-btn{height:54px;background:var(--red);border:none;border-radius:12px;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:700;cursor:pointer;}
+#mic-popup-cancel{height:40px;background:transparent;border:none;color:#aaa;font-family:'Noto Sans KR',sans-serif;font-size:14px;cursor:pointer;}
+
+/* ── 앱 ── */
+#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));}
+
+/* ── 헤더 ── */
+#hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
+#logo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;color:var(--text);line-height:1;font-weight:600;letter-spacing:-.01em;}
+#logo-sub{font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
+#hdr-right{display:flex;align-items:center;gap:10px;}
+#hdr-rec-time{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-weight:500;display:none;letter-spacing:.04em;}
+#hdr-rec-time.show{display:block;}
+#rec-hdr-btn{padding:6px 12px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;letter-spacing:.06em;}
+#rec-hdr-btn.rec-on{border-color:var(--red);color:var(--red);animation:recpulse 1s infinite;}
+#rec-hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .2s;flex-shrink:0;}
+#menu-btn{padding:4px 10px;background:transparent;border:none;color:var(--text);font-size:26px;cursor:pointer;line-height:1;}
+
+/* ── 메인 ── */
+#main-body{display:flex;flex-direction:column;gap:var(--gap);width:100%;max-width:400px;flex:1;min-height:0;}
+
+/* ══════════════════════════════════
+   튜너 — 검정 배경, 최대 시인성
+══════════════════════════════════ */
+#tuner-card{flex:1;min-height:0;display:flex;flex-direction:column;background:#000;border-radius:var(--r);overflow:hidden;transition:box-shadow .2s;}
+#tuner-card.in-tune{box-shadow:0 0 0 3px var(--green),0 0 32px rgba(34,197,94,.55);}
+#tuner-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #1c1c1c;transition:border-color .06s;}
+@keyframes tunerbeat{0%{border-color:var(--red)}50%{border-color:var(--red)}100%{border-color:#1c1c1c}}
+@keyframes tunerbeatweak{0%{border-color:#aa2222}100%{border-color:#1c1c1c}}
+#tuner-hdr.beat-flash{animation:tunerbeat .5s ease-out forwards;}
+#tuner-hdr.beat-flash-weak{animation:tunerbeatweak .18s ease-out forwards;}
+#tuner-label{font-size:13px;color:#ffffff;font-weight:700;letter-spacing:.12em;}
+#ref-row{display:flex;align-items:center;gap:8px;}
+#ref-lbl{font-size:11px;color:#ffffff;letter-spacing:.06em;}
+#ref-drum-outer{position:relative;width:78px;height:28px;overflow:hidden;border-radius:7px;background:#111;cursor:ns-resize;user-select:none;touch-action:none;border:1px solid #222;}
+#ref-drum-outer::before,#ref-drum-outer::after{content:'';position:absolute;left:0;right:0;height:8px;z-index:2;pointer-events:none;}
+#ref-drum-outer::before{top:0;background:linear-gradient(to bottom,#111 20%,transparent);}
+#ref-drum-outer::after{bottom:0;background:linear-gradient(to top,#111 20%,transparent);}
+#ref-drum-sel{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:28px;border-top:.5px solid #22c55e;border-bottom:.5px solid #22c55e;pointer-events:none;z-index:1;}
+#ref-drum-inner{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;will-change:transform;}
+.ref-drum-item{height:28px;width:100%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;color:#444;user-select:none;flex-shrink:0;}
+.ref-drum-item.active{color:#fff;font-size:13px;font-weight:500;}
+
+#tuner-body{flex:1;min-height:0;padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px;}
+
+/* 음이름 + 이명동음 */
+#tuner-note-row{display:flex;align-items:center;justify-content:center;min-height:120px;position:relative;}
+/* 음이름 중앙 고정 래퍼 */
+#tuner-note-center-wrap{display:flex;flex-direction:column;align-items:center;}
+#tuner-note-main{position:relative;display:inline-block;}
+#tuner-note{font-family:'DM Mono',monospace;font-size:104px;font-weight:500;line-height:1;letter-spacing:-.02em;color:#ffffff;display:block;transition:color .08s;}
+#tuner-note.tune{color:#22c55e;text-shadow:0 0 20px rgba(34,197,94,1),0 0 40px rgba(34,197,94,.7),0 0 80px rgba(34,197,94,.4);}
+#tuner-note.empty{color:#2a2a2a;font-size:64px;letter-spacing:.05em;}
+/* ♯ — 음이름 오른쪽에 absolute로 붙음 → 음이름 위치에 영향 없음 */
+#tuner-acc{position:absolute;top:4px;left:calc(100% + 2px);font-family:'DM Mono',monospace;font-size:44px;font-weight:500;color:#ffffff;white-space:nowrap;transition:color .08s;}
+/* 옥타브 — 음이름 오른쪽 아래 */
+#tuner-oct{position:absolute;bottom:4px;left:calc(100% + 12px);font-family:'DM Mono',monospace;font-size:22px;color:#888;white-space:nowrap;}
+/* 이명동음 */
+#tuner-enharmonic{position:absolute;right:0;top:0;font-family:'DM Mono',monospace;font-size:15px;color:#555;}
+#tuner-right{position:absolute;right:0;bottom:2px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+#tuner-cents{font-family:'DM Mono',monospace;font-size:16px;color:#aaa;font-weight:500;text-align:right;}
+
+/* 히스토리 */
+#tuner-history{flex:1;min-height:80px;border-radius:8px;background:#000;display:block;width:100%;}
+
+/* 게이지 */
+#gauge-wrap{position:relative;height:6px;background:#1c1c1c;border-radius:3px;flex-shrink:0;}
+#gauge-zone{position:absolute;top:-2px;height:10px;background:#22c55e;opacity:.55;border-radius:4px;}
+#gauge-center{position:absolute;top:-4px;left:50%;width:1px;height:14px;background:#333;transform:translateX(-50%);}
+#gauge-needle{position:absolute;top:-8px;width:4px;height:22px;background:#666;border-radius:2px;transform:translateX(-50%);transition:left .07s;left:50%;}
+#gauge-needle.tune{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.9);}
+#gauge-needle.sharp{background:var(--red);}
+#gauge-needle.flat{background:var(--blue);}
+
+/* ══════════════════════════════════
+   메트로놈
+══════════════════════════════════ */
+#metro-card{background:var(--surface);border-radius:var(--r);border:2.5px solid var(--border);overflow:hidden;transition:border-color .06s,box-shadow .06s,background .1s;}
+#metro-card.flash-strong{animation:metroflash .22s ease-out forwards;}
+#metro-card.lit-weak{border-color:rgba(204,0,0,.45)!important;}
+
+#metro-hdr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:10px 14px;border-bottom:2px solid var(--border);gap:10px;}
+#metro-hdr-label{font-family:'DM Mono',monospace;font-size:20px;color:var(--text);font-weight:700;white-space:nowrap;cursor:ns-resize;touch-action:none;user-select:none;padding-right:10px;}
+#beat-vis{display:flex;align-items:center;justify-content:center;gap:7px;height:22px;}
+.bd{border-radius:50%;background:var(--border);transition:background .04s,transform .04s,box-shadow .04s;flex-shrink:0;}
+.bd.beat{width:15px;height:15px;}.bd.subdiv{width:8px;height:8px;}
+.bd.lit-a{background:var(--red);transform:scale(1.5);box-shadow:0 0 10px var(--red);}
+.bd.lit-b{background:var(--red);transform:scale(1.25);box-shadow:0 0 5px var(--red);}
+.bd.lit-s{background:#cc0000;transform:scale(1.1);}
+#metro-hdr-right{display:flex;align-items:center;gap:6px;}
+#metro-play-hdr-btn{width:44px;height:36px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
+#metro-collapse-btn{width:34px;height:34px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:14px;overflow:hidden;transition:max-height .28s ease,padding .28s ease,opacity .2s;}
+#metro-body.collapsed{max-height:0!important;padding-top:0;padding-bottom:0;opacity:0;pointer-events:none;}
+
+#metro-bpm-row{display:flex;align-items:center;gap:10px;}
+#metro-bpm-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;touch-action:none;}
+#metro-bpm{font-family:'DM Mono',monospace;font-size:56px;font-weight:500;line-height:1;min-width:90px;text-align:center;color:var(--text);}
+#metro-bpm-hint{font-size:10px;color:var(--dim);margin-top:2px;}
+#metro-adj-col{display:flex;flex-direction:column;gap:8px;flex:1;}
+#metro-btn-row{display:flex;gap:8px;}
+.m-adj{flex:1;height:50px;;background:transparent;border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#metro-play-btn{flex:1;height:50px;background:var(--red);border:none;border-radius:10px;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#metro-vol-row{display:flex;align-items:center;gap:8px;}
+.m-vol-lbl{font-size:16px;}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--red);border:2px solid var(--bg);cursor:pointer;}
+.m-grid{display:flex;gap:5px;}
+.m-seg{flex:1;padding:11px 0;background:transparent;border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Mono',monospace;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:all .1s;}
+.m-seg.on{border-color:var(--red);color:var(--red);background:rgba(229,48,48,.08);}
+
+/* ── 기준음 패널 ── */
+#ref-panel{position:fixed;bottom:0;left:0;right:0;max-width:400px;margin:0 auto;background:var(--surface);border-top:1.5px solid var(--border);border-radius:16px 16px 0 0;padding:18px;z-index:40;transform:translateY(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);}
+#ref-panel.open{transform:translateY(0);}
+.panel-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.panel-title{font-size:16px;color:var(--text);font-weight:700;}
+.panel-close{background:none;border:none;color:var(--muted);font-size:26px;cursor:pointer;line-height:1;}
+.ref-oct-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.ref-oct-lbl{font-size:14px;color:var(--text);font-weight:500;}
+.ref-oct-btn{width:40px;height:40px;background:var(--surface2);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#ref-oct-num-ext,#ref-oct-num-menu{font-family:'DM Mono',monospace;font-size:18px;color:var(--dim);font-weight:500;min-width:24px;text-align:center;}
+.ref-note-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;}
+.ref-note-grid .m-seg{flex:0 1 calc(12.5% - 5px);min-width:36px;padding:10px 0;font-size:14px;}
+
+/* ── 풀스크린 메뉴 ── */
+#menu-overlay{position:fixed;inset:0;background:var(--bg);z-index:50;opacity:0;pointer-events:none;transition:opacity .2s;overflow-y:auto;}
+#menu-overlay.open{opacity:1;pointer-events:all;}
+#menu-panel{min-height:100%;display:flex;flex-direction:column;padding:0 22px 32px;gap:22px;max-width:480px;margin:0 auto;}
+.menu-top{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;}
+.menu-title-txt{font-size:22px;font-weight:700;color:var(--text);}
+.menu-close-btn{padding:4px 10px;background:transparent;border:none;color:var(--text);font-size:26px;cursor:pointer;line-height:1;}
+.menu-sec{display:flex;flex-direction:column;gap:10px;}
+.menu-sec-title{font-size:16px;color:var(--text);font-weight:700;padding-bottom:9px;border-bottom:2px solid var(--text);}
+.timer-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.timer-box{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;}
+.timer-lbl{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:5px;}
+.timer-val{font-family:'DM Mono',monospace;font-size:32px;color:var(--text);font-weight:500;}
+.menu-btn-sm{padding:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:700;cursor:pointer;text-align:center;width:100%;}
+.menu-btn-sm.active{border-color:var(--red);color:var(--red);}
+#rec-list{display:flex;flex-direction:column;gap:8px;}
+.rec-item{background:var(--surface);border:1.5px solid var(--border);border-radius:11px;padding:13px 15px;}
+.rec-item-detail{display:none;margin-top:10px;}
+.rec-item-detail.open{display:flex;flex-direction:column;gap:7px;}
+.rec-item-btn{flex:1;padding:9px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:17px;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;}
+.rec-play-btn{width:44px;height:44px;background:transparent;border:none;color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rec-seek{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:var(--border);border-radius:2px;outline:none;cursor:pointer;}
+.rec-seek::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--text)!important;border:2px solid var(--bg);cursor:pointer;}
+.rec-time{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);white-space:nowrap;min-width:38px;text-align:right;}
+.rec-player{display:flex;flex-direction:column;gap:7px;}
+.rec-player-top{display:flex;align-items:center;gap:8px;}
+.rec-item-btns{display:flex;gap:5px;}
+.menu-action{width:100%;padding:14px;background:transparent;border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:700;cursor:pointer;text-align:center;}
+.menu-action.rec-active{border-color:var(--red);color:var(--red);}
+
+/* ── 설정 페이지 ── */
+#settings-page{position:fixed;inset:0;background:var(--bg);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;overflow-y:auto;}
+#settings-page.open{opacity:1;pointer-events:all;}
+#settings-inner{min-height:100%;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 16px) 22px 32px;gap:20px;max-width:480px;margin:0 auto;}
+.settings-top{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+.settings-back{background:none;border:none;color:var(--text);font-size:28px;cursor:pointer;line-height:1;}
+.settings-title{font-size:22px;font-weight:700;color:var(--text);}
+.setting-row{display:flex;flex-direction:column;gap:14px;padding:18px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;}
+.setting-lbl{font-size:17px;font-weight:700;color:var(--text);}
+.setting-desc{font-size:13px;color:var(--muted);margin-top:-6px;}
+.step-row{display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;}
+.step-btn{flex:1;padding:11px 0;background:transparent;border:none;border-right:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:14px;font-weight:700;cursor:pointer;text-align:center;transition:all .1s;position:relative;}
+.step-btn:last-child{border-right:none;}
+.step-btn.on{background:var(--red);color:#fff;}
+
+/* ── 토스트 ── */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(10px);background:#111;border-radius:10px;padding:10px 20px;font-size:14px;color:#fff;opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:nowrap;z-index:200;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(orientation:landscape)and(max-height:500px){body::after{content:'화면을 세로로 돌려주세요';position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:15px;color:var(--muted);z-index:999;pointer-events:all;}}
+@media(min-width:700px){
+  #hdr,#main-body{max-width:680px;}
+  #main-body{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:1;min-height:0;width:100%;}
+  #ref-panel{max-width:680px;}
+  .bd.beat{width:17px;height:17px;}.bd.subdiv{width:9px;height:9px;}
+  #beat-vis{gap:8px;height:24px;}
+  #metro-bpm-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  #metro-bpm-wrap{flex:1;}
+  #metro-bpm{font-size:84px;text-align:left;line-height:1;}
+  #metro-bpm-hint{text-align:left;}
+  #metro-adj-col{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;}
+  #metro-btn-row{display:flex;gap:0;}
+  .m-adj{display:none!important;}
+  #metro-play-btn{width:76px;height:76px;font-size:34px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;}
+  #metro-vol-row{display:none!important;}
+  #metro-adj-pad{display:flex!important;gap:8px;}
+  .m-adj-pad{flex:1;height:52px;background:transparent;border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  #metro-vol-pad{display:flex!important;}
+  #metro-grids-wrap{display:flex;flex-direction:column;gap:8px;}
+  #metro-grids-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  #ts-grid,#sd-grid{display:flex;flex-direction:column;gap:5px;}
+  .m-seg{padding:16px 0;font-size:17px;}
+  #metro-collapse-btn{display:none!important;}
+  #metro-body{max-height:none!important;opacity:1!important;pointer-events:auto!important;}
+}
+</style>
+</head>
+<body>
+
+<div id="mic-popup-bg">
+  <div id="mic-popup">
+    <div id="mic-popup-title">마이크 접근 필요</div>
+    <div id="mic-popup-desc">소리 감지를 위해<br>마이크를 켜주세요</div>
+    <button id="mic-popup-btn" onclick="allowMic()">마이크 켜기</button>
+    <button id="mic-popup-cancel" onclick="closeMicPopup()">나중에</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="hdr">
+    <div>
+      <div id="logo" onclick="toggleFullscreen()" style="cursor:pointer;">Go practice</div>
+      <div id="logo-sub">play more · tune better</div>
+    </div>
+    <div id="hdr-right">
+      <button id="hdr-mic-btn" onclick="openMic().then(ok=>{if(ok)toast('마이크가 켜졌어요')})" style="padding:6px 11px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;display:flex;align-items:center;gap:4px;">
+        <span style="font-size:10px;">●</span>MIC
+      </button>
+      <span id="hdr-rec-time">0:00</span>
+      <button id="rec-hdr-btn" onclick="tbRec()" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
+      <button id="menu-btn" onclick="toggleMenu()">≡</button>
+    </div>
+  </div>
+
+  <div id="main-body">
+
+    <!-- 튜너 -->
+    <div id="tuner-card">
+      <div id="tuner-hdr">
+        <span id="tuner-label">TUNER</span>
+        <div id="ref-row">
+          <span id="ref-lbl">A =</span>
+          <div id="ref-drum-outer"><div id="ref-drum-sel"></div><div id="ref-drum-inner"></div></div>
+        </div>
+      </div>
+      <div id="tuner-body">
+        <div id="tuner-note-row">
+          <div id="tuner-note-center-wrap">
+            <div id="tuner-note-main">
+              <div id="tuner-note" class="empty">--</div>
+              <span id="tuner-acc"></span>
+              <div id="tuner-oct"></div>
+            </div>
+          </div>
+          <div id="tuner-enharmonic"></div>
+          <div id="tuner-right">
+            <span id="tuner-cents"></span>
+          </div>
+        </div>
+        <canvas id="tuner-history"></canvas>
+        <div id="gauge-wrap">
+          <div id="gauge-center"></div>
+          <div id="gauge-zone"></div>
+          <div id="gauge-needle"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 메트로놈 -->
+    <div id="metro-card">
+      <div id="metro-hdr" style="position:relative;">
+        <span id="metro-hdr-label">♩ 80</span>
+        <div id="beat-vis"></div>
+        <div id="metro-hdr-right">
+          <button id="metro-play-hdr-btn" onclick="toggleMetro()">■</button>
+          <button id="metro-collapse-btn" onclick="toggleMetroCollapse()">▼</button>
+        </div>
+      </div>
+      <div id="metro-body">
+        <div id="metro-bpm-row">
+          <div id="metro-bpm-wrap">
+            <div id="metro-bpm">80</div>
+            <span id="metro-bpm-hint">↕ 드래그</span>
+          </div>
+          <div id="metro-adj-col">
+            <div id="metro-btn-row">
+              <button class="m-adj" onclick="adjBPM(-1)">−</button>
+              <button class="m-adj" onclick="adjBPM(+1)">+</button>
+              <button id="metro-play-btn" onclick="toggleMetro()">▶</button>
+            </div>
+            <div id="metro-vol-row">
+              <span class="m-vol-lbl">🔈</span>
+              <input type="range" id="metro-vol" min="0" max="1" step="0.05" value="0.7" oninput="setMetroVol(+this.value)">
+            </div>
+          </div>
+        </div>
+        <div id="metro-adj-pad" style="display:none;">
+          <button class="m-adj-pad" onclick="adjBPM(-1)">−</button>
+          <button class="m-adj-pad" onclick="adjBPM(+1)">+</button>
+        </div>
+        <div id="metro-vol-pad" style="display:none;align-items:center;gap:8px;">
+          <span class="m-vol-lbl">🔈</span>
+          <input type="range" id="metro-vol-pad-input" min="0" max="1" step="0.05" value="0.7" oninput="setMetroVol(+this.value);document.getElementById('metro-vol').value=this.value;">
+        </div>
+        <div id="metro-grids-wrap">
+          <div class="m-grid" id="ts-grid">
+            <button class="m-seg" data-ts="2" onclick="setTS(2)">2/4</button>
+            <button class="m-seg" data-ts="3" onclick="setTS(3)">3/4</button>
+            <button class="m-seg on" data-ts="4" onclick="setTS(4)">4/4</button>
+            <button class="m-seg" data-ts="6" onclick="setTS(6)">6/8</button>
+          </div>
+          <div class="m-grid" id="sd-grid">
+            <button class="m-seg on" data-sd="1" onclick="setSD(1)">♩</button>
+            <button class="m-seg" data-sd="2" onclick="setSD(2)">♩♩</button>
+            <button class="m-seg" data-sd="3" onclick="setSD(3)">♩♩♩</button>
+            <button class="m-seg" data-sd="d" onclick="setSD('d')">♩.</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 기준음 패널 -->
+<div id="ref-panel">
+  <div class="panel-hdr"><span class="panel-title">기준음</span><button class="panel-close" onclick="closeRefAll()">✕</button></div>
+  <div class="ref-oct-row">
+    <span class="ref-oct-lbl">옥타브</span>
+    <button class="ref-oct-btn" onclick="adjRefOct(-1)">−</button>
+    <span id="ref-oct-num-ext">4</span>
+    <button class="ref-oct-btn" onclick="adjRefOct(1)">+</button>
+  </div>
+  <div class="ref-note-grid" style="margin-bottom:7px;">
+    <button class="m-seg ref-note-btn" data-note="도" onclick="playRef('도')">도</button>
+    <button class="m-seg ref-note-btn" data-note="레" onclick="playRef('레')">레</button>
+    <button class="m-seg ref-note-btn" data-note="미" onclick="playRef('미')">미</button>
+    <button class="m-seg ref-note-btn" data-note="파" onclick="playRef('파')">파</button>
+    <button class="m-seg ref-note-btn" data-note="솔" onclick="playRef('솔')">솔</button>
+    <button class="m-seg ref-note-btn" data-note="라" onclick="playRef('라')">라</button>
+    <button class="m-seg ref-note-btn" data-note="시" onclick="playRef('시')">시</button>
+    <button class="m-seg ref-note-btn" data-note="도2" onclick="playRefHigh()">도↑</button>
+  </div>
+  <div class="ref-note-grid">
+    <button class="m-seg ref-note-btn" data-note="도♯" onclick="playRef('도♯')">도♯</button>
+    <button class="m-seg ref-note-btn" data-note="레♯" onclick="playRef('레♯')">레♯</button>
+    <button class="m-seg ref-note-btn" data-note="파♯" onclick="playRef('파♯')">파♯</button>
+    <button class="m-seg ref-note-btn" data-note="솔♯" onclick="playRef('솔♯')">솔♯</button>
+    <button class="m-seg ref-note-btn" data-note="라♯" onclick="playRef('라♯')">라♯</button>
+  </div>
+</div>
+
+<!-- 풀스크린 메뉴 -->
+<div id="menu-overlay">
+  <div id="menu-panel">
+    <div class="menu-top">
+      <span class="menu-title-txt">메뉴</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-right:-6px;">
+        <button onclick="openSettings()" style="padding:6px 12px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.06em;display:flex;align-items:center;">⚙ 설정</button>
+        <button class="menu-close-btn" onclick="toggleMenu()">✕</button>
+      </div>
+    </div>
+
+    <!-- 1. 녹음 -->
+    <div class="menu-sec">
+      <div class="menu-sec-title">녹음</div>
+      <button class="menu-action" id="rec-toggle-btn" onclick="tbRec()">녹음 시작</button>
+      <div id="rec-list"></div>
+    </div>
+
+    <!-- 2. 기준음 -->
+    <div class="menu-sec">
+      <div class="menu-sec-title">기준음</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="ref-oct-lbl">옥타브</span>
+          <button class="ref-oct-btn" onclick="adjRefOct(-1)">−</button>
+          <span id="ref-oct-num-menu">4</span>
+          <button class="ref-oct-btn" onclick="adjRefOct(1)">+</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="ref-note-grid">
+          <button class="m-seg ref-note-btn" data-note="도" onclick="playRef('도')">도</button>
+          <button class="m-seg ref-note-btn" data-note="레" onclick="playRef('레')">레</button>
+          <button class="m-seg ref-note-btn" data-note="미" onclick="playRef('미')">미</button>
+          <button class="m-seg ref-note-btn" data-note="파" onclick="playRef('파')">파</button>
+          <button class="m-seg ref-note-btn" data-note="솔" onclick="playRef('솔')">솔</button>
+          <button class="m-seg ref-note-btn" data-note="라" onclick="playRef('라')">라</button>
+          <button class="m-seg ref-note-btn" data-note="시" onclick="playRef('시')">시</button>
+          <button class="m-seg ref-note-btn" data-note="도2" onclick="playRefHigh()">도↑</button>
+        </div>
+        <div class="ref-note-grid">
+          <button class="m-seg ref-note-btn" data-note="도♯" onclick="playRef('도♯')">도♯</button>
+          <button class="m-seg ref-note-btn" data-note="레♯" onclick="playRef('레♯')">레♯</button>
+          <button class="m-seg ref-note-btn" data-note="파♯" onclick="playRef('파♯')">파♯</button>
+          <button class="m-seg ref-note-btn" data-note="솔♯" onclick="playRef('솔♯')">솔♯</button>
+          <button class="m-seg ref-note-btn" data-note="라♯" onclick="playRef('라♯')">라♯</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 타이머 -->
+    <div class="menu-sec">
+      <div class="menu-sec-title">타이머</div>
+      <div class="timer-grid">
+        <div class="timer-box"><div class="timer-lbl">연습 시간</div><div class="timer-val" id="timer-elapsed">00:00</div></div>
+        <div class="timer-box"><div class="timer-lbl">연주 시간</div><div class="timer-val" id="timer-detected">00:00</div></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="menu-btn-sm" id="timer-toggle-btn" onclick="toggleTimer()" style="flex:1;">시작</button>
+        <button class="menu-btn-sm" onclick="resetTimer()" style="flex:1;">초기화</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 설정 페이지 -->
+<div id="settings-page">
+  <div id="settings-inner">
+    <div class="settings-top">
+      <button class="settings-back" onclick="closeSettings()">←</button>
+      <span class="settings-title">설정</span>
+    </div>
+
+    <!-- In-tune 범위 -->
+    <div class="setting-row">
+      <span class="setting-lbl">In-tune 범위</span>
+      <span class="setting-desc">초록색으로 표시되는 허용 범위 (cents)</span>
+      <div class="step-row" id="cents-steps">
+        <button class="step-btn" data-v="5" onclick="setCentsStep(5)">±5</button>
+        <button class="step-btn on" data-v="10" onclick="setCentsStep(10)">±10</button>
+        <button class="step-btn" data-v="15" onclick="setCentsStep(15)">±15</button>
+        <button class="step-btn" data-v="20" onclick="setCentsStep(20)">±20</button>
+        <button class="step-btn" data-v="25" onclick="setCentsStep(25)">±25</button>
+      </div>
+    </div>
+
+    <!-- 튜너 반응 속도 -->
+    <div class="setting-row">
+      <span class="setting-lbl">튜너 반응 속도</span>
+      <span class="setting-desc">빠를수록 음정 변화에 즉각 반응</span>
+      <div class="step-row" id="smooth-steps">
+        <button class="step-btn" data-v="1" onclick="setSmoothStep(1)">느림</button>
+        <button class="step-btn on" data-v="2" onclick="setSmoothStep(2)">보통</button>
+        <button class="step-btn" data-v="3" onclick="setSmoothStep(3)">빠름</button>
+      </div>
+    </div>
+
+    <!-- 마이크 감도 -->
+    <div class="setting-row">
+      <span class="setting-lbl">마이크 감도</span>
+      <span class="setting-desc">작은 소리도 감지하려면 높음으로</span>
+      <div class="step-row" id="rms-steps">
+        <button class="step-btn" data-v="1" onclick="setRmsStep(1)">낮음</button>
+        <button class="step-btn on" data-v="2" onclick="setRmsStep(2)">보통</button>
+        <button class="step-btn" data-v="3" onclick="setRmsStep(3)">높음</button>
+      </div>
+    </div>
+
+    <!-- AI 연주 시간 감지 -->
+    <div class="setting-row">
+      <span class="setting-lbl">AI 연주 시간 감지</span>
+      <span class="setting-desc">꺼짐 시 배터리가 절약됩니다.</span>
+      <div class="step-row" id="aimode-steps">
+        <button class="step-btn on" data-v="1" onclick="setAiMode(1)">켜짐</button>
+        <button class="step-btn" data-v="0" onclick="setAiMode(0)">꺼짐</button>
+      </div>
+    </div>
+
+    <!-- 화면 항상 켜짐 -->
+    <div class="setting-row">
+      <span class="setting-lbl">화면 항상 켜짐</span>
+      <span class="setting-desc">켜짐: 연습 중 화면이 꺼지지 않음</span>
+      <div class="step-row" id="wakelock-steps">
+        <button class="step-btn on" data-v="1" onclick="setWakeLock(1)">켜짐</button>
+        <button class="step-btn" data-v="0" onclick="setWakeLock(0)">꺼짐</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script>
+'use strict';
+const CFG={
+  // [변경] noiseFloor: -52 → -30 (주변 소음 차단 강화)
+  detect:{fftSize:4096,fftSmooth:.88,hzMin:80,hzMax:4800,noiseFloor:-30,peakMargin:4,harmonicDrop:35,harmonicMin:3,holdFrames:60},
+  yamnet:{intervalMs:975,threshold:.50,sampleRate:16000,inputLen:15600,stringIdx:new Set([132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147])},
+  // [변경] rmsMin: .005 → .025 (기본 감도 보수적으로), lockFrames: 2 → 6 (왔다갔다 감소)
+  tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.025,lockFrames:6,smoothing:.18,histLen:360,tolCents:10},
+  metro:{bpmMin:20,bpmMax:220,lookaheadS:.4,intervalMs:25,clickDurS:.05,muteTunerMs:70,swipePxPerBpm:2},
+  inactiveMs:15*60*1000,refMin:432,refMax:448,refDefault:442,
+};
+
+const KR=['도','도♯','레','레♯','미','파','파♯','솔','솔♯','라','라♯','시'];
+const ENHARMONIC={'도♯':'레♭','레♯':'미♭','파♯':'솔♭','솔♯':'라♭','라♯':'시♭'};
+const KR_MIDI={'도':0,'도♯':1,'레':2,'레♯':3,'미':4,'파':5,'파♯':6,'솔':7,'솔♯':8,'라':9,'라♯':10,'시':11};
+
+const S={micReady:false,running:false,strOK:false,detFreq:0,holdFrames:0,yamnetOK:false,lastYamnetMs:0,smoothFreq:-1,lockedMidi:-1,lockCount:0,histData:new Array(CFG.tuner.histLen).fill(null),bpm:80,timeSig:4,subDiv:1,metroPlaying:false,refHz:CFG.refDefault,elapsedSec:0,detectedSec:0,timerRunning:false,lastActivityMs:Date.now()};
+const A={micStream:null,micAC:null,analyserFFT:null,analyserTD:null,fftBuf:null,tdBuf:null,binCount:0,sampleRate:44100,scriptProc:null,pcm16k:new Float32Array(31200),pcmPos:0,isClick:false,wakeLock:null,yamnet:null,yamnetReady:false,yamnetRunning:false,metroTimer:null,metroNext:0,metroTick:0,recorder:null,recChunks:[],recording:false,recStartTime:0,recTimerInt:null,refOsc:null,refGain:null,refOctave:4};
+const recItems=[];
+let _metroCollapsed=false;
+let _wakeLockEnabled=true;
+let _aiModeEnabled=true;
+
+async function loadYamnet(){try{let w=0;while(typeof tf==='undefined'&&w<10000){await new Promise(r=>setTimeout(r,200));w+=200;}A.yamnet=await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',{fromTFHub:true});A.yamnetReady=true;}catch(e){A.yamnetReady=true;}}
+loadYamnet();
+if(window.Capacitor){openMic();}else{showMicPopup();}
+
+// ── 설정 스텝 ──
+function setCentsStep(v){
+  CFG.tuner.tolCents=v;
+  document.querySelectorAll('#cents-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  saveSettings();
+}
+// [변경] RMS_LEVELS 전체 상향: 낮음.035 / 보통.025 / 높음.015
+const RMS_LEVELS=[.035,.025,.015];
+function setRmsStep(v){
+  CFG.tuner.rmsMin=RMS_LEVELS[v-1];
+  document.querySelectorAll('#rms-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  saveSettings();
+}
+const SMOOTH_LEVELS=[.05,.10,.15];
+function setSmoothStep(v){
+  CFG.tuner.smoothing=SMOOTH_LEVELS[v-1];
+  document.querySelectorAll('#smooth-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  saveSettings();
+}
+function openSettings(){document.getElementById('settings-page').classList.add('open');}
+function closeSettings(){document.getElementById('settings-page').classList.remove('open');}
+
+// ── 팝업 ──
+function showMicPopup(){document.getElementById('mic-popup-bg').classList.add('show');}
+function closeMicPopup(){document.getElementById('mic-popup-bg').classList.remove('show');}
+async function allowMic(){document.getElementById('mic-popup-btn').textContent='연결 중...';document.getElementById('mic-popup-btn').disabled=true;const ok=await openMic();if(ok){closeMicPopup();}else{document.getElementById('mic-popup-btn').textContent='다시 시도';document.getElementById('mic-popup-btn').disabled=false;}}
+
+// ── 마이크 ──
+let _micOpening=false;
+async function openMic(){
+  if(_micOpening)return false;_micOpening=true;
+  try{
+    A.micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1,sampleRate:44100}});
+    A.micAC=new(window.AudioContext||window.webkitAudioContext)();A.sampleRate=A.micAC.sampleRate;
+    A.analyserFFT=A.micAC.createAnalyser();A.analyserFFT.fftSize=CFG.detect.fftSize;A.analyserFFT.smoothingTimeConstant=CFG.detect.fftSmooth;A.binCount=A.analyserFFT.frequencyBinCount;A.fftBuf=new Float32Array(A.binCount);
+    A.analyserTD=A.micAC.createAnalyser();A.analyserTD.fftSize=CFG.tuner.fftSize;A.analyserTD.smoothingTimeConstant=0;A.tdBuf=new Float32Array(CFG.tuner.fftSize);
+    A.scriptProc=A.micAC.createScriptProcessor(4096,1,1);
+    const ratio=A.sampleRate/16000;
+    A.scriptProc.onaudioprocess=e=>{const inp=e.inputBuffer.getChannelData(0);for(let i=0;i<inp.length;i+=ratio){A.pcm16k[A.pcmPos%A.pcm16k.length]=inp[Math.floor(i)];A.pcmPos++;}};
+    if(A.micAC.state==='suspended')await A.micAC.resume();
+    const src=A.micAC.createMediaStreamSource(A.micStream);src.connect(A.analyserFFT);src.connect(A.analyserTD);src.connect(A.scriptProc);
+    S.micReady=true;S.running=true;requestWakeLock();startRaf();_micOpening=false;
+    const mb=document.getElementById('hdr-mic-btn');if(mb)mb.style.display='none';
+    const rhb=document.getElementById('rec-hdr-btn');if(rhb)rhb.style.opacity='1';
+    return true;
+  }catch(e){toast('마이크 오류: '+e.message);_micOpening=false;return false;}
+}
+function closeMic(){
+  S.running=false;S.micReady=false;S.strOK=false;
+  if(S.metroPlaying)stopMetro();stopRefNote();if(A.recording)stopRec();
+  A.micStream?.getTracks().forEach(t=>t.stop());A.scriptProc?.disconnect();A.micAC?.close();
+  A.micStream=null;A.micAC=null;A.analyserFFT=null;A.analyserTD=null;A.scriptProc=null;A.pcmPos=0;
+  A.wakeLock?.release();A.wakeLock=null;
+  stopRaf();stopSessionTimer();
+  const nEl=document.getElementById('tuner-note');nEl.textContent='--';nEl.className='empty';
+  const accEl=document.getElementById('tuner-acc');if(accEl)accEl.textContent='';
+  ['tuner-oct','tuner-cents','tuner-enharmonic'].forEach(id=>document.getElementById(id).textContent='');
+  document.getElementById('tuner-card').classList.remove('in-tune');drawGauge(null);
+  const mb=document.getElementById('hdr-mic-btn');if(mb)mb.style.display='flex';
+  const rhb2=document.getElementById('rec-hdr-btn');if(rhb2)rhb2.style.opacity='.35';
+}
+async function requestWakeLock(){if(!_wakeLockEnabled)return;try{A.wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}
+document.addEventListener('visibilitychange',async()=>{if(S.running&&document.visibilityState==='visible'){A.micAC?.resume();if(_wakeLockEnabled)try{A.wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}});
+
+// ── 타이머 ──
+let _sessInt=null;
+function stopSessionTimer(){clearInterval(_sessInt);S.timerRunning=false;const tb=document.getElementById('timer-toggle-btn');if(tb){tb.textContent='시작';tb.classList.remove('active');}}
+function toggleTimer(){
+  S.timerRunning=!S.timerRunning;const btn=document.getElementById('timer-toggle-btn');
+  if(S.timerRunning){
+    clearInterval(_sessInt);
+    _sessInt=setInterval(()=>{
+      if(!S.timerRunning)return;
+      S.elapsedSec++;if(S.strOK)S.detectedSec++;
+      document.getElementById('timer-elapsed').textContent=fmt(S.elapsedSec);
+      document.getElementById('timer-detected').textContent=fmt(S.detectedSec);
+      if(Date.now()-S.lastActivityMs>CFG.inactiveMs){toast('비활성으로 마이크 자동 종료');closeMic();}
+    },1000);
+    btn.textContent='정지';btn.classList.add('active');
+  }else{clearInterval(_sessInt);btn.textContent='시작';btn.classList.remove('active');}
+}
+function resetTimer(){
+  clearInterval(_sessInt);
+  S.timerRunning=false;S.elapsedSec=0;S.detectedSec=0;
+  const tb=document.getElementById('timer-toggle-btn');
+  if(tb){tb.textContent='시작';tb.classList.remove('active');}
+  document.getElementById('timer-elapsed').textContent='00:00';
+  document.getElementById('timer-detected').textContent='00:00';
+}
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+
+// ── REC 헤더 시간 ──
+function startRecTimer(){
+  clearInterval(A.recTimerInt);let s=0;
+  const el=document.getElementById('hdr-rec-time');
+  el.textContent=fmt(0);el.classList.add('show');
+  A.recTimerInt=setInterval(()=>{s++;el.textContent=fmt(s);},1000);
+}
+function stopRecTimer(){clearInterval(A.recTimerInt);const el=document.getElementById('hdr-rec-time');el.classList.remove('show');el.textContent='0:00';}
+
+// ── A= 드럼 피커 ──
+const REF_IH=28,REF_MIN=CFG.refMin,REF_MAX=CFG.refMax;
+let refDrumY=0,refDrumDrag=false,refSY=0,refSDY=0;
+const refOuter=document.getElementById('ref-drum-outer'),refInner=document.getElementById('ref-drum-inner');
+(function(){for(let hz=REF_MIN;hz<=REF_MAX;hz++){const el=document.createElement('div');el.className='ref-drum-item';el.textContent=hz+' Hz';refInner.appendChild(el);}})();
+function refHzToY(hz){return-(hz-REF_MIN)*REF_IH;}
+function refYToHz(y){return Math.round(-y/REF_IH)+REF_MIN;}
+function setRefDrumY(y,anim=false){refDrumY=y;refInner.style.transition=anim?'transform .18s cubic-bezier(.25,.46,.45,.94)':'none';refInner.style.transform=`translateY(${y}px)`;const hz=Math.max(REF_MIN,Math.min(REF_MAX,refYToHz(y)));document.querySelectorAll('.ref-drum-item').forEach((el,i)=>el.classList.toggle('active',i+REF_MIN===hz));}
+function snapRefDrum(){S.refHz=Math.max(REF_MIN,Math.min(REF_MAX,refYToHz(refDrumY)));setRefDrumY(refHzToY(S.refHz),true);}
+refOuter.addEventListener('mousedown',e=>{refDrumDrag=true;refSY=e.clientY;refSDY=refDrumY;refInner.style.transition='none';e.preventDefault();});
+window.addEventListener('mousemove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.max(refHzToY(REF_MAX),Math.min(refHzToY(REF_MIN),refSDY+(e.clientY-refSY))));});
+window.addEventListener('mouseup',()=>{if(refDrumDrag){refDrumDrag=false;snapRefDrum();}});
+refOuter.addEventListener('touchstart',e=>{refDrumDrag=true;refSY=e.touches[0].clientY;refSDY=refDrumY;refInner.style.transition='none';},{passive:true});
+window.addEventListener('touchmove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.max(refHzToY(REF_MAX),Math.min(refHzToY(REF_MIN),refSDY+(e.touches[0].clientY-refSY))));},{passive:true});
+window.addEventListener('touchend',()=>{if(refDrumDrag){refDrumDrag=false;snapRefDrum();}});
+setRefDrumY(refHzToY(S.refHz));setTimeout(()=>setRefDrumY(refHzToY(S.refHz)),30);
+
+// ── FFT / YAMNet / YIN ──
+function fftDetect(){
+  if(!A.analyserFFT)return false;
+  A.analyserFFT.getFloatFrequencyData(A.fftBuf);
+  const lo=Math.floor(CFG.detect.hzMin*A.binCount*2/A.sampleRate),hi=Math.min(Math.floor(CFG.detect.hzMax*A.binCount*2/A.sampleRate),A.binCount-1);
+  let peak=-Infinity,pkB=0,sum=0,n=0;
+  for(let i=lo;i<=hi;i++){if(A.fftBuf[i]>peak){peak=A.fftBuf[i];pkB=i;}if(A.fftBuf[i]>-90){sum+=A.fftBuf[i];n++;}}
+  if(peak<CFG.detect.noiseFloor||n===0||peak-sum/n<CFG.detect.peakMargin)return false;
+  let h=0;for(const m of[2,3,4,5]){const b=Math.round(pkB*m);if(b<A.binCount&&A.fftBuf[b]>peak-CFG.detect.harmonicDrop)h++;}
+  if(h<CFG.detect.harmonicMin)return false;
+  S.detFreq=Math.round(pkB*A.sampleRate/(A.binCount*2));return true;
+}
+async function runYamnet(){
+  const Y=CFG.yamnet;if(!A.yamnet||A.yamnetRunning||A.pcmPos<Y.inputLen)return;A.yamnetRunning=true;let wf=null,res=null;
+  try{const s=new Float32Array(Y.inputLen),st=A.pcmPos-Y.inputLen;for(let i=0;i<Y.inputLen;i++)s[i]=A.pcm16k[(st+i)%A.pcm16k.length];wf=tf.tensor1d(s);res=A.yamnet.predict(wf);const sc=Array.isArray(res)?res[0]:res;const arr=await sc.array(),flat=Array.isArray(arr[0])?arr[0]:arr;let mx=0;for(const idx of Y.stringIdx){if(flat[idx]>mx)mx=flat[idx];}S.yamnetOK=mx>=Y.threshold;}
+  catch(e){S.yamnetOK=true;}
+  finally{if(wf)wf.dispose();if(res){if(Array.isArray(res))res.forEach(t=>t.dispose());else res.dispose();}A.yamnetRunning=false;}
+}
+let _yf=0,_ly=-1;
+function yin(buf,sr){
+  if(++_yf%4!==0)return _ly;
+  const N=buf.length,half=Math.floor(N/2);let rms=0;for(let i=0;i<N;i++)rms+=buf[i]*buf[i];if(Math.sqrt(rms/N)<CFG.tuner.rmsMin)return _ly=-1;
+  const d=new Float32Array(half);for(let tau=1;tau<half;tau++){let s=0;for(let j=0;j<half;j++){const dif=buf[j]-buf[j+tau];s+=dif*dif;}d[tau]=s;}
+  const c=new Float32Array(half);c[0]=1;let run=0;for(let tau=1;tau<half;tau++){run+=d[tau];c[tau]=run===0?0:d[tau]/(run/tau);}
+  let t=-1;for(let tau=2;tau<half-1;tau++){if(c[tau]<CFG.tuner.yinThreshold){while(tau+1<half&&c[tau+1]<c[tau])tau++;t=tau;break;}}
+  if(t===-1){let mn=Infinity;for(let tau=2;tau<half;tau++){if(c[tau]<mn){mn=c[tau];t=tau;}}if(t===-1||mn>.5)return _ly=-1;}
+  const b=(t>0&&t<half-1)?t+(c[t+1]-c[t-1])/(2*(2*c[t]-c[t-1]-c[t+1])):t;
+  return _ly=b<=0?-1:sr/b;
+}
+
+// ── 튜너 UI ──
+function updateTunerUI(raw){
+  const nEl=document.getElementById('tuner-note'),oEl=document.getElementById('tuner-oct'),cEl=document.getElementById('tuner-cents'),eEl=document.getElementById('tuner-enharmonic');
+  if(raw===-1){
+    S.smoothFreq=-1;S.lockedMidi=-1;S.lockCount=0;
+    nEl.textContent='--';nEl.className='empty';oEl.textContent='';cEl.textContent='';eEl.textContent='';
+    // [변경] 빈 화면일 때 acc(샾 표시) 도 초기화
+    const accEl2=document.getElementById('tuner-acc');if(accEl2)accEl2.textContent='';
+    document.getElementById('tuner-card').classList.remove('in-tune');
+    S.histData.push(null);S.histData.shift();drawGauge(null);drawHistory();return;
+  }
+  S.lastActivityMs=Date.now();
+  const corrMidi=Math.round(12*Math.log2(raw/440))+69;
+  if(corrMidi===S.lockedMidi){S.smoothFreq=S.smoothFreq===-1?raw:S.smoothFreq+(raw-S.smoothFreq)*CFG.tuner.smoothing;}
+  else{S.lockCount++;if(S.lockCount>=CFG.tuner.lockFrames){S.lockedMidi=corrMidi;S.lockCount=0;S.smoothFreq=raw;}else if(S.smoothFreq===-1)S.smoothFreq=raw;}
+  const freq=S.smoothFreq,midi=Math.round(12*Math.log2(freq/440))+69;
+  const refAdjusted=440*Math.pow(2,(midi-69)/12)*(S.refHz/440);
+  const cents=Math.round(1200*Math.log2(freq/refAdjusted));
+  const noteIdx=((midi%12)+12)%12,octave=Math.floor(midi/12)-1;
+  const inTune=Math.abs(cents)<=CFG.tuner.tolCents;
+  const noteName=KR[noteIdx];
+
+  // [변경] 음이름과 샾 분리: 베이스(도/레/미...)는 고정 중앙, ♯은 별도 span
+  const noteBase=noteName.replace('♯','');
+  const noteAcc=noteName.includes('♯')?'♯':'';
+  nEl.textContent=noteBase;
+  nEl.className=inTune?'tune':'';
+  const accEl=document.getElementById('tuner-acc');
+  if(accEl){accEl.textContent=noteAcc;accEl.style.color=inTune?'#22c55e':'#ffffff';}
+
+  oEl.textContent=octave;
+  eEl.textContent=ENHARMONIC[noteName]||'';
+  document.getElementById('tuner-card').classList.toggle('in-tune',inTune);
+  cEl.textContent=(cents>0?'+':'')+cents+' ¢';
+  S.histData.push(cents);S.histData.shift();drawGauge(cents);drawHistory();
+}
+
+function drawGauge(cents){
+  const needle=document.getElementById('gauge-needle'),zone=document.getElementById('gauge-zone'),wrap=document.getElementById('gauge-wrap');
+  const W=wrap.offsetWidth||300,ppc=(W/2)/50,tol=CFG.tuner.tolCents;
+  zone.style.left=(W/2-tol*ppc)+'px';zone.style.width=(tol*2*ppc)+'px';
+  if(cents===null){needle.style.left='50%';needle.className='';return;}
+  needle.style.left=(W/2+Math.max(-50,Math.min(50,cents))*ppc)+'px';
+  needle.className=Math.abs(cents)<=tol?'tune':cents>0?'sharp':'flat';
+}
+
+function drawHistory(){
+  const canvas=document.getElementById('tuner-history');if(!canvas||!canvas.offsetWidth)return;
+  const W=canvas.offsetWidth,H=Math.max(80,canvas.offsetHeight||100),dpr=devicePixelRatio||1;
+  if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);canvas.style.width=W+'px';canvas.style.height=H+'px';}
+  const c=canvas.getContext('2d');c.save();c.scale(dpr,dpr);
+  c.fillStyle='#000';c.fillRect(0,0,W,H);
+  const inTune=document.getElementById('tuner-card').classList.contains('in-tune');
+  if(inTune){c.fillStyle='rgba(34,197,94,.07)';c.fillRect(0,0,W,H);}
+  const ppc=(W/2)/50,tol=CFG.tuner.tolCents,N=S.histData.length,rH=H/N;
+  c.fillStyle='rgba(34,197,94,.65)';
+  c.fillRect(W/2-tol*ppc,0,tol*2*ppc,H);
+  c.strokeStyle='rgba(255,255,255,.06)';c.lineWidth=.5;c.setLineDash([2,4]);
+  c.beginPath();c.moveTo(W/2,0);c.lineTo(W/2,H);c.stroke();c.setLineDash([]);
+  c.lineWidth=2.5;c.lineCap='round';
+  for(let i=0;i<N-1;i++){
+    const v0=S.histData[i],v1=S.histData[i+1];if(v0===null||v1===null)continue;
+    const y0=(i+.5)*rH,y1=(i+1.5)*rH;
+    const x0=W/2+Math.max(-50,Math.min(50,v0))*ppc;
+    const x1=W/2+Math.max(-50,Math.min(50,v1))*ppc;
+    const alpha=.22+(i/(N-1))*.78;
+    c.globalAlpha=alpha;
+    c.strokeStyle=Math.abs(v0)<=tol?'#4ade80':'#ffffff';
+    c.beginPath();c.moveTo(x0,y0);c.lineTo(x1,y1);c.stroke();
+  }
+  c.globalAlpha=1;c.restore();
+}
+
+// ── 메트로놈 ──
+let _metroVol=0.7,_bpmDebounce=null;
+(function(){
+  function attachDrag(el){
+    let sy=0,sb=0,sw=false;
+    el.addEventListener('mousedown',e=>{sw=true;sy=e.clientY;sb=S.bpm;e.preventDefault();});
+    window.addEventListener('mousemove',e=>{if(!sw)return;setBPM(sb+Math.round((sy-e.clientY)/CFG.metro.swipePxPerBpm));});
+    window.addEventListener('mouseup',()=>{sw=false;});
+    el.addEventListener('touchstart',e=>{sw=true;sy=e.touches[0].clientY;sb=S.bpm;},{passive:true});
+    window.addEventListener('touchmove',e=>{if(!sw)return;setBPM(sb+Math.round((sy-e.touches[0].clientY)/CFG.metro.swipePxPerBpm));},{passive:true});
+    window.addEventListener('touchend',()=>{sw=false;});
+  }
+  attachDrag(document.getElementById('metro-bpm-wrap'));
+  attachDrag(document.getElementById('metro-hdr-label'));
+})();
+
+function setMetroVol(v){_metroVol=v;}
+function getTickInterval(){const b=60/S.bpm;if(S.timeSig===6)return b/2;if(S.subDiv==='d')return A.metroTick%2===0?b*3/4:b*1/4;return b/S.subDiv;}
+function getTotalTicks(){return S.subDiv==='d'?S.timeSig*2:S.timeSig*S.subDiv;}
+function scheduleClick(time,tick){
+  if(!A.micAC)return;
+  const dl=Math.max(0,(time-A.micAC.currentTime)*1000);
+  setTimeout(()=>{litBeat(tick);flashBeat(tick);},dl);
+  if(A.recording){
+    setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);
+    return;
+  }
+  const osc=A.micAC.createOscillator(),gain=A.micAC.createGain();osc.connect(gain);gain.connect(A.micAC.destination);
+  let freq,vol;
+  if(S.subDiv==='d'){const b1=tick===0,bs=tick%2===0;freq=b1?1800:bs?1100:750;vol=b1?.75:bs?.42:.18;}
+  else{const b1=tick===0,ib=tick%S.subDiv===0;freq=b1?1800:ib?1100:750;vol=b1?.75:ib?.42:.18;}
+  vol=Math.min(1,vol*(_metroVol/.7));osc.type='triangle';
+  gain.gain.setValueAtTime(vol,time);gain.gain.exponentialRampToValueAtTime(.001,time+CFG.metro.clickDurS);
+  osc.frequency.value=freq;osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(time);osc.stop(time+CFG.metro.clickDurS);
+  setTimeout(()=>{A.isClick=true;},dl-5);setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);
+}
+function metroSched(){while(A.metroNext<A.micAC.currentTime+CFG.metro.lookaheadS){scheduleClick(A.metroNext,A.metroTick);A.metroNext+=getTickInterval();A.metroTick=(A.metroTick+1)%getTotalTicks();}A.metroTimer=setTimeout(metroSched,CFG.metro.intervalMs);}
+function startMetro(){
+  if(!A.micAC){toast('마이크를 먼저 켜주세요');return;}
+  S.metroPlaying=true;A.metroTick=0;A.metroNext=A.micAC.currentTime+.05;metroSched();
+  if(window.innerWidth<700){
+    document.getElementById('metro-body').classList.add('collapsed');
+    document.getElementById('metro-play-hdr-btn').style.display='flex';
+    document.getElementById('metro-collapse-btn').style.display='none';
+  }
+  document.getElementById('metro-play-btn').textContent='■';
+  document.getElementById('metro-play-btn').style.borderColor='var(--red)';
+  buildBeatVis();
+}
+function stopMetro(){
+  S.metroPlaying=false;clearTimeout(A.metroTimer);
+  if(window.innerWidth<700){
+    if(!_metroCollapsed)document.getElementById('metro-body').classList.remove('collapsed');
+    document.getElementById('metro-play-hdr-btn').style.display='none';
+    document.getElementById('metro-collapse-btn').style.display='flex';
+  }
+  document.getElementById('metro-play-btn').textContent='▶';
+  document.getElementById('metro-play-btn').style.borderColor='var(--border)';
+  document.querySelectorAll('.bd').forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));
+}
+function toggleMetro(){S.metroPlaying?stopMetro():startMetro();}
+function toggleMetroCollapse(){
+  _metroCollapsed=!_metroCollapsed;
+  const body=document.getElementById('metro-body'),btn=document.getElementById('metro-collapse-btn');
+  body.classList.toggle('collapsed',_metroCollapsed);
+  btn.textContent=_metroCollapsed?'▲':'▼';
+  if(_metroCollapsed){document.querySelectorAll('.bd').forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));}
+}
+function setBPM(v){
+  S.bpm=Math.max(CFG.metro.bpmMin,Math.min(CFG.metro.bpmMax,v));
+  document.getElementById('metro-bpm').textContent=S.bpm;
+  document.getElementById('metro-hdr-label').textContent='♩ '+S.bpm;
+  if(S.metroPlaying){clearTimeout(_bpmDebounce);_bpmDebounce=setTimeout(()=>{stopMetro();startMetro();},300);}
+}
+function adjBPM(d){setBPM(S.bpm+d);}
+function setTS(v){S.timeSig=v;document.querySelectorAll('[data-ts]').forEach(b=>b.classList.toggle('on',+b.dataset.ts===v));const is68=v===6;document.getElementById('sd-grid').style.opacity=is68?'.3':'1';document.getElementById('sd-grid').style.pointerEvents=is68?'none':'auto';document.querySelectorAll('[data-sd="1"]').forEach(b=>b.textContent=is68?'♪':'♩');if(is68){S.subDiv=1;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd==='1'));}buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}}
+function setSD(v){S.subDiv=v;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd===String(v)));buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}}
+function buildBeatVis(){const wrap=document.getElementById('beat-vis');wrap.innerHTML='';const total=getTotalTicks();for(let i=0;i<total;i++){const dot=document.createElement('div');dot.className='bd '+(S.subDiv==='d'?(i%2===0?'beat':'subdiv'):(i%S.subDiv===0?'beat':'subdiv'));dot.dataset.tick=i;wrap.appendChild(dot);}}
+buildBeatVis();
+function litBeat(tick){
+  if(!S.metroPlaying)return;
+  document.querySelectorAll('.bd').forEach(d=>{d.classList.remove('lit-a','lit-b','lit-s');if(+d.dataset.tick!==tick)return;if(tick===0)d.classList.add('lit-a');else d.classList.add((S.subDiv==='d'?tick%2===0:tick%S.subDiv===0)?'lit-b':'lit-s');});
+}
+function flashBeat(tick){
+  if(!S.metroPlaying)return;
+  const card=document.getElementById('metro-card');
+  card.classList.remove('flash-strong','lit-weak');
+  if(window.innerWidth<700){
+    const th=document.getElementById('tuner-hdr');
+    th.classList.remove('beat-flash','beat-flash-weak');void th.offsetWidth;
+    if(tick===0){th.classList.add('beat-flash');}
+    else{th.classList.add('beat-flash-weak');}
+  }
+  if(tick===0){void card.offsetWidth;card.classList.add('flash-strong');}
+  else{card.classList.add('lit-weak');clearTimeout(card._ft);card._ft=setTimeout(()=>card.classList.remove('lit-weak'),100);}
+}
+
+// ── 기준음 ──
+function closeRefAll(){document.getElementById('ref-panel').classList.remove('open');stopRefNote();}
+function adjRefOct(d){
+  A.refOctave=Math.max(2,Math.min(6,A.refOctave+d));
+  document.querySelectorAll('#ref-oct-num-ext,#ref-oct-num-menu').forEach(el=>{if(el)el.textContent=A.refOctave;});
+  const on=document.querySelector('.ref-note-btn.on');
+  if(on){const note=on.dataset.note;if(note==='도2')playRefHigh();else if(note)playRef(note);}
+}
+function playRefHigh(){
+  const alreadyOn=document.querySelector('.ref-note-btn[data-note="도2"].on');
+  if(alreadyOn){stopRefNote();return;}
+  stopRefNote();if(!A.micAC)return;const midi=0+(A.refOctave+2)*12,freq=S.refHz*Math.pow(2,(midi-69)/12);A.refOsc=A.micAC.createOscillator();A.refGain=A.micAC.createGain();A.refOsc.type='triangle';A.refOsc.frequency.value=freq;A.refOsc.connect(A.refGain);A.refGain.connect(A.micAC.destination);A.refGain.gain.setValueAtTime(.22,A.micAC.currentTime);A.refOsc.start();document.querySelectorAll('.ref-note-btn').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.ref-note-btn[data-note="도2"]').forEach(b=>b.classList.add('on'));
+}
+function playRef(name){
+  const alreadyOn=document.querySelector('.ref-note-btn[data-note="'+name+'"].on');
+  if(alreadyOn){stopRefNote();return;}
+  stopRefNote();if(!A.micAC)return;const semi=KR_MIDI[name];if(semi===undefined)return;document.querySelectorAll('.ref-note-btn').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.ref-note-btn[data-note="'+name+'"]').forEach(b=>b.classList.add('on'));const midi=semi+(A.refOctave+1)*12,freq=S.refHz*Math.pow(2,(midi-69)/12);A.refOsc=A.micAC.createOscillator();A.refGain=A.micAC.createGain();A.refOsc.type='triangle';A.refOsc.frequency.value=freq;A.refOsc.connect(A.refGain);A.refGain.connect(A.micAC.destination);A.refGain.gain.setValueAtTime(.22,A.micAC.currentTime);A.refOsc.start();
+}
+function stopRefNoteBtn(){stopRefNote();}
+function stopRefNote(){document.querySelectorAll('.ref-note-btn').forEach(b=>b.classList.remove('on'));if(A.refOsc&&A.refGain&&A.micAC){try{A.refGain.gain.cancelScheduledValues(A.micAC.currentTime);A.refGain.gain.setValueAtTime(A.refGain.gain.value,A.micAC.currentTime);A.refGain.gain.exponentialRampToValueAtTime(.001,A.micAC.currentTime+.05);A.refOsc.stop(A.micAC.currentTime+.05);}catch(e){}A.refOsc=null;A.refGain=null;}}
+
+// ── 녹음 ──
+function tbRec(){if(!S.micReady){toast('마이크를 먼저 켜주세요');return;}if(A.recording)stopRec();else startRec();}
+function startRec(){
+  if(!A.micStream)return;A.recChunks=[];A.recStartTime=Date.now();
+  const _mimes=['audio/webm;codecs=opus','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm',''];
+  const _mime=_mimes.find(m=>!m||MediaRecorder.isTypeSupported(m))||'';
+  const _recOpts={audioBitsPerSecond:256000};if(_mime)_recOpts.mimeType=_mime;
+  A.recorder=new MediaRecorder(A.micStream,_recOpts);
+  A.recorder.ondataavailable=e=>{if(e.data.size>0)A.recChunks.push(e.data);};
+  A.recorder.onstop=()=>{
+    const blob=new Blob(A.recChunks,{type:A.recorder.mimeType||'audio/webm'});
+    const url=URL.createObjectURL(blob);
+    const dur=Math.round((Date.now()-A.recStartTime)/1000);
+    const n=new Date(A.recStartTime);
+    const name=`${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}_${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}`;
+    recItems.unshift({url,name,dur,blob,mime:A.recorder.mimeType});renderRecList();
+  };
+  A.recorder.start();A.recording=true;
+  const rb=document.getElementById('rec-hdr-btn');if(rb)rb.classList.add('rec-on');
+  const rh=document.getElementById('rec-hdr-dot');if(rh){rh.style.background='var(--red)';rh.style.animation='pulse 1s infinite';}
+  const tb=document.getElementById('rec-toggle-btn');
+  tb.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:7px;vertical-align:middle;animation:pulse 1s infinite;flex-shrink:0;"></span>REC 중지';
+  tb.classList.add('rec-active');
+  startRecTimer();toast('녹음 시작');
+}
+function stopRec(){
+  A.recorder?.stop();A.recording=false;
+  const rb=document.getElementById('rec-hdr-btn');if(rb)rb.classList.remove('rec-on');
+  const rh=document.getElementById('rec-hdr-dot');if(rh){rh.style.background='var(--muted)';rh.style.animation='none';}
+  const tb=document.getElementById('rec-toggle-btn');tb.innerHTML='녹음 시작';tb.classList.remove('rec-active');
+  stopRecTimer();toast('녹음 완료');
+}
+function fmtT(s){if(!isFinite(s)||isNaN(s)||s<0)return '00:00';return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');}
+const _recPlayers={};
+function getRecPlayer(idx){if(!_recPlayers[idx]){const a=new Audio(recItems[idx].url);a.ontimeupdate=()=>{const sk=document.getElementById('rec-seek-'+idx),tm=document.getElementById('rec-time-'+idx);if(sk&&a.duration){sk.max=a.duration;sk.value=a.currentTime;}if(tm)tm.textContent=fmtT(a.currentTime);};a.onended=()=>{const btn=document.getElementById('rec-pb-'+idx);if(btn)btn.textContent='▶';const sk=document.getElementById('rec-seek-'+idx);if(sk)sk.value=0;const tm=document.getElementById('rec-time-'+idx);if(tm)tm.textContent='0:00';a.currentTime=0;};_recPlayers[idx]=a;}return _recPlayers[idx];}
+function recPlayPause(idx){const a=getRecPlayer(idx),btn=document.getElementById('rec-pb-'+idx);Object.keys(_recPlayers).forEach(i=>{if(+i!==idx&&!_recPlayers[i].paused){_recPlayers[i].pause();const b=document.getElementById('rec-pb-'+i);if(b)b.textContent='▶';}});if(a.paused){a.play();if(btn)btn.textContent='■';}else{a.pause();if(btn)btn.textContent='▶';}}
+function recSeek(idx){const sk=document.getElementById('rec-seek-'+idx),a=getRecPlayer(idx);if(sk&&a.duration)a.currentTime=+sk.value;}
+function renderRecList(){
+  Object.keys(_recPlayers).forEach(i=>{_recPlayers[i].pause();delete _recPlayers[i];});
+  const list=document.getElementById('rec-list');list.innerHTML='';
+  if(recItems.length===0)return;
+  const renderItem=(item,idx,defaultOpen)=>{
+    const div=document.createElement('div');div.className='rec-item';
+    const m=Math.floor(item.dur/60),s=String(item.dur%60).padStart(2,'0');
+    const _ext=item.mime&&item.mime.includes('mp4')?'m4a':'webm';
+    div.innerHTML=`
+      <div onclick="toggleRecItem(${idx})" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <span class="rec-item-name" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;"></span>
+        <span style="font-size:13px;color:var(--muted);">${m}:${s}</span>
+      </div>
+      <div class="rec-item-detail${defaultOpen?' open':''}" id="rec-detail-${idx}">
+        <div class="rec-player">
+          <div class="rec-player-top">
+            <button class="rec-play-btn" id="rec-pb-${idx}" onclick="recPlayPause(${idx})">▶</button>
+            <input type="range" class="rec-seek" id="rec-seek-${idx}" value="0" min="0" step="0.01" oninput="recSeek(${idx})">
+            <span class="rec-time" id="rec-time-${idx}">00:00</span>
+          </div>
+          <div class="rec-item-btns">
+            <button class="rec-item-btn" onclick="openEditor(${idx})" style="font-size:12px;font-weight:700;letter-spacing:.04em;">편집</button>
+            <a class="rec-item-btn rec-dl-link" href="${item.url}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">다운로드</a>
+            <button class="rec-item-btn del" onclick="deleteRec(${idx})">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    div.querySelector('.rec-item-name').textContent=item.name;
+    const dlLink=div.querySelector('.rec-dl-link');
+    dlLink.download='gopractice_'+item.name+'.'+_ext;
+    return div;
+  };
+  list.appendChild(renderItem(recItems[0],0,true));
+  if(recItems.length>1){
+    const oldWrap=document.createElement('div');
+    const toggleBtn=document.createElement('button');
+    toggleBtn.style.cssText='width:100%;padding:10px;background:transparent;border:1.5px solid var(--border);border-radius:9px;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;text-align:center;margin-top:4px;';
+    toggleBtn.textContent=`이전 녹음 ${recItems.length-1}개 보기`;
+    let oldOpen=false;
+    const oldList=document.createElement('div');oldList.style.display='none';
+    recItems.slice(1).forEach((_,i)=>oldList.appendChild(renderItem(recItems[i+1],i+1,false)));
+    toggleBtn.onclick=()=>{
+      oldOpen=!oldOpen;
+      oldList.style.display=oldOpen?'flex':'none';
+      oldList.style.flexDirection='column';oldList.style.gap='6px';
+      toggleBtn.textContent=oldOpen?`이전 녹음 접기`:`이전 녹음 ${recItems.length-1}개 보기`;
+    };
+    oldWrap.appendChild(toggleBtn);oldWrap.appendChild(oldList);
+    list.appendChild(oldWrap);
+  }
+}
+function toggleRecItem(idx){document.getElementById('rec-detail-'+idx)?.classList.toggle('open');}
+function deleteRec(idx){if(_recPlayers[idx]){try{_recPlayers[idx].pause();}catch(e){}delete _recPlayers[idx];}URL.revokeObjectURL(recItems[idx].url);recItems.splice(idx,1);renderRecList();}
+
+// ══════════════════════════════════
+// 편집 페이지
+// ══════════════════════════════════
+const _ed={idx:-1,item:null,audio:null,ptA:null,ptB:null,looping:false,bookmarks:[],dragging:null};
+
+function openEditor(idx){
+  const item=recItems[idx];if(!item)return;
+  if(_ed.audio){_ed.audio.pause();_ed.audio=null;}
+  _ed.idx=idx;_ed.item=item;
+  _ed.ptA=null;_ed.ptB=null;_ed.looping=false;_ed.bookmarks=[];_ed.dragging=null;
+  const audio=new Audio(item.url);
+  audio.preservesPitch=true;audio.playbackRate=1.0;audio.preload='auto';
+  _ed.audio=audio;
+  const updateDur=()=>{
+    const d=isFinite(audio.duration)&&audio.duration>0
+      ? Math.max(item.dur||0, Math.round(audio.duration))
+      : (item.dur||0);
+    document.getElementById('ed-dur').textContent=fmtT(d);
+  };
+  audio.addEventListener('loadedmetadata',updateDur);
+  audio.addEventListener('durationchange',updateDur);
+  if(audio.readyState>=1&&isFinite(audio.duration)&&audio.duration>0){updateDur();}
+  const edReadyHandler=()=>{
+    const btn=document.getElementById('ed-play-btn');
+    if(btn){btn.textContent='▶';btn.style.opacity='1';btn.disabled=false;}
+    clearTimeout(_ed._readyTimeout);
+  };
+  _ed._readyTimeout=setTimeout(edReadyHandler,3000);
+  audio.addEventListener('canplaythrough',edReadyHandler,{once:true});
+  const _ext=item.mime&&item.mime.includes('mp4')?'m4a':'webm';
+  const _dlA=document.getElementById('ed-dl-btn');
+  if(_dlA){_dlA.href=item.url;_dlA.download='gopractice_'+item.name+'.'+_ext;}
+  audio.addEventListener('timeupdate',edOnTimeUpdate);
+  audio.addEventListener('ended',()=>{
+    document.getElementById('ed-play-btn').textContent='▶';
+    if(_ed.looping&&_ed.ptA!==null&&_ed.ptB!==null){audio.currentTime=_ed.ptA;audio.play();document.getElementById('ed-play-btn').textContent='■';}
+  });
+  audio.load();
+  document.getElementById('editor-title-display').textContent=item.name;
+  document.getElementById('ed-cur').textContent='00:00';
+  document.getElementById('ed-dur').textContent=item.dur?fmtT(item.dur):'--:--';
+  const _pb=document.getElementById('ed-play-btn');
+  _pb.textContent='▶';_pb.style.opacity='.4';_pb.disabled=true;
+  if(audio.readyState>=3){_pb.style.opacity='1';_pb.disabled=false;}
+  document.getElementById('ed-speed').value=1.0;
+  document.getElementById('ed-speed-val').textContent='1.0×';
+  document.getElementById('ed-progress').style.width='0%';
+  document.getElementById('ed-pos-handle').style.left='0%';
+  document.getElementById('ed-ab-range').style.display='none';
+  document.getElementById('ed-a-handle').style.display='none';
+  document.getElementById('ed-b-handle').style.display='none';
+  document.getElementById('ed-ab-times').style.display='none';
+  document.getElementById('ed-bm-ticks').innerHTML='';
+  document.getElementById('ed-bookmarks').innerHTML='<span id="ed-bm-empty" style="font-size:12px;color:var(--dim);">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>';
+  edResetABtn();edResetBBtn();edResetLoopBtn();
+  document.getElementById('ed-export-btn').style.color='var(--dim)';
+  document.getElementById('ed-export-btn').style.borderColor='var(--border)';
+  document.getElementById('editor-page').style.display='flex';
+  edInitDrag();
+}
+
+function closeEditor(){
+  if(_ed.audio){_ed.audio.pause();_ed.audio=null;}
+  clearTimeout(_ed._readyTimeout);
+  if(_ed._mmHandler)window.removeEventListener('mousemove',_ed._mmHandler);
+  if(_ed._muHandler)window.removeEventListener('mouseup',_ed._muHandler);
+  if(_ed._tmHandler)window.removeEventListener('touchmove',_ed._tmHandler);
+  if(_ed._teHandler)window.removeEventListener('touchend',_ed._teHandler);
+  _ed._mmHandler=_ed._muHandler=_ed._tmHandler=_ed._teHandler=null;
+  document.getElementById('editor-page').style.display='none';
+}
+
+function edEditTitle(){
+  const display=document.getElementById('editor-title-display');
+  const current=_ed.item?_ed.item.name:'';
+  const newName=prompt('파일 이름 수정', current);
+  if(newName&&newName.trim()&&_ed.idx>=0&&recItems[_ed.idx]){
+    recItems[_ed.idx].name=newName.trim();
+    display.textContent=newName.trim();
+    renderRecList();
+  }
+}
+
+function edOnTimeUpdate(){
+  if(_ed.dragging)return;
+  const a=_ed.audio;if(!a||!isFinite(a.duration)||a.duration===0)return;
+  const t=a.currentTime,d=a.duration,pct=(t/d*100).toFixed(3)+'%';
+  document.getElementById('ed-cur').textContent=fmtT(t);
+  document.getElementById('ed-pos-handle').style.left=pct;
+  document.getElementById('ed-progress').style.width=pct;
+  if(_ed.looping&&_ed.ptA!==null&&_ed.ptB!==null&&t>=_ed.ptB){a.currentTime=_ed.ptA;}
+}
+
+function edPctFromClient(clientX){
+  const track=document.getElementById('ed-track');
+  const rect=track.getBoundingClientRect();
+  return Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+}
+
+function edInitDrag(){
+  if(_ed._mmHandler)window.removeEventListener('mousemove',_ed._mmHandler);
+  if(_ed._muHandler)window.removeEventListener('mouseup',_ed._muHandler);
+  if(_ed._tmHandler)window.removeEventListener('touchmove',_ed._tmHandler);
+  if(_ed._teHandler)window.removeEventListener('touchend',_ed._teHandler);
+  const posH=document.getElementById('ed-pos-handle');
+  const aH=document.getElementById('ed-a-handle');
+  const bH=document.getElementById('ed-b-handle');
+  const track=document.getElementById('ed-track');
+  track.addEventListener('click',e=>{
+    if(_ed.dragging)return;
+    if(e.target.closest('#ed-pos-handle,#ed-a-handle,#ed-b-handle'))return;
+    if(_ed.audio&&isFinite(_ed.audio.duration)){
+      const t=edPctFromClient(e.clientX)*_ed.audio.duration;
+      _ed.audio.currentTime=t;
+      const pct=(t/_ed.audio.duration*100).toFixed(3)+'%';
+      document.getElementById('ed-pos-handle').style.left=pct;
+      document.getElementById('ed-progress').style.width=pct;
+      document.getElementById('ed-cur').textContent=fmtT(t);
+    }
+  });
+  const startDrag=(which)=>{_ed.dragging=which;};
+  const edUpdatePosUI=(t)=>{
+    if(!_ed.audio||!isFinite(_ed.audio.duration))return;
+    const pct=(t/_ed.audio.duration*100).toFixed(3)+'%';
+    document.getElementById('ed-pos-handle').style.left=pct;
+    document.getElementById('ed-progress').style.width=pct;
+    document.getElementById('ed-cur').textContent=fmtT(t);
+  };
+  const moveDrag=(clientX)=>{
+    if(!_ed.dragging||!_ed.audio||!isFinite(_ed.audio.duration))return;
+    const t=edPctFromClient(clientX)*_ed.audio.duration;
+    if(_ed.dragging==='pos'){const clamped=Math.max(0,Math.min(_ed.audio.duration,t));_ed.audio.currentTime=clamped;edUpdatePosUI(clamped);}
+    else if(_ed.dragging==='a'){_ed.ptA=Math.max(0,Math.min(_ed.ptB!==null?_ed.ptB-0.1:_ed.audio.duration,t));edUpdateHandles();edUpdateABtn();edCheckExportBtn();}
+    else if(_ed.dragging==='b'){_ed.ptB=Math.max(_ed.ptA!==null?_ed.ptA+0.1:0,Math.min(_ed.audio.duration,t));edUpdateHandles();edUpdateBBtn();edCheckExportBtn();}
+  };
+  const endDrag=()=>{_ed.dragging=null;if(_ed.audio&&isFinite(_ed.audio.duration))edUpdatePosUI(_ed.audio.currentTime);};
+  posH.addEventListener('mousedown',e=>{e.stopPropagation();startDrag('pos');});
+  aH.addEventListener('mousedown',e=>{e.stopPropagation();startDrag('a');});
+  bH.addEventListener('mousedown',e=>{e.stopPropagation();startDrag('b');});
+  posH.addEventListener('touchstart',e=>{e.stopPropagation();startDrag('pos');},{passive:true});
+  aH.addEventListener('touchstart',e=>{e.stopPropagation();startDrag('a');},{passive:true});
+  bH.addEventListener('touchstart',e=>{e.stopPropagation();startDrag('b');},{passive:true});
+  _ed._mmHandler=e=>moveDrag(e.clientX);
+  _ed._muHandler=endDrag;
+  _ed._tmHandler=e=>{if(_ed.dragging)moveDrag(e.touches[0].clientX);};
+  _ed._teHandler=endDrag;
+  window.addEventListener('mousemove',_ed._mmHandler);
+  window.addEventListener('mouseup',_ed._muHandler);
+  window.addEventListener('touchmove',_ed._tmHandler,{passive:true});
+  window.addEventListener('touchend',_ed._teHandler);
+}
+
+function edUpdateHandles(){
+  if(!_ed.audio||!isFinite(_ed.audio.duration))return;
+  const d=_ed.audio.duration;
+  if(_ed.ptA!==null){
+    const pA=(_ed.ptA/d*100).toFixed(3)+'%';
+    const aH=document.getElementById('ed-a-handle');
+    aH.style.display='block';aH.style.left=pA;
+    const abTimes=document.getElementById('ed-ab-times');
+    abTimes.style.display='flex';
+    document.getElementById('ed-a-time').textContent='A '+fmtT(_ed.ptA);
+  }
+  if(_ed.ptB!==null){
+    const pB=(_ed.ptB/d*100).toFixed(3)+'%';
+    const bH=document.getElementById('ed-b-handle');
+    bH.style.display='block';bH.style.left=pB;
+    document.getElementById('ed-b-time').textContent='B '+fmtT(_ed.ptB);
+  }
+  if(_ed.ptA!==null&&_ed.ptB!==null){
+    const r=document.getElementById('ed-ab-range');
+    r.style.display='block';
+    r.style.left=(_ed.ptA/d*100).toFixed(3)+'%';
+    r.style.width=((_ed.ptB-_ed.ptA)/d*100).toFixed(3)+'%';
+  }
+}
+
+function edTogglePlay(){
+  if(!_ed.audio)return;
+  const btn=document.getElementById('ed-play-btn');
+  if(_ed.audio.paused){
+    if(_ed.ptA!==null&&_ed.audio.currentTime<_ed.ptA){_ed.audio.currentTime=_ed.ptA;}
+    btn.textContent='■';
+    const tryPlay=()=>{
+      const p=_ed.audio&&_ed.audio.play();
+      if(p&&p.catch)p.catch(()=>{setTimeout(()=>{if(_ed.audio&&_ed.audio.paused){const p2=_ed.audio.play();if(p2&&p2.catch)p2.catch(()=>{btn.textContent='▶';});}},50);});
+    };
+    if(_ed.audio.readyState<2){_ed.audio.addEventListener('canplay',tryPlay,{once:true});}
+    else{tryPlay();}
+  }else{_ed.audio.pause();btn.textContent='▶';}
+}
+
+function edSetSpeed(v){
+  const disp=v===1.0?'1.0':v.toFixed(2);
+  document.getElementById('ed-speed-val').textContent=disp+'×';
+  if(_ed.audio){_ed.audio.playbackRate=v;_ed.audio.preservesPitch=true;}
+}
+
+function edToggleA(){
+  if(_ed.ptA!==null){
+    _ed.ptA=null;_ed.ptB=null;_ed.looping=false;
+    document.getElementById('ed-a-handle').style.display='none';
+    document.getElementById('ed-b-handle').style.display='none';
+    document.getElementById('ed-ab-range').style.display='none';
+    document.getElementById('ed-ab-times').style.display='none';
+    edResetABtn();edResetBBtn();edResetLoopBtn();edCheckExportBtn();
+  }else{
+    if(!_ed.audio||!isFinite(_ed.audio.duration))return;
+    _ed.ptA=_ed.audio.currentTime;
+    edUpdateHandles();edUpdateABtn();
+    document.getElementById('ed-b-btn').style.opacity='1';
+    edCheckExportBtn();
+  }
+}
+
+function edToggleB(){
+  if(_ed.ptA===null){toast('먼저 A 지점을 설정해주세요');return;}
+  if(_ed.ptB!==null){
+    _ed.ptB=null;_ed.looping=false;
+    document.getElementById('ed-b-handle').style.display='none';
+    document.getElementById('ed-ab-range').style.display='none';
+    document.getElementById('ed-b-time').textContent='B —';
+    edResetBBtn();edResetLoopBtn();edCheckExportBtn();
+  }else{
+    if(!_ed.audio||!isFinite(_ed.audio.duration))return;
+    const t=_ed.audio.currentTime;
+    if(t<=_ed.ptA){toast('B는 A보다 뒤여야 해요');return;}
+    _ed.ptB=t;
+    edUpdateHandles();edUpdateBBtn();
+    document.getElementById('ed-loop-btn').style.opacity='1';
+    edCheckExportBtn();
+  }
+}
+
+function edToggleLoop(){
+  if(_ed.ptA===null||_ed.ptB===null){toast('A, B 지점을 먼저 설정해주세요');return;}
+  _ed.looping=!_ed.looping;
+  const btn=document.getElementById('ed-loop-btn');
+  if(_ed.looping){
+    btn.style.borderColor='var(--red)';btn.style.color='var(--red)';
+    btn.querySelector('span').textContent='켜짐';
+    _ed.audio.currentTime=_ed.ptA;
+    if(_ed.audio.paused){_ed.audio.play();document.getElementById('ed-play-btn').textContent='■';}
+  }else{
+    btn.style.borderColor='var(--border)';btn.style.color='var(--muted)';
+    btn.querySelector('span').textContent='꺼짐';
+  }
+}
+
+function edUpdateABtn(){const btn=document.getElementById('ed-a-btn');btn.style.borderColor='var(--red)';btn.style.color='var(--red)';btn.querySelector('span').textContent=fmtT(_ed.ptA);}
+function edUpdateBBtn(){const btn=document.getElementById('ed-b-btn');btn.style.borderColor='var(--red)';btn.style.color='var(--red)';btn.querySelector('span').textContent=fmtT(_ed.ptB);}
+function edResetABtn(){const btn=document.getElementById('ed-a-btn');btn.style.borderColor='';btn.style.color='var(--muted)';btn.querySelector('span').textContent='설정';}
+function edResetBBtn(){const btn=document.getElementById('ed-b-btn');btn.style.borderColor='';btn.style.color='var(--muted)';btn.style.opacity='0.4';btn.querySelector('span').textContent='설정';}
+function edResetLoopBtn(){const btn=document.getElementById('ed-loop-btn');btn.style.borderColor='';btn.style.color='var(--muted)';btn.style.opacity='0.4';btn.querySelector('span').textContent='꺼짐';}
+function edCheckExportBtn(){const btn=document.getElementById('ed-export-btn');const active=_ed.ptA!==null&&_ed.ptB!==null;btn.style.color=active?'var(--text)':'var(--dim)';}
+
+function edAddBookmark(){
+  if(!_ed.audio||!isFinite(_ed.audio.duration))return;
+  const t=_ed.audio.currentTime;
+  if(_ed.bookmarks.some(b=>Math.abs(b-t)<0.3)){toast('이미 근처에 북마크가 있어요');return;}
+  _ed.bookmarks.push(t);_ed.bookmarks.sort((a,b)=>a-b);
+  edRenderBmTicks();edRenderBmList();
+}
+function edRenderBmTicks(){
+  const wrap=document.getElementById('ed-bm-ticks');wrap.innerHTML='';
+  if(!_ed.audio||!isFinite(_ed.audio.duration))return;
+  _ed.bookmarks.forEach((t)=>{
+    const tick=document.createElement('div');
+    tick.style.cssText=`position:absolute;top:50%;left:${(t/_ed.audio.duration*100).toFixed(3)}%;width:2px;height:22px;background:#f59e0b;border-radius:1px;transform:translate(-50%,-50%);z-index:2;pointer-events:none;`;
+    wrap.appendChild(tick);
+  });
+}
+function edRenderBmList(){
+  const wrap=document.getElementById('ed-bookmarks');wrap.innerHTML='';
+  if(_ed.bookmarks.length===0){
+    wrap.innerHTML='<span id="ed-bm-empty" style="font-size:12px;color:var(--dim);">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>';
+    return;
+  }
+  _ed.bookmarks.forEach((t,i)=>{
+    const pill=document.createElement('div');
+    pill.style.cssText='display:flex;align-items:center;gap:0;background:var(--surface);border:1.5px solid #f59e0b66;border-radius:8px;overflow:hidden;cursor:pointer;';
+    const lbl=document.createElement('button');
+    lbl.textContent=fmtT(t);
+    lbl.style.cssText='background:none;border:none;padding:6px 10px;font-family:\'DM Mono\',monospace;font-size:12px;color:#f59e0b;font-weight:700;cursor:pointer;';
+    lbl.onclick=()=>{if(_ed.audio)_ed.audio.currentTime=t;};
+    const del=document.createElement('button');
+    del.textContent='✕';
+    del.style.cssText='background:none;border:none;border-left:1px solid #f59e0b33;color:#888;font-size:11px;cursor:pointer;padding:6px 8px;line-height:1;';
+    del.onclick=(e)=>{e.stopPropagation();_ed.bookmarks.splice(i,1);edRenderBmTicks();edRenderBmList();};
+    pill.appendChild(lbl);pill.appendChild(del);
+    wrap.appendChild(pill);
+  });
+}
+
+async function edExportAB(){
+  if(_ed.ptA===null||_ed.ptB===null){toast('A, B 지점을 먼저 설정해주세요');return;}
+  try{
+    const resp=await fetch(_ed.item.url);
+    const arrayBuf=await resp.arrayBuffer();
+    const tmpAC=new AudioContext();
+    const decoded=await tmpAC.decodeAudioData(arrayBuf);
+    await tmpAC.close();
+    const sr=decoded.sampleRate,ch=decoded.numberOfChannels;
+    const s0=Math.floor(_ed.ptA*sr),s1=Math.floor(_ed.ptB*sr),len=s1-s0;
+    if(len<=0){toast('구간이 너무 짧아요');return;}
+    const offAC=new OfflineAudioContext(ch,len,sr);
+    const buf=offAC.createBuffer(ch,len,sr);
+    for(let c=0;c<ch;c++)buf.copyToChannel(decoded.getChannelData(c).slice(s0,s1),c);
+    const src=offAC.createBufferSource();src.buffer=buf;src.connect(offAC.destination);src.start();
+    const rendered=await offAC.startRendering();
+    const wav=_bufToWav(rendered);
+    const blob=new Blob([wav],{type:'audio/wav'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='gopractice_'+_ed.item.name+'_cut.wav';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+  }catch(e){toast('저장 실패: '+e.message);}
+}
+function _bufToWav(buf){
+  const ch=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+  const ab=new ArrayBuffer(44+len*ch*2);const dv=new DataView(ab);
+  const s=(o,v)=>{for(let i=0;i<v.length;i++)dv.setUint8(o+i,v.charCodeAt(i));};
+  s(0,'RIFF');dv.setUint32(4,ab.byteLength-8,true);s(8,'WAVE');
+  s(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);
+  dv.setUint16(22,ch,true);dv.setUint32(24,sr,true);
+  dv.setUint32(28,sr*ch*2,true);dv.setUint16(32,ch*2,true);dv.setUint16(34,16,true);
+  s(36,'data');dv.setUint32(40,len*ch*2,true);
+  let off=44;
+  for(let i=0;i<len;i++)for(let c=0;c<ch;c++){
+    const v=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));
+    dv.setInt16(off,v<0?v*0x8000:v*0x7FFF,true);off+=2;
+  }
+  return ab;
+}
+
+// ── 메뉴 ──
+function toggleMenu(){
+  const overlay=document.getElementById('menu-overlay');
+  const isOpen=overlay.classList.toggle('open');
+  if(isOpen){document.getElementById('ref-panel').classList.remove('open');}
+}
+
+// ── rAF ──
+let _rafId=null;
+function startRaf(){if(!_rafId){_rafId=requestAnimationFrame(frame);}}
+function stopRaf(){if(_rafId){cancelAnimationFrame(_rafId);_rafId=null;}}
+function frame(){
+  if(S.running&&A.analyserFFT){
+    const fftPass=fftDetect();
+    if(fftPass&&_aiModeEnabled&&Date.now()-S.lastYamnetMs>CFG.yamnet.intervalMs&&A.yamnet){S.lastYamnetMs=Date.now();runYamnet();}
+    if(!fftPass)S.yamnetOK=false;
+    const detected=fftPass&&(S.yamnetOK||!A.yamnet);
+    S.holdFrames=detected?CFG.detect.holdFrames:Math.max(0,S.holdFrames-1);S.strOK=S.holdFrames>0;
+  }
+  if(S.running&&A.analyserTD&&!A.isClick){A.analyserTD.getFloatTimeDomainData(A.tdBuf);updateTunerUI(yin(A.tdBuf,A.sampleRate));}
+  if(S.running)_rafId=requestAnimationFrame(frame);else _rafId=null;
+}
+
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
+
+function toggleFullscreen(){
+  if(window.Capacitor)return;
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement){
+    const el=document.documentElement;
+    if(el.requestFullscreen)el.requestFullscreen();
+    else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+    else toast('이 기기에서는 홈 화면에 추가하면 전체화면으로 사용할 수 있어요');
+  }else{
+    if(document.exitFullscreen)document.exitFullscreen();
+    else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+  }
+}
+
+function setWakeLock(v){
+  _wakeLockEnabled=v===1;
+  document.querySelectorAll('#wakelock-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  if(_wakeLockEnabled){if(S.running)requestWakeLock();}
+  else{A.wakeLock?.release();A.wakeLock=null;}
+  saveSettings();
+}
+function setAiMode(v){
+  _aiModeEnabled=v===1;
+  if(!_aiModeEnabled){S.yamnetOK=false;S.holdFrames=0;S.strOK=false;}
+  document.querySelectorAll('#aimode-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
+  saveSettings();
+}
+
+const SETTINGS_KEY='gopractice_settings_v1';
+function saveSettings(){
+  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled};
+  try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(d));}catch(e){}
+}
+function loadSettings(){
+  try{
+    const raw=localStorage.getItem(SETTINGS_KEY);
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    if(d.cents){setCentsStep(d.cents);}
+    if(d.rms){
+      const idx=RMS_LEVELS.findIndex(v=>Math.abs(v-d.rms)<.001);
+      if(idx>=0)setRmsStep(idx+1);
+    }
+    if(d.smooth){
+      const idx=SMOOTH_LEVELS.findIndex(v=>Math.abs(v-d.smooth)<.001);
+      if(idx>=0)setSmoothStep(idx+1);
+    }
+    if(d.wakelock===false)setWakeLock(0);
+    if(d.aimode===false)setAiMode(0);
+  }catch(e){}
+}
+loadSettings();
+
+setTimeout(()=>{drawGauge(null);drawHistory();},200);
+document.getElementById('metro-body').style.maxHeight='420px';
+</script>
+
+<!-- 편집 페이지 -->
+<div id="editor-page" style="position:fixed;inset:0;background:var(--bg);z-index:70;display:none;flex-direction:column;overflow:hidden;">
+  <div style="display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;width:100%;box-sizing:border-box;">
+    <div style="padding:calc(env(safe-area-inset-top,0px)+14px) 20px 0;flex-shrink:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onclick="closeEditor()" style="background:none;border:none;color:var(--text);font-size:26px;cursor:pointer;line-height:1;padding:0;flex-shrink:0;">←</button>
+          <span style="font-size:22px;font-weight:700;color:var(--text);">편집</span>
+        </div>
+      </div>
+      <div style="padding:0 0 16px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">
+        <span style="font-size:12px;color:var(--text);font-weight:500;">파일명: </span><span id="editor-title-display" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;"></span><span onclick="edEditTitle()" style="color:var(--dim);cursor:pointer;font-size:12px;margin-left:4px;">수정✎</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 22px 12px;flex-shrink:0;">
+      <span id="ed-cur" style="font-family:'DM Mono',monospace;font-size:28px;color:var(--text);font-weight:500;letter-spacing:.02em;">00:00</span>
+      <span id="ed-dur" style="font-family:'DM Mono',monospace;font-size:16px;color:var(--muted);">--:--</span>
+    </div>
+    <div style="padding:0 22px 6px;flex-shrink:0;">
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:20px 16px 14px;position:relative;">
+        <div id="ed-track" style="position:relative;height:56px;cursor:pointer;margin-bottom:4px;">
+          <div style="position:absolute;top:50%;left:0;right:0;height:5px;background:var(--border);border-radius:3px;transform:translateY(-50%);border-radius:3px;"></div>
+          <div id="ed-progress" style="position:absolute;top:50%;left:0;width:0%;height:5px;background:var(--dim);border-radius:3px;transform:translateY(-50%);pointer-events:none;"></div>
+          <div id="ed-ab-range" style="position:absolute;top:50%;height:5px;background:var(--red);opacity:.6;border-radius:2px;transform:translateY(-50%);display:none;pointer-events:none;"></div>
+          <div id="ed-bm-ticks"></div>
+          <div id="ed-a-handle" style="position:absolute;top:50%;display:none;transform:translate(-50%,-50%);z-index:6;cursor:ew-resize;touch-action:none;">
+            <div style="width:3px;height:32px;background:var(--red);border-radius:2px;margin:0 auto;"></div>
+            <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:10px;color:var(--red);font-weight:700;margin-bottom:3px;white-space:nowrap;">A</div>
+            <div style="position:absolute;inset:-20px;"></div>
+          </div>
+          <div id="ed-b-handle" style="position:absolute;top:50%;display:none;transform:translate(-50%,-50%);z-index:6;cursor:ew-resize;touch-action:none;">
+            <div style="width:3px;height:32px;background:var(--red);border-radius:2px;margin:0 auto;"></div>
+            <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:10px;color:var(--red);font-weight:700;margin-bottom:3px;white-space:nowrap;">B</div>
+            <div style="position:absolute;inset:-20px;"></div>
+          </div>
+          <div id="ed-pos-handle" style="position:absolute;top:50%;left:0%;width:20px;height:20px;background:#fff;border-radius:50%;transform:translate(-50%,-50%);z-index:5;cursor:ew-resize;touch-action:none;box-shadow:0 1px 6px rgba(0,0,0,.5);">
+            <div style="position:absolute;inset:-16px;"></div>
+          </div>
+        </div>
+        <div id="ed-ab-times" style="display:none;justify-content:space-between;margin-top:2px;">
+          <span id="ed-a-time" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-weight:700;">A —</span>
+          <span id="ed-b-time" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-weight:700;">B —</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;padding:8px 22px 16px;flex-shrink:0;">
+      <button id="ed-play-btn" onclick="edTogglePlay()"
+        style="width:76px;height:56px;background:var(--red);border:none;border-radius:12px;color:#fff;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">▶</button>
+    </div>
+    <div style="padding:0 22px 14px;flex-shrink:0;">
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:14px;font-weight:700;color:var(--text);">느리게 듣기</span>
+          <span id="ed-speed-val" style="font-family:'DM Mono',monospace;font-size:14px;color:var(--red);font-weight:700;">1.0×</span>
+        </div>
+        <input type="range" id="ed-speed" min="0.6" max="1.0" step="0.05" value="1.0"
+          style="width:100%;height:4px;-webkit-appearance:none;appearance:none;background:var(--border);border-radius:2px;outline:none;cursor:pointer;"
+          oninput="edSetSpeed(+this.value)">
+        <div style="display:flex;justify-content:space-between;margin-top:5px;">
+          <span style="font-size:10px;color:var(--dim);">0.6×</span>
+          <span style="font-size:10px;color:var(--dim);">0.8×</span>
+          <span style="font-size:10px;color:var(--dim);">1.0×</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 22px 14px;flex-shrink:0;">
+      <button id="ed-a-btn" onclick="edToggleA()"
+        style="padding:12px 8px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.3;">A<br><span style="font-size:10px;font-weight:400;">설정</span></button>
+      <button id="ed-b-btn" onclick="edToggleB()"
+        style="padding:12px 8px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.3;opacity:.4;">B<br><span style="font-size:10px;font-weight:400;">설정</span></button>
+      <button id="ed-loop-btn" onclick="edToggleLoop()"
+        style="padding:12px 8px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.3;opacity:.4;">반복<br><span style="font-size:10px;font-weight:400;">꺼짐</span></button>
+    </div>
+    <div style="padding:0 22px 14px;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text);">북마크</span>
+        <button onclick="edAddBookmark()"
+          style="padding:6px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;">+ 추가</button>
+      </div>
+      <div id="ed-bookmarks" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
+        <span id="ed-bm-empty" style="font-size:12px;color:var(--dim);">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>
+      </div>
+    </div>
+    <div style="margin-top:auto;display:flex;gap:8px;padding:0 22px calc(env(safe-area-inset-bottom,0px)+16px);flex-shrink:0;">
+      <a id="ed-dl-btn"
+        style="flex:1;padding:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">다운로드</a>
+      <button id="ed-export-btn" onclick="edExportAB()"
+        style="flex:1;padding:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:11px;color:var(--dim);font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;text-align:center;">A-B 저장</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
