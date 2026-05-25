@@ -368,7 +368,14 @@ function toggleMetro(){S.metroPlaying?stopMetro():startMetro();}
 function toggleMetroCollapse(){
   _metroCollapsed=!_metroCollapsed;
   const body=document.getElementById('metro-body'),btn=document.getElementById('metro-collapse-btn');
-  if(!_metroCollapsed)body.style.maxHeight=body.scrollHeight+'px';
+  if(!_metroCollapsed){
+    body.style.maxHeight=body.scrollHeight+'px';
+    const onEnd=e=>{if(e.propertyName==='max-height'&&!_metroCollapsed)body.style.maxHeight='none';body.removeEventListener('transitionend',onEnd);};
+    body.addEventListener('transitionend',onEnd);
+  } else {
+    body.style.maxHeight=body.scrollHeight+'px';
+    body.offsetHeight;
+  }
   body.classList.toggle('collapsed',_metroCollapsed);
   btn.textContent=_metroCollapsed?'▲':'▼';
   if(_metroCollapsed){document.querySelectorAll('.bd').forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));}
@@ -629,8 +636,12 @@ function closeEditor(){
   if(_ed._tmHandler)window.removeEventListener('touchmove',_ed._tmHandler);
   if(_ed._teHandler)window.removeEventListener('touchend',_ed._teHandler);
   _ed._mmHandler=_ed._muHandler=_ed._tmHandler=_ed._teHandler=null;
+  const menuEl=document.getElementById('menu-overlay');
+  menuEl.style.transition='none';
+  menuEl.classList.add('open');
+  menuEl.offsetHeight;
+  menuEl.style.transition='';
   document.getElementById('editor-page').style.display='none';
-  document.getElementById('menu-overlay').classList.add('open');
 }
 
 function edEditTitle(){
