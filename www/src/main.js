@@ -44,7 +44,18 @@ if(window.Capacitor){
 }else{
   navigator.permissions?.query({name:'microphone'})
     .then(p=>{
-      if(p.state==='granted')openMic().then(ok=>{if(!ok)_showTapHint();});
+      if(p.state==='granted')openMic().then(ok=>{
+        if(!ok){_showTapHint();return;}
+        // AudioContext may be suspended on auto-start (Chrome autoplay policy)
+        setTimeout(()=>{
+          if(A.micAC&&A.micAC.state==='suspended'){
+            const card=document.getElementById('tuner-card'),nEl=document.getElementById('tuner-note');
+            nEl.textContent='탭하여 시작';nEl.className='empty';nEl.style.fontSize='28px';nEl.style.letterSpacing='.02em';
+            const _r=()=>{A.micAC.resume().then(()=>{nEl.style.fontSize='';nEl.style.letterSpacing='';}).catch(()=>{});card.removeEventListener('click',_r);};
+            card.addEventListener('click',_r);
+          }
+        },400);
+      });
       else showMicPopup();
     })
     .catch(()=>showMicPopup());
@@ -260,9 +271,7 @@ function drawGauge(cents){
   needle.className=Math.abs(cents)<=tol?'tune':'';
 }
 
-let _lastHistDraw=0;
 function drawHistory(){
-  const now=performance.now();if(now-_lastHistDraw<66)return;_lastHistDraw=now;
   const canvas=document.getElementById('tuner-history');if(!canvas||!canvas.offsetWidth)return;
   const W=canvas.offsetWidth,H=Math.max(80,canvas.offsetHeight||100),dpr=devicePixelRatio||1;
   if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);canvas.style.width=W+'px';canvas.style.height=H+'px';}
@@ -273,7 +282,7 @@ function drawHistory(){
   const ppc=(W/2)/50,tol=CFG.tuner.tolCents,N=S.histData.length,rH=H/N;
   c.fillStyle='rgba(34,197,94,.65)';
   c.fillRect(W/2-tol*ppc,0,tol*2*ppc,H);
-  c.strokeStyle='rgba(255,255,255,.28)';c.lineWidth=1;
+  c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=1.5;
   c.beginPath();c.moveTo(W/2,0);c.lineTo(W/2,H);c.stroke();
   c.lineWidth=2.5;c.lineCap='round';
   for(let i=0;i<N-1;i++){
@@ -556,6 +565,7 @@ function deleteRec(idx){if(_ed.idx===idx)closeEditor();if(_recPlayers[idx]){try{
 const _ed={idx:-1,item:null,audio:null,ptA:null,ptB:null,looping:false,bookmarks:[],dragging:null};
 
 function openEditor(idx){
+  document.getElementById('menu-overlay').classList.remove('open');
   const item=recItems[idx];if(!item)return;
   if(_ed.audio){_ed.audio.pause();_ed.audio=null;}
   _ed.idx=idx;_ed.item=item;
