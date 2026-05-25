@@ -241,16 +241,21 @@ function updateTunerUI(raw){
   S.histData.push(cents);S.histData.shift();drawGauge(cents);drawHistory();
 }
 
+let _gaugeW=0;
+new ResizeObserver(()=>{_gaugeW=0;}).observe(document.getElementById('gauge-wrap'));
 function drawGauge(cents){
   const needle=document.getElementById('gauge-needle'),zone=document.getElementById('gauge-zone'),wrap=document.getElementById('gauge-wrap');
-  const W=wrap.offsetWidth||300,ppc=(W/2)/50,tol=CFG.tuner.tolCents;
+  if(!_gaugeW)_gaugeW=wrap.offsetWidth||300;
+  const W=_gaugeW,ppc=(W/2)/50,tol=CFG.tuner.tolCents;
   zone.style.left=(W/2-tol*ppc)+'px';zone.style.width=(tol*2*ppc)+'px';
   if(cents===null){needle.style.left='50%';needle.className='';return;}
   needle.style.left=(W/2+Math.max(-50,Math.min(50,cents))*ppc)+'px';
   needle.className=Math.abs(cents)<=tol?'tune':cents>0?'sharp':'flat';
 }
 
+let _lastHistDraw=0;
 function drawHistory(){
+  const now=performance.now();if(now-_lastHistDraw<66)return;_lastHistDraw=now;
   const canvas=document.getElementById('tuner-history');if(!canvas||!canvas.offsetWidth)return;
   const W=canvas.offsetWidth,H=Math.max(80,canvas.offsetHeight||100),dpr=devicePixelRatio||1;
   if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);canvas.style.width=W+'px';canvas.style.height=H+'px';}
@@ -293,7 +298,7 @@ let _metroVol=0.7,_bpmDebounce=null;
   attachDrag(document.getElementById('metro-hdr-label'));
 })();
 
-function setMetroVol(v){_metroVol=v;}
+function setMetroVol(v){_metroVol=v;saveSettings();}
 function getTickInterval(){const b=60/S.bpm;if(S.timeSig===6)return b/2;if(S.subDiv==='d')return A.metroTick%2===0?b*3/4:b*1/4;return b/S.subDiv;}
 function getTotalTicks(){return S.subDiv==='d'?S.timeSig*2:S.timeSig*S.subDiv;}
 function scheduleClick(time,tick){
@@ -356,11 +361,12 @@ function setBPM(v){
 function adjBPM(d){setBPM(S.bpm+d);}
 function setTS(v){S.timeSig=v;document.querySelectorAll('[data-ts]').forEach(b=>b.classList.toggle('on',+b.dataset.ts===v));const is68=v===6;document.getElementById('sd-grid').style.opacity=is68?'.3':'1';document.getElementById('sd-grid').style.pointerEvents=is68?'none':'auto';document.querySelectorAll('[data-sd="1"]').forEach(b=>b.textContent=is68?'♪':'♩');if(is68){S.subDiv=1;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd==='1'));}buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}saveSettings();}
 function setSD(v){S.subDiv=v;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd===String(v)));buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}saveSettings();}
-function buildBeatVis(){const wrap=document.getElementById('beat-vis');wrap.innerHTML='';const total=getTotalTicks();for(let i=0;i<total;i++){const dot=document.createElement('div');dot.className='bd '+(S.subDiv==='d'?(i%2===0?'beat':'subdiv'):(i%S.subDiv===0?'beat':'subdiv'));dot.dataset.tick=i;wrap.appendChild(dot);}}
+let _bdDots=[];
+function buildBeatVis(){const wrap=document.getElementById('beat-vis');wrap.innerHTML='';const total=getTotalTicks();for(let i=0;i<total;i++){const dot=document.createElement('div');dot.className='bd '+(S.subDiv==='d'?(i%2===0?'beat':'subdiv'):(i%S.subDiv===0?'beat':'subdiv'));dot.dataset.tick=i;wrap.appendChild(dot);}_bdDots=Array.from(wrap.querySelectorAll('.bd'));}
 buildBeatVis();
 function litBeat(tick){
   if(!S.metroPlaying)return;
-  document.querySelectorAll('.bd').forEach(d=>{d.classList.remove('lit-a','lit-b','lit-s');if(+d.dataset.tick!==tick)return;if(tick===0)d.classList.add('lit-a');else d.classList.add((S.subDiv==='d'?tick%2===0:tick%S.subDiv===0)?'lit-b':'lit-s');});
+  _bdDots.forEach(d=>{d.classList.remove('lit-a','lit-b','lit-s');if(+d.dataset.tick!==tick)return;if(tick===0)d.classList.add('lit-a');else d.classList.add((S.subDiv==='d'?tick%2===0:tick%S.subDiv===0)?'lit-b':'lit-s');});
 }
 function flashBeat(tick){
   if(!S.metroPlaying)return;
@@ -905,7 +911,7 @@ function setAiMode(v){
 
 const SETTINGS_KEY='gopractice_settings_v1';
 function saveSettings(){
-  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled,bpm:S.bpm,timeSig:S.timeSig,subDiv:S.subDiv,refHz:S.refHz};
+  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled,bpm:S.bpm,timeSig:S.timeSig,subDiv:S.subDiv,refHz:S.refHz,vol:_metroVol};
   try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(d));}catch(e){}
 }
 function loadSettings(){
@@ -928,6 +934,7 @@ function loadSettings(){
     if(d.timeSig!=null)setTS(d.timeSig);
     if(d.subDiv!=null)setSD(d.subDiv);
     if(d.refHz!=null){S.refHz=d.refHz;setRefDrumY(refHzToY(d.refHz),false);}
+    if(d.vol!=null){_metroVol=d.vol;const v=document.getElementById('metro-vol');const vp=document.getElementById('metro-vol-pad-input');if(v)v.value=d.vol;if(vp)vp.value=d.vol;}
   }catch(e){}
 }
 loadSettings();
