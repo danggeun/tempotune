@@ -5,8 +5,9 @@ import { fmt, fmtT } from './core/format.js'
 
 if(window.Capacitor){
   import('@capacitor/status-bar').then(({StatusBar,Style})=>{
-    StatusBar.setStyle({style:Style.Light});
-    StatusBar.setBackgroundColor({color:'#f7f8fb'});
+    const dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+    StatusBar.setStyle({style:dark?Style.Dark:Style.Light});
+    StatusBar.setBackgroundColor({color:dark?'#0f0f0f':'#f7f8fb'});
   }).catch(()=>{});
 }
 
