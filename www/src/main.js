@@ -955,13 +955,13 @@ loadSettings();
 
 setTimeout(()=>{drawGauge(null);drawHistory();},200);
 const _metroBodyEl=document.getElementById('metro-body');
-_metroBodyEl.style.transition='none';
 _metroBodyEl.style.maxHeight='420px';
 if(window.innerWidth<700){
-  _metroBodyEl.classList.add('collapsed');
-  document.getElementById('metro-collapse-btn').textContent='▲';
+  setTimeout(()=>{
+    _metroBodyEl.classList.add('collapsed');
+    document.getElementById('metro-collapse-btn').textContent='▲';
+  },80);
 }
-requestAnimationFrame(()=>requestAnimationFrame(()=>{_metroBodyEl.style.transition='';}));
 
 // ── Event listeners (replacing all inline HTML handlers) ──
 

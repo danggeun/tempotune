@@ -13,7 +13,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes metroflash{0%{background:rgba(229,48,48,.32);border-color:var(--red)}60%{background:rgba(229,48,48,.12);border-color:var(--red)}100%{background:transparent;border-color:var(--border)}}
-@keyframes mainReveal{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
 /* ── 팝업 ── */
 #mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
@@ -26,7 +25,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 /* ── 앱 ── */
 #app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));}
-#main-body{animation:mainReveal .3s ease-out both;}
 
 /* ── 헤더 ── */
 #hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
