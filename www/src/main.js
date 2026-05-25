@@ -3,6 +3,13 @@ import { yin as _yinPure } from './core/yin.js'
 import { bufToWav } from './core/wav.js'
 import { fmt, fmtT } from './core/format.js'
 
+if(window.Capacitor){
+  import('@capacitor/status-bar').then(({StatusBar,Style})=>{
+    StatusBar.setStyle({style:Style.Light});
+    StatusBar.setBackgroundColor({color:'#f7f8fb'});
+  }).catch(()=>{});
+}
+
 const CFG={
   detect:{fftSize:4096,fftSmooth:.88,hzMin:80,hzMax:4800,noiseFloor:-44,peakMargin:8,harmonicDrop:35,harmonicMin:2,holdFrames:45},
   yamnet:{intervalMs:975,threshold:.50,sampleRate:16000,inputLen:15600,stringIdx:new Set([132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147])},
