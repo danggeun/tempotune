@@ -535,7 +535,15 @@ let _metroCollapsed=false;
 let _wakeLockEnabled=true;
 let _aiModeEnabled=true;
 
-async function loadYamnet(){try{let w=0;while(typeof tf==='undefined'&&w<10000){await new Promise(r=>setTimeout(r,200));w+=200;}A.yamnet=await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',{fromTFHub:true});A.yamnetReady=true;}catch(e){A.yamnetReady=true;}}
+function _setTunerLabel(txt,dim=false){const el=document.getElementById('tuner-label');if(el){el.textContent=txt;el.style.opacity=dim?'.45':'1';}}
+async function loadYamnet(){
+  _setTunerLabel('TUNER · AI 로딩중',true);
+  try{
+    let w=0;while(typeof tf==='undefined'&&w<10000){await new Promise(r=>setTimeout(r,200));w+=200;}
+    A.yamnet=await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',{fromTFHub:true});
+    A.yamnetReady=true;_setTunerLabel('TUNER');
+  }catch(e){A.yamnetReady=true;_setTunerLabel('TUNER · AI 오프라인',true);}
+}
 loadYamnet();
 function _showTapHint(){
   const nEl=document.getElementById('tuner-note');
@@ -545,7 +553,7 @@ function _showTapHint(){
   card.addEventListener('click',_start);
 }
 if(window.Capacitor){
-  openMic();
+  openMic().then(ok=>{if(!ok)_showTapHint();});
 }else{
   navigator.permissions?.query({name:'microphone'})
     .then(p=>{
@@ -903,7 +911,7 @@ function playRef(name){
   if(alreadyOn){stopRefNote();return;}
   stopRefNote();if(!A.micAC)return;const semi=KR_MIDI[name];if(semi===undefined)return;document.querySelectorAll('.ref-note-btn').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.ref-note-btn[data-note="'+name+'"]').forEach(b=>b.classList.add('on'));const midi=semi+(A.refOctave+1)*12,freq=S.refHz*Math.pow(2,(midi-69)/12);A.refOsc=A.micAC.createOscillator();A.refGain=A.micAC.createGain();A.refOsc.type='triangle';A.refOsc.frequency.value=freq;A.refOsc.connect(A.refGain);A.refGain.connect(A.micAC.destination);A.refGain.gain.setValueAtTime(.22,A.micAC.currentTime);A.refOsc.start();
 }
-function stopRefNoteBtn(){stopRefNote();}
+
 function stopRefNote(){document.querySelectorAll('.ref-note-btn').forEach(b=>b.classList.remove('on'));if(A.refOsc&&A.refGain&&A.micAC){try{A.refGain.gain.cancelScheduledValues(A.micAC.currentTime);A.refGain.gain.setValueAtTime(A.refGain.gain.value,A.micAC.currentTime);A.refGain.gain.exponentialRampToValueAtTime(.001,A.micAC.currentTime+.05);A.refOsc.stop(A.micAC.currentTime+.05);}catch(e){}A.refOsc=null;A.refGain=null;}}
 
 // ── 녹음 ──
