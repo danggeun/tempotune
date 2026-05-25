@@ -368,7 +368,7 @@ function toggleMetro(){S.metroPlaying?stopMetro():startMetro();}
 function toggleMetroCollapse(){
   _metroCollapsed=!_metroCollapsed;
   const body=document.getElementById('metro-body'),btn=document.getElementById('metro-collapse-btn');
-  if(!_metroCollapsed)body.style.maxHeight='420px';
+  if(!_metroCollapsed)body.style.maxHeight=body.scrollHeight+'px';
   body.classList.toggle('collapsed',_metroCollapsed);
   btn.textContent=_metroCollapsed?'▲':'▼';
   if(_metroCollapsed){document.querySelectorAll('.bd').forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));}
