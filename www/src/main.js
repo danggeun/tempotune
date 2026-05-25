@@ -369,8 +369,16 @@ function toggleMetroCollapse(){
   _metroCollapsed=!_metroCollapsed;
   const body=document.getElementById('metro-body'),btn=document.getElementById('metro-collapse-btn');
   if(!_metroCollapsed){
-    body.style.maxHeight=body.scrollHeight+'px';
-    const onEnd=e=>{if(e.propertyName==='max-height'&&!_metroCollapsed)body.style.maxHeight='none';body.removeEventListener('transitionend',onEnd);};
+    // Measure true height with no constraints, then re-collapse instantly before animating
+    body.style.transition='none';
+    body.classList.remove('collapsed');
+    const realH=body.scrollHeight;
+    body.classList.add('collapsed');
+    body.style.maxHeight='0px';
+    body.offsetHeight; // commit 0 as the "from" value
+    body.style.transition='';
+    body.style.maxHeight=realH+'px';
+    const onEnd=e=>{if(e.propertyName!=='max-height')return;if(!_metroCollapsed)body.style.maxHeight='none';body.removeEventListener('transitionend',onEnd);};
     body.addEventListener('transitionend',onEnd);
   } else {
     body.style.maxHeight=body.scrollHeight+'px';
