@@ -90,8 +90,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* 옥타브 — 음이름 오른쪽 아래 */
 #tuner-oct{position:absolute;bottom:4px;left:calc(100% + 12px);font-family:'DM Mono',monospace;font-size:22px;color:#888;white-space:nowrap;}
 /* 이명동음 */
-#tuner-enharmonic{position:absolute;right:0;top:0;font-family:'DM Mono',monospace;font-size:15px;color:#555;}
-#tuner-right{position:absolute;right:0;bottom:2px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+#tuner-right{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;padding:2px 0;}
+#tuner-enharmonic{font-family:'DM Mono',monospace;font-size:15px;color:#555;}
+
 #tuner-cents{font-family:'DM Mono',monospace;font-size:16px;color:#aaa;font-weight:500;text-align:right;}
 
 /* 히스토리 */
@@ -225,7 +226,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
   #metro-adj-pad{display:flex!important;gap:8px;}
   .m-adj-pad{flex:1;height:52px;background:transparent;border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   #metro-vol-pad{display:flex!important;}
-  #metro-grids-wrap{display:flex;flex-direction:column;gap:8px;}
   #metro-grids-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   #ts-grid,#sd-grid{display:flex;flex-direction:column;gap:5px;}
   .m-seg{padding:16px 0;font-size:17px;}
@@ -281,8 +281,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
               <div id="tuner-oct"></div>
             </div>
           </div>
-          <div id="tuner-enharmonic"></div>
           <div id="tuner-right">
+            <div id="tuner-enharmonic"></div>
             <span id="tuner-cents"></span>
           </div>
         </div>
@@ -319,7 +319,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
             </div>
             <div id="metro-vol-row">
               <span class="m-vol-lbl">🔈</span>
-              <input type="range" id="metro-vol" min="0" max="1" step="0.05" value="0.7" oninput="setMetroVol(+this.value)">
+              <input type="range" id="metro-vol" min="0" max="1" step="0.05" value="0.7" oninput="setMetroVol(+this.value);document.getElementById('metro-vol-pad-input').value=this.value;">
             </div>
           </div>
         </div>
@@ -539,11 +539,21 @@ let _aiModeEnabled=true;
 
 async function loadYamnet(){try{let w=0;while(typeof tf==='undefined'&&w<10000){await new Promise(r=>setTimeout(r,200));w+=200;}A.yamnet=await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',{fromTFHub:true});A.yamnetReady=true;}catch(e){A.yamnetReady=true;}}
 loadYamnet();
+function _showTapHint(){
+  const nEl=document.getElementById('tuner-note');
+  nEl.textContent='탭하여 시작';nEl.className='empty';nEl.style.fontSize='28px';nEl.style.letterSpacing='.02em';
+  const card=document.getElementById('tuner-card');
+  const _start=async()=>{const ok=await openMic();if(ok){nEl.style.fontSize='';nEl.style.letterSpacing='';card.removeEventListener('click',_start);}};
+  card.addEventListener('click',_start);
+}
 if(window.Capacitor){
   openMic();
 }else{
   navigator.permissions?.query({name:'microphone'})
-    .then(p=>{if(p.state==='granted')openMic();else showMicPopup();})
+    .then(p=>{
+      if(p.state==='granted')openMic().then(ok=>{if(!ok)_showTapHint();});
+      else showMicPopup();
+    })
     .catch(()=>showMicPopup());
 }
 
@@ -587,7 +597,7 @@ async function openMic(){
     const ratio=A.sampleRate/16000;
     A.scriptProc.onaudioprocess=e=>{const inp=e.inputBuffer.getChannelData(0);for(let i=0;i<inp.length;i+=ratio){A.pcm16k[A.pcmPos%A.pcm16k.length]=inp[Math.floor(i)];A.pcmPos++;}};
     if(A.micAC.state==='suspended')await A.micAC.resume();
-    const src=A.micAC.createMediaStreamSource(A.micStream);src.connect(A.analyserFFT);src.connect(A.analyserTD);src.connect(A.scriptProc);
+    const src=A.micAC.createMediaStreamSource(A.micStream);src.connect(A.analyserFFT);src.connect(A.analyserTD);src.connect(A.scriptProc);A.scriptProc.connect(A.micAC.destination);
     S.micReady=true;S.running=true;requestWakeLock();startRaf();_micOpening=false;
     const mb=document.getElementById('hdr-mic-btn');if(mb)mb.style.display='none';
     const rhb=document.getElementById('rec-hdr-btn');if(rhb)rhb.style.opacity='1';
@@ -839,11 +849,13 @@ function setBPM(v){
   S.bpm=Math.max(CFG.metro.bpmMin,Math.min(CFG.metro.bpmMax,v));
   document.getElementById('metro-bpm').textContent=S.bpm;
   document.getElementById('metro-hdr-label').textContent='♩ '+S.bpm;
-  if(S.metroPlaying){clearTimeout(_bpmDebounce);_bpmDebounce=setTimeout(()=>{stopMetro();startMetro();},300);}
+  clearTimeout(_bpmDebounce);
+  if(S.metroPlaying){_bpmDebounce=setTimeout(()=>{stopMetro();startMetro();saveSettings();},300);}
+  else{_bpmDebounce=setTimeout(saveSettings,400);}
 }
 function adjBPM(d){setBPM(S.bpm+d);}
-function setTS(v){S.timeSig=v;document.querySelectorAll('[data-ts]').forEach(b=>b.classList.toggle('on',+b.dataset.ts===v));const is68=v===6;document.getElementById('sd-grid').style.opacity=is68?'.3':'1';document.getElementById('sd-grid').style.pointerEvents=is68?'none':'auto';document.querySelectorAll('[data-sd="1"]').forEach(b=>b.textContent=is68?'♪':'♩');if(is68){S.subDiv=1;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd==='1'));}buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}}
-function setSD(v){S.subDiv=v;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd===String(v)));buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}}
+function setTS(v){S.timeSig=v;document.querySelectorAll('[data-ts]').forEach(b=>b.classList.toggle('on',+b.dataset.ts===v));const is68=v===6;document.getElementById('sd-grid').style.opacity=is68?'.3':'1';document.getElementById('sd-grid').style.pointerEvents=is68?'none':'auto';document.querySelectorAll('[data-sd="1"]').forEach(b=>b.textContent=is68?'♪':'♩');if(is68){S.subDiv=1;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd==='1'));}buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}saveSettings();}
+function setSD(v){S.subDiv=v;document.querySelectorAll('[data-sd]').forEach(b=>b.classList.toggle('on',b.dataset.sd===String(v)));buildBeatVis();if(S.metroPlaying){stopMetro();startMetro();}saveSettings();}
 function buildBeatVis(){const wrap=document.getElementById('beat-vis');wrap.innerHTML='';const total=getTotalTicks();for(let i=0;i<total;i++){const dot=document.createElement('div');dot.className='bd '+(S.subDiv==='d'?(i%2===0?'beat':'subdiv'):(i%S.subDiv===0?'beat':'subdiv'));dot.dataset.tick=i;wrap.appendChild(dot);}}
 buildBeatVis();
 function litBeat(tick){
@@ -974,7 +986,7 @@ function renderRecList(){
   }
 }
 function toggleRecItem(idx){document.getElementById('rec-detail-'+idx)?.classList.toggle('open');}
-function deleteRec(idx){if(_recPlayers[idx]){try{_recPlayers[idx].pause();}catch(e){}delete _recPlayers[idx];}URL.revokeObjectURL(recItems[idx].url);recItems.splice(idx,1);renderRecList();}
+function deleteRec(idx){if(_ed.idx===idx)closeEditor();if(_recPlayers[idx]){try{_recPlayers[idx].pause();}catch(e){}delete _recPlayers[idx];}URL.revokeObjectURL(recItems[idx].url);recItems.splice(idx,1);renderRecList();}
 
 // ══════════════════════════════════
 // 편집 페이지
@@ -1366,7 +1378,7 @@ function setAiMode(v){
 
 const SETTINGS_KEY='gopractice_settings_v1';
 function saveSettings(){
-  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled};
+  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled,bpm:S.bpm,timeSig:S.timeSig,subDiv:S.subDiv,refHz:S.refHz};
   try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(d));}catch(e){}
 }
 function loadSettings(){
@@ -1385,6 +1397,10 @@ function loadSettings(){
     }
     if(d.wakelock===false)setWakeLock(0);
     if(d.aimode===false)setAiMode(0);
+    if(d.bpm!=null)setBPM(d.bpm);
+    if(d.timeSig!=null)setTS(d.timeSig);
+    if(d.subDiv!=null)setSD(d.subDiv);
+    if(d.refHz!=null){S.refHz=d.refHz;setRefDrumY(refHzToY(d.refHz),false);}
   }catch(e){}
 }
 loadSettings();
