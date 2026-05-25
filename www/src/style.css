@@ -13,9 +13,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes metroflash{0%{background:rgba(229,48,48,.32);border-color:var(--red)}60%{background:rgba(229,48,48,.12);border-color:var(--red)}100%{background:transparent;border-color:var(--border)}}
-@keyframes introBarSweep{from{transform:scaleX(0);}to{transform:scaleX(1);}}
-@keyframes introExit{from{opacity:1;}to{opacity:0;visibility:hidden;}}
-@keyframes appFadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes mainReveal{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
 /* ── 팝업 ── */
@@ -27,16 +24,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #mic-popup-btn{height:54px;background:var(--red);border:none;border-radius:12px;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:700;cursor:pointer;}
 #mic-popup-cancel{height:40px;background:transparent;border:none;color:#aaa;font-family:'Noto Sans KR',sans-serif;font-size:14px;cursor:pointer;}
 
-/* ── 인트로 오버레이 ── */
-#intro{position:fixed;inset:0;background:#000;z-index:200;display:flex;align-items:center;justify-content:center;animation:introExit .28s ease-in .55s both;pointer-events:none;}
-#intro-bar{width:55%;height:2px;background:#22c55e;border-radius:2px;box-shadow:0 0 14px rgba(34,197,94,.9),0 0 40px rgba(34,197,94,.3);transform:scaleX(0);transform-origin:center;animation:introBarSweep .45s cubic-bezier(.16,1,.3,1) .05s both;}
-
 /* ── 앱 ── */
-#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));animation:appFadeIn .25s ease-out .5s both;}
-#main-body{animation:mainReveal .35s ease-out .55s both;}
+#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));}
+#main-body{animation:mainReveal .3s ease-out both;}
 
 /* ── 헤더 ── */
-#hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;position:relative;z-index:201;}
+#hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
 #logo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;color:var(--text);line-height:1;font-weight:600;letter-spacing:-.01em;}
 #logo-sub{font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
 #hdr-right{display:flex;align-items:center;gap:10px;}
