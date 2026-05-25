@@ -603,7 +603,7 @@ function openEditor(idx){
   document.getElementById('ed-b-handle').style.display='none';
   document.getElementById('ed-ab-times').style.display='none';
   document.getElementById('ed-bm-ticks').innerHTML='';
-  document.getElementById('ed-bookmarks').innerHTML='<span id="ed-bm-empty" style="font-size:12px;color:var(--dim);">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>';
+  document.getElementById('ed-bookmarks').innerHTML='<span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>';
   edResetABtn();edResetBBtn();edResetLoopBtn();
   document.getElementById('ed-export-btn').style.color='var(--dim)';
   document.getElementById('ed-export-btn').style.borderColor='var(--border)';
@@ -825,7 +825,7 @@ function edRenderBmTicks(){
 function edRenderBmList(){
   const wrap=document.getElementById('ed-bookmarks');wrap.innerHTML='';
   if(_ed.bookmarks.length===0){
-    wrap.innerHTML='<span id="ed-bm-empty" style="font-size:12px;color:var(--dim);">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>';
+    wrap.innerHTML='<span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>';
     return;
   }
   _ed.bookmarks.forEach((t,i)=>{
