@@ -630,6 +630,7 @@ function closeEditor(){
   if(_ed._teHandler)window.removeEventListener('touchend',_ed._teHandler);
   _ed._mmHandler=_ed._muHandler=_ed._tmHandler=_ed._teHandler=null;
   document.getElementById('editor-page').style.display='none';
+  document.getElementById('menu-overlay').classList.add('open');
 }
 
 function edEditTitle(){

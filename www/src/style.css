@@ -114,7 +114,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #metro-play-hdr-btn{width:44px;height:36px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 #metro-collapse-btn{width:34px;height:34px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
-#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:14px;overflow:hidden;transition:max-height .55s ease,padding .55s ease,opacity .35s ease .2s;}
+#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:10px;overflow:hidden;transition:max-height .55s ease,padding .55s ease,opacity .35s ease .2s;}
 #metro-body.collapsed{max-height:0!important;padding-top:0;padding-bottom:0;opacity:0;pointer-events:none;}
 
 #metro-bpm-row{display:flex;align-items:center;gap:10px;}
@@ -227,9 +227,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 #ed-pos-hit{position:absolute;inset:-16px;}
 #ed-ab-times{display:none;justify-content:space-between;margin-top:4px;}
 #ed-a-time,#ed-b-time{font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-weight:700;}
-#ed-transport{display:flex;align-items:center;gap:16px;padding:14px 16px;margin:6px 22px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;flex-shrink:0;}
+#ed-transport{display:flex;align-items:center;gap:8px;padding:14px 16px;margin:6px 22px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;flex-shrink:0;}
 #ed-play-btn{width:52px;height:52px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-#ed-speed-ctrl{flex:1;display:flex;flex-direction:column;}
+#ed-speed-ctrl{flex:1;display:flex;flex-direction:column;border-left:1.5px solid var(--border);padding-left:14px;}
 #ed-speed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 #ed-speed-lbl{font-size:13px;font-weight:700;color:var(--text);}
 #ed-speed-val{font-family:'DM Mono',monospace;font-size:13px;color:var(--red);font-weight:700;}
