@@ -359,6 +359,7 @@ function toggleMetro(){S.metroPlaying?stopMetro():startMetro();}
 function toggleMetroCollapse(){
   _metroCollapsed=!_metroCollapsed;
   const body=document.getElementById('metro-body'),btn=document.getElementById('metro-collapse-btn');
+  if(!_metroCollapsed)body.style.maxHeight=body.scrollHeight+'px';
   body.classList.toggle('collapsed',_metroCollapsed);
   btn.textContent=_metroCollapsed?'▲':'▼';
   if(_metroCollapsed){document.querySelectorAll('.bd').forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));}
@@ -954,11 +955,13 @@ loadSettings();
 
 setTimeout(()=>{drawGauge(null);drawHistory();},200);
 const _metroBodyEl=document.getElementById('metro-body');
+_metroBodyEl.style.transition='none';
 _metroBodyEl.style.maxHeight='420px';
 if(window.innerWidth<700){
   _metroBodyEl.classList.add('collapsed');
   document.getElementById('metro-collapse-btn').textContent='▲';
 }
+requestAnimationFrame(()=>requestAnimationFrame(()=>{_metroBodyEl.style.transition='';}));
 
 // ── Event listeners (replacing all inline HTML handlers) ──
 
