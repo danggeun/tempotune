@@ -1,5 +1,5 @@
 :root{
-  --bg:#ffffff;--surface:#f2f2f2;--surface2:#e4e4e4;--border:#c8c8c8;
+  --bg:#f0efec;--surface:#e8e6e2;--surface2:#dddbd6;--border:#c0bdb8;
   --text:#111111;--muted:#555555;--dim:#999999;
   --red:#e53030;--green:#22c55e;--blue:#2563eb;
   --r:14px;--gap:8px;
@@ -31,8 +31,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #logo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;color:var(--text);line-height:1;font-weight:600;letter-spacing:-.01em;}
 #logo-sub{font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
 #hdr-right{display:flex;align-items:center;gap:10px;}
-#hdr-rec-time{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-weight:500;display:none;letter-spacing:.04em;}
-#hdr-rec-time.show{display:block;}
+#hdr-rec-time{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);font-weight:500;letter-spacing:.04em;visibility:hidden;min-width:2.6em;text-align:right;}
+#hdr-rec-time.show{visibility:visible;}
 #rec-hdr-btn{padding:6px 12px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;letter-spacing:.06em;}
 #rec-hdr-btn.rec-on{border-color:var(--red);color:var(--red);animation:recpulse 1s infinite;}
 #rec-hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .2s;flex-shrink:0;}
