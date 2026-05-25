@@ -20,7 +20,7 @@ const A={micStream:null,micAC:null,metroAC:null,analyserFFT:null,analyserTD:null
 const recItems=[];
 let _metroCollapsed=false;
 let _wakeLockEnabled=true;
-let _aiModeEnabled=true;
+let _aiModeEnabled=false;
 
 function _setAiStatus(state){const d=document.getElementById('ai-dot');if(d)d.className=state==='loading'?'loading':'';}
 async function loadYamnet(){
@@ -886,7 +886,7 @@ function frame(){
     const fftPass=fftDetect();
     if(fftPass&&_aiModeEnabled&&Date.now()-S.lastYamnetMs>CFG.yamnet.intervalMs&&A.yamnet){S.lastYamnetMs=Date.now();runYamnet();}
     if(!fftPass)S.yamnetOK=false;
-    const detected=fftPass&&(S.yamnetOK||!A.yamnet);
+    const detected=_aiModeEnabled?fftPass&&(S.yamnetOK||!A.yamnet):fftPass;
     S.holdFrames=detected?CFG.detect.holdFrames:Math.max(0,S.holdFrames-1);S.strOK=S.holdFrames>0;
   }
   if(S.running&&A.analyserTD&&!A.isClick){A.analyserTD.getFloatTimeDomainData(A.tdBuf);updateTunerUI(yin(A.tdBuf,A.sampleRate));}
