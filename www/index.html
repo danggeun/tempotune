@@ -264,16 +264,6 @@
       </div>
     </div>
 
-    <!-- AI 연주 시간 감지 -->
-    <div class="setting-row">
-      <span class="setting-lbl">AI 연주 시간 감지</span>
-      <span class="setting-desc">현악기 소리만 인식해 배경 소음을 걸러냅니다. 합주·소음 환경에서 유용하며, 조용한 개인 연습에서는 끄면 더 빠르게 반응하고 배터리가 절약됩니다.</span>
-      <div class="step-row" id="aimode-steps">
-        <button class="step-btn" data-v="1">켜짐</button>
-        <button class="step-btn on" data-v="0">꺼짐</button>
-      </div>
-    </div>
-
     <!-- 화면 항상 켜짐 -->
     <div class="setting-row">
       <span class="setting-lbl">화면 항상 켜짐</span>
@@ -281,6 +271,16 @@
       <div class="step-row" id="wakelock-steps">
         <button class="step-btn on" data-v="1">켜짐</button>
         <button class="step-btn" data-v="0">꺼짐</button>
+      </div>
+    </div>
+
+    <!-- AI 연주 시간 감지 -->
+    <div class="setting-row">
+      <span class="setting-lbl">AI 연주 시간 감지</span>
+      <span class="setting-desc">혼자 연습 시 현악기 소리만 인식해 배경 소음을 걸러내고 실제 연주한 시간만 측정합니다. 켜두면 연주 시간이 더 정확해지지만 배터리 소모가 늘어납니다.</span>
+      <div class="step-row" id="aimode-steps">
+        <button class="step-btn" data-v="1">켜짐</button>
+        <button class="step-btn on" data-v="0">꺼짐</button>
       </div>
     </div>
 
