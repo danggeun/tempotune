@@ -406,13 +406,17 @@ function startRec(){
   const _recOpts={audioBitsPerSecond:256000};if(_mime)_recOpts.mimeType=_mime;
   A.recorder=new MediaRecorder(A.micStream,_recOpts);
   A.recorder.ondataavailable=e=>{if(e.data.size>0)A.recChunks.push(e.data);};
-  A.recorder.onstop=()=>{
+  A.recorder.onstop=async()=>{
     const blob=new Blob(A.recChunks,{type:A.recorder.mimeType||'audio/webm'});
     const url=URL.createObjectURL(blob);
     const dur=Math.round((Date.now()-A.recStartTime)/1000);
     const n=new Date(A.recStartTime);
     const name=`${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}_${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}`;
-    recItems.unshift({url,name,dur,blob,mime:A.recorder.mimeType});renderRecList();
+    const ts=A.recStartTime;
+    const item={url,name,dur,blob,mime:A.recorder.mimeType,ts};
+    const id=await _dbSave(item).catch(()=>null);
+    item.id=id;
+    recItems.unshift(item);renderRecList();
   };
   A.recorder.start();A.recording=true;
   const rb=document.getElementById('rec-hdr-btn');if(rb)rb.classList.add('rec-on');
@@ -430,6 +434,44 @@ function stopRec(){
   stopRecTimer();toast('녹음 완료');
 }
 // fmtT imported from ./core/format.js
+
+// ── IndexedDB 녹음 영속화 ──
+const _REC_DB='gopractice_rec', _REC_STORE='recordings';
+let _recDb=null;
+function _openRecDb(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(_REC_DB,1);
+    req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(_REC_STORE))db.createObjectStore(_REC_STORE,{keyPath:'id',autoIncrement:true});};
+    req.onsuccess=e=>{res(e.target.result);};
+    req.onerror=()=>rej(req.error);
+  });
+}
+function _dbSave(item){
+  if(!_recDb)return Promise.resolve(null);
+  return new Promise((res,rej)=>{
+    const tx=_recDb.transaction(_REC_STORE,'readwrite');
+    const req=tx.objectStore(_REC_STORE).add({name:item.name,dur:item.dur,blob:item.blob,mime:item.mime,ts:item.ts});
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+function _dbDelete(id){
+  if(!_recDb||id==null)return;
+  const tx=_recDb.transaction(_REC_STORE,'readwrite');
+  tx.objectStore(_REC_STORE).delete(id);
+}
+function _dbLoadAll(){
+  if(!_recDb)return;
+  const tx=_recDb.transaction(_REC_STORE,'readonly');
+  const req=tx.objectStore(_REC_STORE).getAll();
+  req.onsuccess=()=>{
+    const rows=req.result.sort((a,b)=>b.ts-a.ts);
+    rows.forEach(r=>{recItems.push({id:r.id,url:URL.createObjectURL(r.blob),name:r.name,dur:r.dur,blob:r.blob,mime:r.mime,ts:r.ts});});
+    if(recItems.length>0)renderRecList();
+  };
+}
+_openRecDb().then(db=>{_recDb=db;_dbLoadAll();}).catch(()=>{});
+
 const _recPlayers={};
 function getRecPlayer(idx){if(!_recPlayers[idx]){const a=new Audio(recItems[idx].url);a.ontimeupdate=()=>{const sk=document.getElementById('rec-seek-'+idx),tm=document.getElementById('rec-time-'+idx);if(sk&&a.duration){sk.max=a.duration;sk.value=a.currentTime;}if(tm)tm.textContent=fmtT(a.currentTime);};a.onended=()=>{const btn=document.getElementById('rec-pb-'+idx);if(btn)btn.textContent='▶';const sk=document.getElementById('rec-seek-'+idx);if(sk)sk.value=0;const tm=document.getElementById('rec-time-'+idx);if(tm)tm.textContent='0:00';a.currentTime=0;};_recPlayers[idx]=a;}return _recPlayers[idx];}
 function recPlayPause(idx){const a=getRecPlayer(idx),btn=document.getElementById('rec-pb-'+idx);Object.keys(_recPlayers).forEach(i=>{if(+i!==idx&&!_recPlayers[i].paused){_recPlayers[i].pause();const b=document.getElementById('rec-pb-'+i);if(b)b.textContent='▶';}});if(a.paused){a.play();if(btn)btn.textContent='■';}else{a.pause();if(btn)btn.textContent='▶';}}
@@ -486,7 +528,7 @@ function renderRecList(){
   }
 }
 function toggleRecItem(idx){document.getElementById('rec-detail-'+idx)?.classList.toggle('open');}
-function deleteRec(idx){if(_ed.idx===idx)closeEditor();if(_recPlayers[idx]){try{_recPlayers[idx].pause();}catch(e){}delete _recPlayers[idx];}URL.revokeObjectURL(recItems[idx].url);recItems.splice(idx,1);renderRecList();}
+function deleteRec(idx){if(_ed.idx===idx)closeEditor();if(_recPlayers[idx]){try{_recPlayers[idx].pause();}catch(e){}delete _recPlayers[idx];}const item=recItems[idx];URL.revokeObjectURL(item.url);_dbDelete(item.id);recItems.splice(idx,1);renderRecList();}
 
 // ══════════════════════════════════
 // 편집 페이지
