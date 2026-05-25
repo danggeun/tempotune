@@ -539,7 +539,13 @@ let _aiModeEnabled=true;
 
 async function loadYamnet(){try{let w=0;while(typeof tf==='undefined'&&w<10000){await new Promise(r=>setTimeout(r,200));w+=200;}A.yamnet=await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',{fromTFHub:true});A.yamnetReady=true;}catch(e){A.yamnetReady=true;}}
 loadYamnet();
-if(window.Capacitor){openMic();}else{showMicPopup();}
+if(window.Capacitor){
+  openMic();
+}else{
+  navigator.permissions?.query({name:'microphone'})
+    .then(p=>{if(p.state==='granted')openMic();else showMicPopup();})
+    .catch(()=>showMicPopup());
+}
 
 // ── 설정 스텝 ──
 function setCentsStep(v){
@@ -745,8 +751,8 @@ function drawHistory(){
   const ppc=(W/2)/50,tol=CFG.tuner.tolCents,N=S.histData.length,rH=H/N;
   c.fillStyle='rgba(34,197,94,.65)';
   c.fillRect(W/2-tol*ppc,0,tol*2*ppc,H);
-  c.strokeStyle='rgba(255,255,255,.06)';c.lineWidth=.5;c.setLineDash([2,4]);
-  c.beginPath();c.moveTo(W/2,0);c.lineTo(W/2,H);c.stroke();c.setLineDash([]);
+  c.strokeStyle='rgba(255,255,255,.28)';c.lineWidth=1;
+  c.beginPath();c.moveTo(W/2,0);c.lineTo(W/2,H);c.stroke();
   c.lineWidth=2.5;c.lineCap='round';
   for(let i=0;i<N-1;i++){
     const v0=S.histData[i],v1=S.histData[i+1];if(v0===null||v1===null)continue;
