@@ -4,5 +4,13 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#f7f8fb",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
   }
 }
