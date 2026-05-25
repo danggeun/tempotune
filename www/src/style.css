@@ -13,6 +13,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes metroflash{0%{background:rgba(229,48,48,.32);border-color:var(--red)}60%{background:rgba(229,48,48,.12);border-color:var(--red)}100%{background:transparent;border-color:var(--border)}}
+@keyframes appFadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
 /* ── 팝업 ── */
 #mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
@@ -24,7 +25,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #mic-popup-cancel{height:40px;background:transparent;border:none;color:#aaa;font-family:'Noto Sans KR',sans-serif;font-size:14px;cursor:pointer;}
 
 /* ── 앱 ── */
-#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));}
+#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));animation:appFadeIn .4s ease-out both;}
 
 /* ── 헤더 ── */
 #hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
@@ -92,10 +93,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #gauge-wrap{position:relative;height:6px;background:#1c1c1c;border-radius:3px;flex-shrink:0;}
 #gauge-zone{position:absolute;top:-2px;height:10px;background:#22c55e;opacity:.55;border-radius:4px;}
 #gauge-center{position:absolute;top:-4px;left:50%;width:1px;height:14px;background:#333;transform:translateX(-50%);}
-#gauge-needle{position:absolute;top:-8px;width:4px;height:22px;background:#666;border-radius:2px;transform:translateX(-50%);transition:left .07s;left:50%;}
+#gauge-needle{position:absolute;top:-8px;width:4px;height:22px;background:rgba(255,255,255,.5);border-radius:2px;transform:translateX(-50%);transition:left .07s;left:50%;}
 #gauge-needle.tune{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.9);}
-#gauge-needle.sharp{background:var(--red);}
-#gauge-needle.flat{background:var(--blue);}
 
 /* ══════════════════════════════════
    메트로놈

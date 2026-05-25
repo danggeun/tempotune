@@ -18,7 +18,7 @@ const KR_MIDI={'도':0,'도♯':1,'레':2,'레♯':3,'미':4,'파':5,'파♯':6,
 const S={micReady:false,running:false,strOK:false,detFreq:0,holdFrames:0,yamnetOK:false,lastYamnetMs:0,smoothFreq:-1,lockedMidi:-1,lockCount:0,lockedRms:0,histData:new Array(CFG.tuner.histLen).fill(null),bpm:80,timeSig:4,subDiv:1,metroPlaying:false,refHz:CFG.refDefault,elapsedSec:0,detectedSec:0,timerRunning:false,lastActivityMs:Date.now()};
 const A={micStream:null,micAC:null,metroAC:null,analyserFFT:null,analyserTD:null,fftBuf:null,tdBuf:null,binCount:0,sampleRate:44100,scriptProc:null,pcm16k:new Float32Array(31200),pcmPos:0,isClick:false,wakeLock:null,yamnet:null,yamnetReady:false,yamnetRunning:false,metroTimer:null,metroNext:0,metroTick:0,recorder:null,recChunks:[],recording:false,recStartTime:0,recTimerInt:null,refOsc:null,refGain:null,refOctave:4};
 const recItems=[];
-let _metroCollapsed=false;
+let _metroCollapsed=true;
 let _wakeLockEnabled=true;
 let _aiModeEnabled=false;
 
@@ -257,7 +257,7 @@ function drawGauge(cents){
   zone.style.left=(W/2-tol*ppc)+'px';zone.style.width=(tol*2*ppc)+'px';
   if(cents===null){needle.style.left='50%';needle.className='';return;}
   needle.style.left=(W/2+Math.max(-50,Math.min(50,cents))*ppc)+'px';
-  needle.className=Math.abs(cents)<=tol?'tune':cents>0?'sharp':'flat';
+  needle.className=Math.abs(cents)<=tol?'tune':'';
 }
 
 let _lastHistDraw=0;
@@ -953,7 +953,12 @@ function loadSettings(){
 loadSettings();
 
 setTimeout(()=>{drawGauge(null);drawHistory();},200);
-document.getElementById('metro-body').style.maxHeight='420px';
+const _metroBodyEl=document.getElementById('metro-body');
+_metroBodyEl.style.maxHeight='420px';
+if(window.innerWidth<700){
+  _metroBodyEl.classList.add('collapsed');
+  document.getElementById('metro-collapse-btn').textContent='▲';
+}
 
 // ── Event listeners (replacing all inline HTML handlers) ──
 
