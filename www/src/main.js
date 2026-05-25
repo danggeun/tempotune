@@ -178,10 +178,10 @@ function refYToHz(y){return Math.round(-y/REF_IH)+REF_MIN;}
 function setRefDrumY(y,anim=false){refDrumY=y;refInner.style.transition=anim?'transform .18s cubic-bezier(.25,.46,.45,.94)':'none';refInner.style.transform=`translateY(${y}px)`;const hz=Math.max(REF_MIN,Math.min(REF_MAX,refYToHz(y)));document.querySelectorAll('.ref-drum-item').forEach((el,i)=>el.classList.toggle('active',i+REF_MIN===hz));}
 function snapRefDrum(){S.refHz=Math.max(REF_MIN,Math.min(REF_MAX,refYToHz(refDrumY)));setRefDrumY(refHzToY(S.refHz),true);}
 refOuter.addEventListener('mousedown',e=>{refDrumDrag=true;refSY=e.clientY;refSDY=refDrumY;refInner.style.transition='none';e.preventDefault();});
-window.addEventListener('mousemove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.max(refHzToY(REF_MAX),Math.min(refHzToY(REF_MIN),refSDY+(e.clientY-refSY))));});
+window.addEventListener('mousemove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.max(refHzToY(REF_MAX),Math.min(refHzToY(REF_MIN),refSDY-(e.clientY-refSY))));});
 window.addEventListener('mouseup',()=>{if(refDrumDrag){refDrumDrag=false;snapRefDrum();}});
 refOuter.addEventListener('touchstart',e=>{refDrumDrag=true;refSY=e.touches[0].clientY;refSDY=refDrumY;refInner.style.transition='none';},{passive:true});
-window.addEventListener('touchmove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.max(refHzToY(REF_MAX),Math.min(refHzToY(REF_MIN),refSDY+(e.touches[0].clientY-refSY))));},{passive:true});
+window.addEventListener('touchmove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.max(refHzToY(REF_MAX),Math.min(refHzToY(REF_MIN),refSDY-(e.touches[0].clientY-refSY))));},{passive:true});
 window.addEventListener('touchend',()=>{if(refDrumDrag){refDrumDrag=false;snapRefDrum();}});
 setRefDrumY(refHzToY(S.refHz));setTimeout(()=>setRefDrumY(refHzToY(S.refHz)),30);
 
