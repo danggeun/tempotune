@@ -344,7 +344,8 @@ function startMetro(){
   const ac=_getAC();if(!ac)return;
   S.metroPlaying=true;A.metroTick=0;A.metroNext=ac.currentTime+.05;metroSched();
   if(window.innerWidth<700){
-    document.getElementById('metro-body').classList.add('collapsed');
+    const mb=document.getElementById('metro-body');
+    mb.style.maxHeight=mb.scrollHeight+'px';mb.offsetHeight;mb.classList.add('collapsed');
     document.getElementById('metro-play-hdr-btn').style.display='flex';
     document.getElementById('metro-collapse-btn').style.display='none';
   }
@@ -356,7 +357,14 @@ function stopMetro(){
   S.metroPlaying=false;clearTimeout(A.metroTimer);
   if(A.metroAC&&!A.micAC){A.metroAC.close();A.metroAC=null;}
   if(window.innerWidth<700){
-    if(!_metroCollapsed)document.getElementById('metro-body').classList.remove('collapsed');
+    if(!_metroCollapsed){
+      const mb=document.getElementById('metro-body');
+      mb.style.transition='none';mb.classList.remove('collapsed');const realH=mb.scrollHeight;
+      mb.classList.add('collapsed');mb.style.maxHeight='0px';mb.offsetHeight;
+      mb.style.transition='';mb.style.maxHeight=realH+'px';
+      const onEnd=e=>{if(e.propertyName!=='max-height')return;if(!_metroCollapsed)mb.style.maxHeight='none';mb.removeEventListener('transitionend',onEnd);};
+      mb.addEventListener('transitionend',onEnd);mb.classList.remove('collapsed');
+    }
     document.getElementById('metro-play-hdr-btn').style.display='none';
     document.getElementById('metro-collapse-btn').style.display='flex';
   }
