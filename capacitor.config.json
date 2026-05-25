@@ -1,7 +1,7 @@
 {
   "appId": "com.gopractice.app",
   "appName": "Go Practice",
-  "webDir": "www",
+  "webDir": "dist",
   "server": {
     "androidScheme": "https"
   }
