@@ -4,6 +4,7 @@ import { bufToWav } from './core/wav.js'
 import { fmt, fmtT } from './core/format.js'
 
 if(window.Capacitor){
+  document.body.classList.add('capacitor');
   import('@capacitor/status-bar').then(({StatusBar,Style})=>{
     const dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
     StatusBar.setStyle({style:dark?Style.Dark:Style.Light});

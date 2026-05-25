@@ -25,7 +25,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #mic-popup-cancel{height:40px;background:transparent;border:none;color:#aaa;font-family:'Noto Sans KR',sans-serif;font-size:14px;cursor:pointer;}
 
 /* ── 앱 ── */
-#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));animation:appEnter .38s cubic-bezier(.22,.68,0,1.1) both;}
+#app{height:100%;display:flex;flex-direction:column;align-items:center;padding:.75rem .85rem;gap:var(--gap);padding-bottom:max(.75rem,env(safe-area-inset-bottom));}
+.capacitor #app{animation:appEnter .38s cubic-bezier(.22,.68,0,1.1) both;}
 
 /* ── 헤더 ── */
 #hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
