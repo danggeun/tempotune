@@ -22,14 +22,14 @@ let _metroCollapsed=false;
 let _wakeLockEnabled=true;
 let _aiModeEnabled=true;
 
-function _setTunerLabel(txt,dim=false){const el=document.getElementById('tuner-label');if(el){el.textContent=txt;el.style.opacity=dim?'.45':'1';}}
+function _setAiStatus(state){const d=document.getElementById('ai-dot');if(d)d.className=state==='loading'?'loading':'';}
 async function loadYamnet(){
-  _setTunerLabel('TUNER · AI 로딩중',true);
+  _setAiStatus('loading');
   try{
     let w=0;while(typeof tf==='undefined'&&w<10000){await new Promise(r=>setTimeout(r,200));w+=200;}
     A.yamnet=await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1',{fromTFHub:true});
-    A.yamnetReady=true;_setTunerLabel('TUNER');
-  }catch(e){A.yamnetReady=true;_setTunerLabel('TUNER · AI 오프라인',true);}
+    A.yamnetReady=true;_setAiStatus('ready');
+  }catch(e){A.yamnetReady=true;_setAiStatus('ready');}
 }
 loadYamnet();
 function _showTapHint(){

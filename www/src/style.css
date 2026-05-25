@@ -52,6 +52,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #tuner-hdr.beat-flash{animation:tunerbeat .5s ease-out forwards;}
 #tuner-hdr.beat-flash-weak{animation:tunerbeatweak .18s ease-out forwards;}
 #tuner-label{font-size:13px;color:#ffffff;font-weight:700;letter-spacing:.12em;}
+#ai-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#f59e0b;margin-left:7px;vertical-align:middle;opacity:0;transition:opacity .4s;}
+#ai-dot.loading{opacity:1;animation:pulse 1.2s ease-in-out infinite;}
 #ref-row{display:flex;align-items:center;gap:8px;}
 #ref-lbl{font-size:11px;color:#ffffff;letter-spacing:.06em;}
 #ref-drum-outer{position:relative;width:78px;height:28px;overflow:hidden;border-radius:7px;background:#111;cursor:ns-resize;user-select:none;touch-action:none;border:1px solid #222;}
