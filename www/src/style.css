@@ -198,7 +198,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 @media (orientation: landscape) and (max-height: 500px){body::after{content:'화면을 세로로 돌려주세요';position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:15px;color:var(--muted);z-index:999;pointer-events:all;}}
-@media(min-width:700px){
+@media (min-width: 700px){
   #hdr,#main-body{max-width:680px;}
   #main-body{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:1;min-height:0;width:100%;}
   #ref-panel{max-width:680px;}

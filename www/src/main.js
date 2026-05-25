@@ -40,7 +40,7 @@ function _showTapHint(){
   card.addEventListener('click',_start);
 }
 if(window.Capacitor){
-  openMic().then(ok=>{if(!ok)_showTapHint();});
+  openMic().then(ok=>{if(!ok){_showTapHint();toast('마이크 권한을 허용해주세요');}});
 }else{
   navigator.permissions?.query({name:'microphone'})
     .then(p=>{
@@ -681,7 +681,7 @@ function edTogglePlay(){
 }
 
 function edSetSpeed(v){
-  const disp=v===1.0?'1.0':v.toFixed(2);
+  const disp=Number.isInteger(v*10)?v.toFixed(1):v.toFixed(2);
   document.getElementById('ed-speed-val').textContent=disp+'×';
   if(_ed.audio){_ed.audio.playbackRate=v;_ed.audio.preservesPitch=true;}
 }
@@ -969,3 +969,8 @@ document.getElementById('ed-b-btn').addEventListener('click', edToggleB);
 document.getElementById('ed-loop-btn').addEventListener('click', edToggleLoop);
 document.getElementById('ed-bm-add-btn').addEventListener('click', edAddBookmark);
 document.getElementById('ed-export-btn').addEventListener('click', edExportAB);
+document.addEventListener('keydown', e=>{
+  if(e.code==='Space'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){
+    e.preventDefault();toggleMetro();
+  }
+});
