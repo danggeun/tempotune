@@ -114,7 +114,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #metro-play-hdr-btn{width:44px;height:36px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 #metro-collapse-btn{width:34px;height:34px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
-#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:10px;overflow:visible;transition:max-height .55s ease,padding .55s ease,opacity .35s ease .2s;}
+#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:10px;overflow:hidden;transition:max-height .55s ease,padding .55s ease,opacity .35s ease .2s;}
 #metro-body.collapsed{max-height:0!important;padding-top:0;padding-bottom:0;opacity:0;pointer-events:none;}
 
 #metro-bpm-row{display:flex;align-items:center;gap:10px;}

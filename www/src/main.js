@@ -966,6 +966,7 @@ loadSettings();
 
 setTimeout(()=>{drawGauge(null);drawHistory();},200);
 const _metroBodyEl=document.getElementById('metro-body');
+_metroBodyEl.style.maxHeight='440px';
 if(window.innerWidth<700){
   setTimeout(()=>{
     _metroBodyEl.classList.add('collapsed');
