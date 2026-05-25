@@ -16,7 +16,7 @@ const ENHARMONIC={'도♯':'레♭','레♯':'미♭','파♯':'솔♭','솔♯'
 const KR_MIDI={'도':0,'도♯':1,'레':2,'레♯':3,'미':4,'파':5,'파♯':6,'솔':7,'솔♯':8,'라':9,'라♯':10,'시':11};
 
 const S={micReady:false,running:false,strOK:false,detFreq:0,holdFrames:0,yamnetOK:false,lastYamnetMs:0,smoothFreq:-1,lockedMidi:-1,lockCount:0,lockedRms:0,histData:new Array(CFG.tuner.histLen).fill(null),bpm:80,timeSig:4,subDiv:1,metroPlaying:false,refHz:CFG.refDefault,elapsedSec:0,detectedSec:0,timerRunning:false,lastActivityMs:Date.now()};
-const A={micStream:null,micAC:null,analyserFFT:null,analyserTD:null,fftBuf:null,tdBuf:null,binCount:0,sampleRate:44100,scriptProc:null,pcm16k:new Float32Array(31200),pcmPos:0,isClick:false,wakeLock:null,yamnet:null,yamnetReady:false,yamnetRunning:false,metroTimer:null,metroNext:0,metroTick:0,recorder:null,recChunks:[],recording:false,recStartTime:0,recTimerInt:null,refOsc:null,refGain:null,refOctave:4};
+const A={micStream:null,micAC:null,metroAC:null,analyserFFT:null,analyserTD:null,fftBuf:null,tdBuf:null,binCount:0,sampleRate:44100,scriptProc:null,pcm16k:new Float32Array(31200),pcmPos:0,isClick:false,wakeLock:null,yamnet:null,yamnetReady:false,yamnetRunning:false,metroTimer:null,metroNext:0,metroTick:0,recorder:null,recChunks:[],recording:false,recStartTime:0,recTimerInt:null,refOsc:null,refGain:null,refOctave:4};
 const recItems=[];
 let _metroCollapsed=false;
 let _wakeLockEnabled=true;
@@ -91,15 +91,21 @@ async function openMic(){
     A.scriptProc.onaudioprocess=e=>{const inp=e.inputBuffer.getChannelData(0);for(let i=0;i<inp.length;i+=ratio){A.pcm16k[A.pcmPos%A.pcm16k.length]=inp[Math.floor(i)];A.pcmPos++;}};
     if(A.micAC.state==='suspended')await A.micAC.resume();
     const src=A.micAC.createMediaStreamSource(A.micStream);src.connect(A.analyserFFT);src.connect(A.analyserTD);src.connect(A.scriptProc);A.scriptProc.connect(A.micAC.destination);
+    // metroAC → micAC 전환: 독립 실행 중이던 메트로놈을 micAC 컨텍스트로 재시작
+    const _resumeMetro=A.metroAC&&S.metroPlaying;
+    if(A.metroAC){if(S.metroPlaying){clearTimeout(A.metroTimer);S.metroPlaying=false;}A.metroAC.close();A.metroAC=null;}
     S.micReady=true;S.running=true;requestWakeLock();startRaf();_micOpening=false;
     const mb=document.getElementById('hdr-mic-btn');if(mb)mb.style.display='none';
     const rhb=document.getElementById('rec-hdr-btn');if(rhb)rhb.style.opacity='1';
+    if(_resumeMetro)startMetro();
     return true;
   }catch(e){toast('마이크 오류: '+e.message);_micOpening=false;return false;}
 }
 function closeMic(){
   S.running=false;S.micReady=false;S.strOK=false;
-  if(S.metroPlaying)stopMetro();stopRefNote();if(A.recording)stopRec();
+  const wasMetroPlaying=S.metroPlaying;
+  if(S.metroPlaying){clearTimeout(A.metroTimer);S.metroPlaying=false;}
+  stopRefNote();if(A.recording)stopRec();
   A.micStream?.getTracks().forEach(t=>t.stop());A.scriptProc?.disconnect();A.micAC?.close();
   A.micStream=null;A.micAC=null;A.analyserFFT=null;A.analyserTD=null;A.scriptProc=null;A.pcmPos=0;
   A.wakeLock?.release();A.wakeLock=null;
@@ -110,6 +116,7 @@ function closeMic(){
   document.getElementById('tuner-card').classList.remove('in-tune');drawGauge(null);
   const mb=document.getElementById('hdr-mic-btn');if(mb)mb.style.display='flex';
   const rhb2=document.getElementById('rec-hdr-btn');if(rhb2)rhb2.style.opacity='.35';
+  if(wasMetroPlaying)startMetro();
 }
 async function requestWakeLock(){if(!_wakeLockEnabled)return;try{A.wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}
 document.addEventListener('visibilitychange',async()=>{if(S.running&&document.visibilityState==='visible'){A.micAC?.resume();if(_wakeLockEnabled)try{A.wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}});
@@ -299,29 +306,34 @@ let _metroVol=0.7,_bpmDebounce=null;
 })();
 
 function setMetroVol(v){_metroVol=v;saveSettings();}
+function _getAC(){return A.micAC||A.metroAC;}
 function getTickInterval(){const b=60/S.bpm;if(S.timeSig===6)return b/2;if(S.subDiv==='d')return A.metroTick%2===0?b*3/4:b*1/4;return b/S.subDiv;}
 function getTotalTicks(){return S.subDiv==='d'?S.timeSig*2:S.timeSig*S.subDiv;}
 function scheduleClick(time,tick){
-  if(!A.micAC)return;
-  const dl=Math.max(0,(time-A.micAC.currentTime)*1000);
+  const ac=_getAC();if(!ac)return;
+  const dl=Math.max(0,(time-ac.currentTime)*1000);
   setTimeout(()=>{litBeat(tick);flashBeat(tick);},dl);
   if(A.recording){
     setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);
     return;
   }
-  const osc=A.micAC.createOscillator(),gain=A.micAC.createGain();osc.connect(gain);gain.connect(A.micAC.destination);
+  const osc=ac.createOscillator(),gain=ac.createGain();osc.connect(gain);gain.connect(ac.destination);
   let freq,vol;
   if(S.subDiv==='d'){const b1=tick===0,bs=tick%2===0;freq=b1?1800:bs?1100:750;vol=b1?.75:bs?.42:.18;}
   else{const b1=tick===0,ib=tick%S.subDiv===0;freq=b1?1800:ib?1100:750;vol=b1?.75:ib?.42:.18;}
   vol=Math.min(1,vol*(_metroVol/.7));osc.type='triangle';
   gain.gain.setValueAtTime(vol,time);gain.gain.exponentialRampToValueAtTime(.001,time+CFG.metro.clickDurS);
   osc.frequency.value=freq;osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(time);osc.stop(time+CFG.metro.clickDurS);
-  setTimeout(()=>{A.isClick=true;},dl-5);setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);
+  if(A.micAC){setTimeout(()=>{A.isClick=true;},dl-5);setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);}
 }
-function metroSched(){while(A.metroNext<A.micAC.currentTime+CFG.metro.lookaheadS){scheduleClick(A.metroNext,A.metroTick);A.metroNext+=getTickInterval();A.metroTick=(A.metroTick+1)%getTotalTicks();}A.metroTimer=setTimeout(metroSched,CFG.metro.intervalMs);}
+function metroSched(){const ac=_getAC();if(!ac)return;while(A.metroNext<ac.currentTime+CFG.metro.lookaheadS){scheduleClick(A.metroNext,A.metroTick);A.metroNext+=getTickInterval();A.metroTick=(A.metroTick+1)%getTotalTicks();}A.metroTimer=setTimeout(metroSched,CFG.metro.intervalMs);}
 function startMetro(){
-  if(!A.micAC){toast('마이크를 먼저 켜주세요');return;}
-  S.metroPlaying=true;A.metroTick=0;A.metroNext=A.micAC.currentTime+.05;metroSched();
+  if(!A.micAC){
+    try{if(!A.metroAC||A.metroAC.state==='closed')A.metroAC=new(window.AudioContext||window.webkitAudioContext)();if(A.metroAC.state==='suspended')A.metroAC.resume();}
+    catch(e){toast('오디오를 시작할 수 없습니다');return;}
+  }
+  const ac=_getAC();if(!ac)return;
+  S.metroPlaying=true;A.metroTick=0;A.metroNext=ac.currentTime+.05;metroSched();
   if(window.innerWidth<700){
     document.getElementById('metro-body').classList.add('collapsed');
     document.getElementById('metro-play-hdr-btn').style.display='flex';
@@ -333,6 +345,7 @@ function startMetro(){
 }
 function stopMetro(){
   S.metroPlaying=false;clearTimeout(A.metroTimer);
+  if(A.metroAC&&!A.micAC){A.metroAC.close();A.metroAC=null;}
   if(window.innerWidth<700){
     if(!_metroCollapsed)document.getElementById('metro-body').classList.remove('collapsed');
     document.getElementById('metro-play-hdr-btn').style.display='none';
@@ -340,7 +353,7 @@ function stopMetro(){
   }
   document.getElementById('metro-play-btn').textContent='▶';
   document.getElementById('metro-play-btn').style.borderColor='var(--border)';
-  document.querySelectorAll('.bd').forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));
+  _bdDots.forEach(d=>d.classList.remove('lit-a','lit-b','lit-s'));
 }
 function toggleMetro(){S.metroPlaying?stopMetro():startMetro();}
 function toggleMetroCollapse(){
