@@ -517,11 +517,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 <script>
 'use strict';
 const CFG={
-  // [변경] noiseFloor: -52 → -30 (주변 소음 차단 강화)
-  detect:{fftSize:4096,fftSmooth:.88,hzMin:80,hzMax:4800,noiseFloor:-30,peakMargin:4,harmonicDrop:35,harmonicMin:3,holdFrames:60},
+  detect:{fftSize:4096,fftSmooth:.88,hzMin:80,hzMax:4800,noiseFloor:-44,peakMargin:8,harmonicDrop:35,harmonicMin:2,holdFrames:45},
   yamnet:{intervalMs:975,threshold:.50,sampleRate:16000,inputLen:15600,stringIdx:new Set([132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147])},
-  // [변경] rmsMin: .005 → .025 (기본 감도 보수적으로), lockFrames: 2 → 6 (왔다갔다 감소)
-  tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.025,lockFrames:6,smoothing:.18,histLen:360,tolCents:10},
+  tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.010,lockFrames:3,smoothing:.22,histLen:360,tolCents:10},
   metro:{bpmMin:20,bpmMax:220,lookaheadS:.4,intervalMs:25,clickDurS:.05,muteTunerMs:70,swipePxPerBpm:2},
   inactiveMs:15*60*1000,refMin:432,refMax:448,refDefault:442,
 };
@@ -530,7 +528,7 @@ const KR=['도','도♯','레','레♯','미','파','파♯','솔','솔♯','라
 const ENHARMONIC={'도♯':'레♭','레♯':'미♭','파♯':'솔♭','솔♯':'라♭','라♯':'시♭'};
 const KR_MIDI={'도':0,'도♯':1,'레':2,'레♯':3,'미':4,'파':5,'파♯':6,'솔':7,'솔♯':8,'라':9,'라♯':10,'시':11};
 
-const S={micReady:false,running:false,strOK:false,detFreq:0,holdFrames:0,yamnetOK:false,lastYamnetMs:0,smoothFreq:-1,lockedMidi:-1,lockCount:0,histData:new Array(CFG.tuner.histLen).fill(null),bpm:80,timeSig:4,subDiv:1,metroPlaying:false,refHz:CFG.refDefault,elapsedSec:0,detectedSec:0,timerRunning:false,lastActivityMs:Date.now()};
+const S={micReady:false,running:false,strOK:false,detFreq:0,holdFrames:0,yamnetOK:false,lastYamnetMs:0,smoothFreq:-1,lockedMidi:-1,lockCount:0,lockedRms:0,histData:new Array(CFG.tuner.histLen).fill(null),bpm:80,timeSig:4,subDiv:1,metroPlaying:false,refHz:CFG.refDefault,elapsedSec:0,detectedSec:0,timerRunning:false,lastActivityMs:Date.now()};
 const A={micStream:null,micAC:null,analyserFFT:null,analyserTD:null,fftBuf:null,tdBuf:null,binCount:0,sampleRate:44100,scriptProc:null,pcm16k:new Float32Array(31200),pcmPos:0,isClick:false,wakeLock:null,yamnet:null,yamnetReady:false,yamnetRunning:false,metroTimer:null,metroNext:0,metroTick:0,recorder:null,recChunks:[],recording:false,recStartTime:0,recTimerInt:null,refOsc:null,refGain:null,refOctave:4};
 const recItems=[];
 let _metroCollapsed=false;
@@ -564,7 +562,7 @@ function setCentsStep(v){
   saveSettings();
 }
 // [변경] RMS_LEVELS 전체 상향: 낮음.035 / 보통.025 / 높음.015
-const RMS_LEVELS=[.035,.025,.015];
+const RMS_LEVELS=[.022,.012,.006];
 function setRmsStep(v){
   CFG.tuner.rmsMin=RMS_LEVELS[v-1];
   document.querySelectorAll('#rms-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
@@ -681,9 +679,12 @@ function fftDetect(){
   const lo=Math.floor(CFG.detect.hzMin*A.binCount*2/A.sampleRate),hi=Math.min(Math.floor(CFG.detect.hzMax*A.binCount*2/A.sampleRate),A.binCount-1);
   let peak=-Infinity,pkB=0,sum=0,n=0;
   for(let i=lo;i<=hi;i++){if(A.fftBuf[i]>peak){peak=A.fftBuf[i];pkB=i;}if(A.fftBuf[i]>-90){sum+=A.fftBuf[i];n++;}}
-  if(peak<CFG.detect.noiseFloor||n===0||peak-sum/n<CFG.detect.peakMargin)return false;
+  if(n===0)return false;
+  // 적응형 플로어: max(설정값, 측정 주변 소음+10dB) — 방 소음 수준에 자동 적응
+  const effectiveFloor=Math.max(CFG.detect.noiseFloor,_noiseEst+10);
+  if(peak<effectiveFloor||peak-sum/n<CFG.detect.peakMargin){_noiseEst=_noiseEst*.997+peak*.003;return false;}
   let h=0;for(const m of[2,3,4,5]){const b=Math.round(pkB*m);if(b<A.binCount&&A.fftBuf[b]>peak-CFG.detect.harmonicDrop)h++;}
-  if(h<CFG.detect.harmonicMin)return false;
+  if(h<CFG.detect.harmonicMin){_noiseEst=_noiseEst*.997+peak*.003;return false;}
   S.detFreq=Math.round(pkB*A.sampleRate/(A.binCount*2));return true;
 }
 async function runYamnet(){
@@ -692,10 +693,10 @@ async function runYamnet(){
   catch(e){S.yamnetOK=true;}
   finally{if(wf)wf.dispose();if(res){if(Array.isArray(res))res.forEach(t=>t.dispose());else res.dispose();}A.yamnetRunning=false;}
 }
-let _yf=0,_ly=-1;
+let _yf=0,_ly=-1,_lastRms=0,_noiseEst=-65;
 function yin(buf,sr){
   if(++_yf%4!==0)return _ly;
-  const N=buf.length,half=Math.floor(N/2);let rms=0;for(let i=0;i<N;i++)rms+=buf[i]*buf[i];if(Math.sqrt(rms/N)<CFG.tuner.rmsMin)return _ly=-1;
+  const N=buf.length,half=Math.floor(N/2);let rms=0;for(let i=0;i<N;i++)rms+=buf[i]*buf[i];_lastRms=Math.sqrt(rms/N);if(_lastRms<CFG.tuner.rmsMin)return _ly=-1;
   const d=new Float32Array(half);for(let tau=1;tau<half;tau++){let s=0;for(let j=0;j<half;j++){const dif=buf[j]-buf[j+tau];s+=dif*dif;}d[tau]=s;}
   const c=new Float32Array(half);c[0]=1;let run=0;for(let tau=1;tau<half;tau++){run+=d[tau];c[tau]=run===0?0:d[tau]/(run/tau);}
   let t=-1;for(let tau=2;tau<half-1;tau++){if(c[tau]<CFG.tuner.yinThreshold){while(tau+1<half&&c[tau+1]<c[tau])tau++;t=tau;break;}}
@@ -708,7 +709,7 @@ function yin(buf,sr){
 function updateTunerUI(raw){
   const nEl=document.getElementById('tuner-note'),oEl=document.getElementById('tuner-oct'),cEl=document.getElementById('tuner-cents'),eEl=document.getElementById('tuner-enharmonic');
   if(raw===-1){
-    S.smoothFreq=-1;S.lockedMidi=-1;S.lockCount=0;
+    S.smoothFreq=-1;S.lockedMidi=-1;S.lockCount=0;S.lockedRms=0;
     nEl.textContent='--';nEl.className='empty';oEl.textContent='';cEl.textContent='';eEl.textContent='';
     // [변경] 빈 화면일 때 acc(샾 표시) 도 초기화
     const accEl2=document.getElementById('tuner-acc');if(accEl2)accEl2.textContent='';
@@ -717,8 +718,16 @@ function updateTunerUI(raw){
   }
   S.lastActivityMs=Date.now();
   const corrMidi=Math.round(12*Math.log2(raw/440))+69;
-  if(corrMidi===S.lockedMidi){S.smoothFreq=S.smoothFreq===-1?raw:S.smoothFreq+(raw-S.smoothFreq)*CFG.tuner.smoothing;}
-  else{S.lockCount++;if(S.lockCount>=CFG.tuner.lockFrames){S.lockedMidi=corrMidi;S.lockCount=0;S.smoothFreq=raw;}else if(S.smoothFreq===-1)S.smoothFreq=raw;}
+  if(corrMidi===S.lockedMidi){
+    S.smoothFreq=S.smoothFreq===-1?raw:S.smoothFreq+(raw-S.smoothFreq)*CFG.tuner.smoothing;
+    S.lockedRms=_lastRms;
+  }else{
+    // 진폭 기반 락: 현재 락된 음보다 훨씬 작은 신호(= 멀리서 나는 소리)는 더 많은 프레임 필요
+    const needed=(_lastRms<S.lockedRms*.5&&S.lockedMidi!==-1)?CFG.tuner.lockFrames*2:CFG.tuner.lockFrames;
+    S.lockCount++;
+    if(S.lockCount>=needed){S.lockedMidi=corrMidi;S.lockCount=0;S.smoothFreq=raw;S.lockedRms=_lastRms;}
+    else if(S.smoothFreq===-1)S.smoothFreq=raw;
+  }
   const freq=S.smoothFreq,midi=Math.round(12*Math.log2(freq/440))+69;
   const refAdjusted=440*Math.pow(2,(midi-69)/12)*(S.refHz/440);
   const cents=Math.round(1200*Math.log2(freq/refAdjusted));
