@@ -17,7 +17,7 @@ const CFG={
   yamnet:{intervalMs:975,threshold:.50,sampleRate:16000,inputLen:15600,stringIdx:new Set([132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147])},
   tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.020,lockFrames:3,smoothing:.10,histLen:360,tolCents:15},
   metro:{bpmMin:20,bpmMax:220,lookaheadS:.4,intervalMs:25,clickDurS:.05,muteTunerMs:90,swipePxPerBpm:2},
-  inactiveMs:15*60*1000,refMin:415,refMax:466,refDefault:442,
+  inactiveMs:15*60*1000,refMin:410,refMax:466,refDefault:442,
 };
 
 const KR=['도','도♯','레','레♯','미','파','파♯','솔','솔♯','라','라♯','시'];
