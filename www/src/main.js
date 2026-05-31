@@ -17,7 +17,7 @@ const CFG={
   yamnet:{intervalMs:975,threshold:.50,sampleRate:16000,inputLen:15600,stringIdx:new Set([132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147])},
   tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.020,lockFrames:3,smoothing:.10,histLen:360,tolCents:15},
   metro:{bpmMin:20,bpmMax:220,lookaheadS:.4,intervalMs:25,clickDurS:.05,muteTunerMs:90,swipePxPerBpm:2},
-  inactiveMs:15*60*1000,refMin:432,refMax:448,refDefault:442,
+  inactiveMs:15*60*1000,refMin:415,refMax:466,refDefault:442,
 };
 
 const KR=['도','도♯','레','레♯','미','파','파♯','솔','솔♯','라','라♯','시'];
@@ -226,8 +226,13 @@ function updateTunerUI(raw){
     S.smoothFreq=S.smoothFreq===-1?raw:S.smoothFreq+(raw-S.smoothFreq)*CFG.tuner.smoothing;
     S.lockedRms=_lastRms;
   }else{
-    // 진폭 기반 락: 현재 락된 음보다 훨씬 작은 신호(= 멀리서 나는 소리)는 더 많은 프레임 필요
-    const needed=(_lastRms<S.lockedRms*.5&&S.lockedMidi!==-1)?CFG.tuner.lockFrames*2:CFG.tuner.lockFrames;
+    const rmsWeak=_lastRms<S.lockedRms*.5&&S.lockedMidi!==-1;
+    const isOctaveJump=S.lockedMidi!==-1&&Math.abs(corrMidi-S.lockedMidi)===12;
+    const fftFavorsLocked=isOctaveJump&&S.strOK&&S.detFreq>0&&(()=>{
+      const lockedHz=440*Math.pow(2,(S.lockedMidi-69)/12);
+      return Math.abs(1200*Math.log2(S.detFreq/lockedHz))<Math.abs(1200*Math.log2(S.detFreq/raw));
+    })();
+    const needed=fftFavorsLocked?CFG.tuner.lockFrames*3:rmsWeak?CFG.tuner.lockFrames*2:CFG.tuner.lockFrames;
     S.lockCount++;
     if(S.lockCount>=needed){S.lockedMidi=corrMidi;S.lockCount=0;S.smoothFreq=raw;S.lockedRms=_lastRms;}
     else if(S.smoothFreq===-1)S.smoothFreq=raw;
