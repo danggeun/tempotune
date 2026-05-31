@@ -75,7 +75,7 @@ function setCentsStep(v){
   document.querySelectorAll('#cents-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
   saveSettings();
 }
-const RMS_LEVELS=[.030,.020,.010];
+const RMS_LEVELS=[.024,.014,.008];
 function setRmsStep(v){
   CFG.tuner.rmsMin=RMS_LEVELS[v-1];
   document.querySelectorAll('#rms-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
@@ -911,7 +911,7 @@ let _rafId=null;
 function startRaf(){if(!_rafId){_rafId=requestAnimationFrame(frame);}}
 function stopRaf(){if(_rafId){cancelAnimationFrame(_rafId);_rafId=null;}}
 function frame(){
-  if(S.running&&A.analyserFFT){
+  if(S.running&&A.analyserFFT&&!A.isClick){
     const fftPass=fftDetect();
     if(fftPass&&_aiModeEnabled&&Date.now()-S.lastYamnetMs>CFG.yamnet.intervalMs&&A.yamnet){S.lastYamnetMs=Date.now();runYamnet();}
     if(!fftPass)S.yamnetOK=false;
