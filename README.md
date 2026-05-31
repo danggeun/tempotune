@@ -15,7 +15,7 @@
 - **YIN 알고리즘** 기반 실시간 음정 감지 — 단순 FFT보다 정확한 시간 도메인 자기상관
 - **TensorFlow.js + YAMNet** AI로 현악기 신호 분류 (비음악 소음과 연주음을 구분)
 - 60fps 히스토리 캔버스로 음정 변화를 연속적으로 시각화
-- A=432–448Hz 기준음 드럼 피커로 개인 조율 기준 설정
+- A=415–466Hz 기준음 드럼 피커로 개인 조율 기준 설정 (바로크 A=415 포함)
 
 ### 메트로놈
 - 마이크 없이도 독립 동작 (전용 `AudioContext` 분리)
@@ -90,7 +90,7 @@ npm run cap:sync   # Capacitor용 빌드(base=/) + android/ 동기화
 www/
   index.html          앱 진입점
   src/
-    main.js           런타임 로직 전체 (~1,010줄)
+    main.js           런타임 로직 전체 (~1,055줄)
     style.css         스타일 (~275줄)
     core/
       yin.js          YIN 음정 감지 알고리즘 (순수 함수)
