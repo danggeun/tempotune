@@ -15,8 +15,8 @@ if(window.Capacitor){
 const CFG={
   detect:{fftSize:4096,fftSmooth:.88,hzMin:80,hzMax:4800,noiseFloor:-44,peakMargin:8,harmonicDrop:35,harmonicMin:2,holdFrames:45},
   yamnet:{intervalMs:975,threshold:.50,sampleRate:16000,inputLen:15600,stringIdx:new Set([132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147])},
-  tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.010,lockFrames:3,smoothing:.22,histLen:360,tolCents:10},
-  metro:{bpmMin:20,bpmMax:220,lookaheadS:.4,intervalMs:25,clickDurS:.05,muteTunerMs:70,swipePxPerBpm:2},
+  tuner:{fftSize:4096,yinThreshold:.10,rmsMin:.020,lockFrames:3,smoothing:.10,histLen:360,tolCents:15},
+  metro:{bpmMin:20,bpmMax:220,lookaheadS:.4,intervalMs:25,clickDurS:.05,muteTunerMs:90,swipePxPerBpm:2},
   inactiveMs:15*60*1000,refMin:432,refMax:448,refDefault:442,
 };
 
@@ -70,14 +70,12 @@ if(window.Capacitor){
     .catch(()=>showMicPopup());
 }
 
-// ── 설정 스텝 ──
 function setCentsStep(v){
   CFG.tuner.tolCents=v;
   document.querySelectorAll('#cents-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
   saveSettings();
 }
-// [변경] RMS_LEVELS 전체 상향: 낮음.035 / 보통.025 / 높음.015
-const RMS_LEVELS=[.022,.012,.006];
+const RMS_LEVELS=[.030,.020,.010];
 function setRmsStep(v){
   CFG.tuner.rmsMin=RMS_LEVELS[v-1];
   document.querySelectorAll('#rms-steps .step-btn').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));
@@ -92,12 +90,10 @@ function setSmoothStep(v){
 function openSettings(){document.getElementById('settings-page').classList.add('open');}
 function closeSettings(){document.getElementById('settings-page').classList.remove('open');}
 
-// ── 팝업 ──
 function showMicPopup(){document.getElementById('mic-popup-bg').classList.add('show');}
 function closeMicPopup(){document.getElementById('mic-popup-bg').classList.remove('show');}
 async function allowMic(){document.getElementById('mic-popup-btn').textContent='연결 중...';document.getElementById('mic-popup-btn').disabled=true;const ok=await openMic();if(ok){closeMicPopup();}else{document.getElementById('mic-popup-btn').textContent='다시 시도';document.getElementById('mic-popup-btn').disabled=false;}}
 
-// ── 마이크 ──
 let _micOpening=false;
 async function openMic(){
   if(_micOpening)return false;_micOpening=true;
@@ -111,7 +107,6 @@ async function openMic(){
     A.scriptProc.onaudioprocess=e=>{const inp=e.inputBuffer.getChannelData(0);for(let i=0;i<inp.length;i+=ratio){A.pcm16k[A.pcmPos%A.pcm16k.length]=inp[Math.floor(i)];A.pcmPos++;}};
     if(A.micAC.state==='suspended')await A.micAC.resume();
     const src=A.micAC.createMediaStreamSource(A.micStream);src.connect(A.analyserFFT);src.connect(A.analyserTD);src.connect(A.scriptProc);A.scriptProc.connect(A.micAC.destination);
-    // metroAC → micAC 전환: 독립 실행 중이던 메트로놈을 micAC 컨텍스트로 재시작
     const _resumeMetro=A.metroAC&&S.metroPlaying;
     if(A.metroAC){if(S.metroPlaying){clearTimeout(A.metroTimer);S.metroPlaying=false;}A.metroAC.close();A.metroAC=null;}
     S.micReady=true;S.running=true;requestWakeLock();startRaf();_micOpening=false;
@@ -141,7 +136,6 @@ function closeMic(){
 async function requestWakeLock(){if(!_wakeLockEnabled)return;try{A.wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}
 document.addEventListener('visibilitychange',async()=>{if(S.running&&document.visibilityState==='visible'){A.micAC?.resume();if(_wakeLockEnabled)try{A.wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}});
 
-// ── 타이머 ──
 let _sessInt=null;
 function stopSessionTimer(){clearInterval(_sessInt);S.timerRunning=false;const tb=document.getElementById('timer-toggle-btn');if(tb){tb.textContent='시작';tb.classList.remove('active');}}
 function toggleTimer(){
@@ -166,9 +160,6 @@ function resetTimer(){
   document.getElementById('timer-elapsed').textContent='00:00';
   document.getElementById('timer-detected').textContent='00:00';
 }
-// fmt imported from ./core/format.js
-
-// ── REC 헤더 시간 ──
 function startRecTimer(){
   clearInterval(A.recTimerInt);let s=0;
   const el=document.getElementById('hdr-rec-time');
@@ -177,7 +168,6 @@ function startRecTimer(){
 }
 function stopRecTimer(){clearInterval(A.recTimerInt);const el=document.getElementById('hdr-rec-time');el.classList.remove('show');el.textContent='0:00';}
 
-// ── A= 드럼 피커 ──
 const REF_IH=28,REF_MIN=CFG.refMin,REF_MAX=CFG.refMax;
 let refDrumY=0,refDrumDrag=false,refSY=0,refSDY=0;
 const refOuter=document.getElementById('ref-drum-outer'),refInner=document.getElementById('ref-drum-inner');
@@ -194,7 +184,6 @@ window.addEventListener('touchmove',e=>{if(!refDrumDrag)return;setRefDrumY(Math.
 window.addEventListener('touchend',()=>{if(refDrumDrag){refDrumDrag=false;snapRefDrum();}});
 setRefDrumY(refHzToY(S.refHz));setTimeout(()=>setRefDrumY(refHzToY(S.refHz)),30);
 
-// ── FFT / YAMNet / YIN ──
 function fftDetect(){
   if(!A.analyserFFT)return false;
   A.analyserFFT.getFloatFrequencyData(A.fftBuf);
@@ -202,7 +191,6 @@ function fftDetect(){
   let peak=-Infinity,pkB=0,sum=0,n=0;
   for(let i=lo;i<=hi;i++){if(A.fftBuf[i]>peak){peak=A.fftBuf[i];pkB=i;}if(A.fftBuf[i]>-90){sum+=A.fftBuf[i];n++;}}
   if(n===0)return false;
-  // 적응형 플로어: max(설정값, 측정 주변 소음+10dB) — 방 소음 수준에 자동 적응
   const effectiveFloor=Math.max(CFG.detect.noiseFloor,_noiseEst+10);
   if(peak<effectiveFloor||peak-sum/n<CFG.detect.peakMargin){_noiseEst=_noiseEst*.997+peak*.003;return false;}
   let h=0;for(const m of[2,3,4,5]){const b=Math.round(pkB*m);if(b<A.binCount&&A.fftBuf[b]>peak-CFG.detect.harmonicDrop)h++;}
@@ -223,13 +211,11 @@ function yin(buf,sr){
   return _ly=_yinPure(buf,sr,CFG.tuner.yinThreshold);
 }
 
-// ── 튜너 UI ──
 function updateTunerUI(raw){
   const nEl=document.getElementById('tuner-note'),oEl=document.getElementById('tuner-oct'),cEl=document.getElementById('tuner-cents'),eEl=document.getElementById('tuner-enharmonic');
   if(raw===-1){
     S.smoothFreq=-1;S.lockedMidi=-1;S.lockCount=0;S.lockedRms=0;
     nEl.textContent='--';nEl.className='empty';oEl.textContent='';cEl.textContent='';eEl.textContent='';
-    // [변경] 빈 화면일 때 acc(샾 표시) 도 초기화
     const accEl2=document.getElementById('tuner-acc');if(accEl2)accEl2.textContent='';
     document.getElementById('tuner-card').classList.remove('in-tune');
     S.histData.push(null);S.histData.shift();drawGauge(null);drawHistory();return;
@@ -253,7 +239,6 @@ function updateTunerUI(raw){
   const inTune=Math.abs(cents)<=CFG.tuner.tolCents;
   const noteName=KR[noteIdx];
 
-  // [변경] 음이름과 샾 분리: 베이스(도/레/미...)는 고정 중앙, ♯은 별도 span
   const noteBase=noteName.replace('♯','');
   const noteAcc=noteName.includes('♯')?'♯':'';
   nEl.textContent=noteBase;
@@ -307,7 +292,6 @@ function drawHistory(){
   c.globalAlpha=1;c.restore();
 }
 
-// ── 메트로놈 ──
 let _metroVol=0.7,_bpmDebounce=null;
 (function(){
   function attachDrag(el){
@@ -342,7 +326,7 @@ function scheduleClick(time,tick){
   vol=Math.min(1,vol*(_metroVol/.7));osc.type='triangle';
   gain.gain.setValueAtTime(vol,time);gain.gain.exponentialRampToValueAtTime(.001,time+CFG.metro.clickDurS);
   osc.frequency.value=freq;osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(time);osc.stop(time+CFG.metro.clickDurS);
-  if(A.micAC){setTimeout(()=>{A.isClick=true;},dl-5);setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);}
+  if(A.micAC){setTimeout(()=>{A.isClick=true;},dl-15);setTimeout(()=>{A.isClick=false;},dl+CFG.metro.muteTunerMs);}
 }
 function metroSched(){const ac=_getAC();if(!ac)return;while(A.metroNext<ac.currentTime+CFG.metro.lookaheadS){scheduleClick(A.metroNext,A.metroTick);A.metroNext+=getTickInterval();A.metroTick=(A.metroTick+1)%getTotalTicks();}A.metroTimer=setTimeout(metroSched,CFG.metro.intervalMs);}
 function startMetro(){
@@ -386,7 +370,6 @@ function toggleMetroCollapse(){
   _metroCollapsed=!_metroCollapsed;
   const body=document.getElementById('metro-body'),btn=document.getElementById('metro-collapse-btn');
   if(!_metroCollapsed){
-    // Measure true height with no constraints, then re-collapse instantly before animating
     body.style.transition='none';
     body.classList.remove('collapsed');
     const realH=body.scrollHeight;
@@ -437,7 +420,6 @@ function flashBeat(tick){
   else{card.classList.add('lit-weak');clearTimeout(card._ft);card._ft=setTimeout(()=>card.classList.remove('lit-weak'),100);}
 }
 
-// ── 기준음 ──
 function closeRefAll(){document.getElementById('ref-panel').classList.remove('open');stopRefNote();}
 function adjRefOct(d){
   A.refOctave=Math.max(2,Math.min(6,A.refOctave+d));
@@ -458,7 +440,6 @@ function playRef(name){
 
 function stopRefNote(){document.querySelectorAll('.ref-note-btn').forEach(b=>b.classList.remove('on'));if(A.refOsc&&A.refGain&&A.micAC){try{A.refGain.gain.cancelScheduledValues(A.micAC.currentTime);A.refGain.gain.setValueAtTime(A.refGain.gain.value,A.micAC.currentTime);A.refGain.gain.exponentialRampToValueAtTime(.001,A.micAC.currentTime+.05);A.refOsc.stop(A.micAC.currentTime+.05);}catch(e){}A.refOsc=null;A.refGain=null;}}
 
-// ── 녹음 ──
 function tbRec(){if(!S.micReady){toast('마이크를 먼저 켜주세요');return;}if(A.recording)stopRec();else startRec();}
 function startRec(){
   if(!A.micStream)return;A.recChunks=[];A.recStartTime=Date.now();
@@ -494,9 +475,6 @@ function stopRec(){
   const tb=document.getElementById('rec-toggle-btn');tb.innerHTML='녹음 시작';tb.classList.remove('rec-active');
   stopRecTimer();toast('녹음 완료');
 }
-// fmtT imported from ./core/format.js
-
-// ── IndexedDB 녹음 영속화 ──
 const _REC_DB='gopractice_rec', _REC_STORE='recordings';
 let _recDb=null;
 function _openRecDb(){
@@ -521,13 +499,18 @@ function _dbDelete(id){
   const tx=_recDb.transaction(_REC_STORE,'readwrite');
   tx.objectStore(_REC_STORE).delete(id);
 }
+const REC_TTL=30*24*60*60*1000;
 function _dbLoadAll(){
   if(!_recDb)return;
   const tx=_recDb.transaction(_REC_STORE,'readonly');
   const req=tx.objectStore(_REC_STORE).getAll();
   req.onsuccess=()=>{
+    const now=Date.now();
     const rows=req.result.sort((a,b)=>b.ts-a.ts);
-    rows.forEach(r=>{recItems.push({id:r.id,url:URL.createObjectURL(r.blob),name:r.name,dur:r.dur,blob:r.blob,mime:r.mime,ts:r.ts});});
+    rows.forEach(r=>{
+      if(now-r.ts>REC_TTL){_dbDelete(r.id);return;}
+      recItems.push({id:r.id,url:URL.createObjectURL(r.blob),name:r.name,dur:r.dur,blob:r.blob,mime:r.mime,ts:r.ts});
+    });
     if(recItems.length>0)renderRecList();
   };
 }
@@ -591,9 +574,6 @@ function renderRecList(){
 function toggleRecItem(idx){document.getElementById('rec-detail-'+idx)?.classList.toggle('open');}
 function deleteRec(idx){if(_ed.idx===idx)closeEditor();if(_recPlayers[idx]){try{_recPlayers[idx].pause();}catch(e){}delete _recPlayers[idx];}const item=recItems[idx];URL.revokeObjectURL(item.url);_dbDelete(item.id);recItems.splice(idx,1);renderRecList();}
 
-// ══════════════════════════════════
-// 편집 페이지
-// ══════════════════════════════════
 const _ed={idx:-1,item:null,audio:null,ptA:null,ptB:null,looping:false,bookmarks:[],dragging:null};
 
 function openEditor(idx){
@@ -916,16 +896,12 @@ async function edExportAB(){
     setTimeout(()=>URL.revokeObjectURL(url),3000);
   }catch(e){toast('저장 실패: '+e.message);}
 }
-// _bufToWav → bufToWav imported from ./core/wav.js
-
-// ── 메뉴 ──
 function toggleMenu(){
   const overlay=document.getElementById('menu-overlay');
   const isOpen=overlay.classList.toggle('open');
   if(isOpen){document.getElementById('ref-panel').classList.remove('open');}
 }
 
-// ── rAF ──
 let _rafId=null;
 function startRaf(){if(!_rafId){_rafId=requestAnimationFrame(frame);}}
 function stopRaf(){if(_rafId){cancelAnimationFrame(_rafId);_rafId=null;}}
@@ -971,8 +947,9 @@ function setAiMode(v){
 }
 
 const SETTINGS_KEY='gopractice_settings_v1';
+const SETTINGS_TTL=7*24*60*60*1000;
 function saveSettings(){
-  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled,bpm:S.bpm,timeSig:S.timeSig,subDiv:S.subDiv,refHz:S.refHz,vol:_metroVol};
+  const d={cents:CFG.tuner.tolCents,rms:CFG.tuner.rmsMin,smooth:CFG.tuner.smoothing,wakelock:_wakeLockEnabled,aimode:_aiModeEnabled,bpm:S.bpm,timeSig:S.timeSig,subDiv:S.subDiv,refHz:S.refHz,vol:_metroVol,savedAt:Date.now()};
   try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(d));}catch(e){}
 }
 function loadSettings(){
@@ -980,20 +957,17 @@ function loadSettings(){
     const raw=localStorage.getItem(SETTINGS_KEY);
     if(!raw)return;
     const d=JSON.parse(raw);
-    if(d.cents){setCentsStep(d.cents);}
-    if(d.rms){
-      const idx=RMS_LEVELS.findIndex(v=>Math.abs(v-d.rms)<.001);
-      if(idx>=0)setRmsStep(idx+1);
+    const expired=d.savedAt!=null&&Date.now()-d.savedAt>SETTINGS_TTL;
+    if(d.cents)setCentsStep(d.cents);
+    if(d.rms){const idx=RMS_LEVELS.findIndex(v=>Math.abs(v-d.rms)<.001);if(idx>=0)setRmsStep(idx+1);}
+    if(d.smooth){const idx=SMOOTH_LEVELS.findIndex(v=>Math.abs(v-d.smooth)<.001);if(idx>=0)setSmoothStep(idx+1);}
+    if(d.wakelock!=null)setWakeLock(d.wakelock?1:0);
+    if(d.aimode!=null)setAiMode(d.aimode?1:0);
+    if(!expired){
+      if(d.bpm!=null)setBPM(d.bpm);
+      if(d.timeSig!=null)setTS(d.timeSig);
+      if(d.subDiv!=null)setSD(d.subDiv);
     }
-    if(d.smooth){
-      const idx=SMOOTH_LEVELS.findIndex(v=>Math.abs(v-d.smooth)<.001);
-      if(idx>=0)setSmoothStep(idx+1);
-    }
-    if(d.wakelock===false)setWakeLock(0);
-    if(d.aimode===false)setAiMode(0);
-    if(d.bpm!=null)setBPM(d.bpm);
-    if(d.timeSig!=null)setTS(d.timeSig);
-    if(d.subDiv!=null)setSD(d.subDiv);
     if(d.refHz!=null){S.refHz=d.refHz;setRefDrumY(refHzToY(d.refHz),false);}
     if(d.vol!=null){_metroVol=d.vol;const v=document.getElementById('metro-vol');const vp=document.getElementById('metro-vol-pad-input');if(v)v.value=d.vol;if(vp)vp.value=d.vol;}
   }catch(e){}
@@ -1010,19 +984,12 @@ if(window.innerWidth<700){
   },250);
 }
 
-// ── Event listeners (replacing all inline HTML handlers) ──
-
-// Mic popup
 document.getElementById('mic-popup-btn').addEventListener('click', allowMic);
 document.getElementById('mic-popup-cancel').addEventListener('click', closeMicPopup);
-
-// Header
 document.getElementById('logo').addEventListener('click', toggleFullscreen);
 document.getElementById('hdr-mic-btn').addEventListener('click', ()=>openMic().then(ok=>{if(ok)toast('마이크가 켜졌어요');}));
 document.getElementById('rec-hdr-btn').addEventListener('click', tbRec);
 document.getElementById('menu-btn').addEventListener('click', toggleMenu);
-
-// Metronome
 document.getElementById('metro-play-hdr-btn').addEventListener('click', toggleMetro);
 document.getElementById('metro-collapse-btn').addEventListener('click', toggleMetroCollapse);
 document.getElementById('metro-play-btn').addEventListener('click', toggleMetro);
@@ -1033,15 +1000,11 @@ _volMain.addEventListener('input', ()=>{setMetroVol(+_volMain.value);_volPad.val
 _volPad.addEventListener('input', ()=>{setMetroVol(+_volPad.value);_volMain.value=_volPad.value;});
 document.querySelectorAll('[data-ts]').forEach(b=>b.addEventListener('click', ()=>setTS(+b.dataset.ts)));
 document.querySelectorAll('[data-sd]').forEach(b=>b.addEventListener('click', ()=>setSD(b.dataset.sd==='d'?'d':+b.dataset.sd)));
-
-// Reference note panel
 document.querySelector('#ref-panel .panel-close').addEventListener('click', closeRefAll);
 document.querySelectorAll('#ref-panel .ref-oct-btn').forEach(b=>b.addEventListener('click', ()=>adjRefOct(b.textContent==='−'?-1:1)));
 document.querySelectorAll('#ref-panel .ref-note-btn').forEach(b=>b.addEventListener('click', ()=>{
   if(b.dataset.note==='도2')playRefHigh();else playRef(b.dataset.note);
 }));
-
-// Menu overlay
 document.querySelector('.menu-close-btn').addEventListener('click', toggleMenu);
 document.getElementById('settings-open-btn').addEventListener('click', openSettings);
 document.getElementById('rec-toggle-btn').addEventListener('click', tbRec);
@@ -1049,20 +1012,14 @@ document.querySelectorAll('#menu-overlay .ref-oct-btn').forEach(b=>b.addEventLis
 document.querySelectorAll('#menu-overlay .ref-note-btn').forEach(b=>b.addEventListener('click', ()=>{
   if(b.dataset.note==='도2')playRefHigh();else playRef(b.dataset.note);
 }));
-
-// Timer
 document.getElementById('timer-toggle-btn').addEventListener('click', toggleTimer);
 document.getElementById('timer-reset-btn').addEventListener('click', resetTimer);
-
-// Settings page
 document.getElementById('settings-back-btn').addEventListener('click', closeSettings);
 document.querySelectorAll('#cents-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setCentsStep(+b.dataset.v)));
 document.querySelectorAll('#smooth-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setSmoothStep(+b.dataset.v)));
 document.querySelectorAll('#rms-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setRmsStep(+b.dataset.v)));
 document.querySelectorAll('#aimode-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setAiMode(+b.dataset.v)));
 document.querySelectorAll('#wakelock-steps .step-btn').forEach(b=>b.addEventListener('click', ()=>setWakeLock(+b.dataset.v)));
-
-// Recording list (event delegation)
 const _recList=document.getElementById('rec-list');
 _recList.addEventListener('click', e=>{
   const t=e.target.closest('[data-action]');if(!t)return;
@@ -1075,8 +1032,6 @@ _recList.addEventListener('click', e=>{
 _recList.addEventListener('input', e=>{
   if(e.target.dataset.action==='seek')recSeek(+e.target.dataset.idx);
 });
-
-// Editor page
 document.getElementById('ed-back-btn').addEventListener('click', closeEditor);
 document.getElementById('ed-title-edit').addEventListener('click', edEditTitle);
 document.getElementById('ed-play-btn').addEventListener('click', edTogglePlay);
