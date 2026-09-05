@@ -9,7 +9,7 @@
   --text:#f0f0f0;--muted:#888888;--dim:#555555;
 }}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-weight:400;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes metroflash{0%{background:rgba(229,48,48,.32);border-color:var(--red)}60%{background:rgba(229,48,48,.12);border-color:var(--red)}100%{background:transparent;border-color:var(--border)}}

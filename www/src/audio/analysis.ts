@@ -7,13 +7,14 @@ import { A, onWorkerMessage, sendToWorker } from './engine.ts'
 import type { WorkerOut } from './messages.ts'
 
 let lastMs = 0
-/** 최근 프레임의 워커 처리 시간(ms) — 성능 표시/디버그용 */
-export const lastFrameMs = (): number => lastMs
+const msHist: number[] = []
+/** 최근 ~10 s 워커 처리 시간의 p95 (ms) — 진단용 */
+export const lastFrameMs = (): number => { if (!msHist.length) return lastMs; const s = [...msHist].sort((a, b) => a - b); return s[Math.floor(s.length * 0.95)]! }
 
 function onFrame(m: WorkerOut): void {
   if (m.type !== 'frame') return
   const st = tunerStore.get(); if (!st.running) return
-  lastMs = m.ms
+  lastMs = m.ms; msHist.push(m.ms); if (msHist.length > 430) msHist.shift()
   const f = m.frame
   if (f.hz === -1) tunerStore.set({ frame: st.frame + 1, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, playing: f.playing })
   else tunerStore.set({ frame: st.frame + 1, hz: f.hz, midi: f.midi, cents: f.cents, inTune: f.inTune, conf: f.conf, playing: f.playing, lastActivityMs: Date.now() })

@@ -54,10 +54,12 @@ export function loadSettings(): void {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let warned = false, persistError: ((m: string) => void) | null = null
+export function onPersistError(fn: (m: string) => void): void { persistError = fn }
 function writeNow(): void {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
   const d: StoredV2 = { v: 2, ...settingsStore.get() }
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(d)) } catch { /* 용량/권한 */ }
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(d)) } catch { if (!warned) { warned = true; persistError?.('설정을 저장할 수 없어요 — 저장 공간이 없거나 프라이빗 모드예요') } }
 }
 export function startSettingsAutosave(): void {
   settingsStore.subscribe(() => { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(writeNow, 300) }) // BPM 드래그 중 연속 쓰기 방지

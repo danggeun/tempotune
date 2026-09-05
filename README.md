@@ -79,11 +79,15 @@ npm run test:watch # 파일 변경 감지 자동 재실행
 ### Android 빌드
 
 ```bash
-npm run cap:sync   # Capacitor용 빌드(base=/) + android/ 동기화
+npm run cap:sync   # Capacitor용 빌드(base=/) + android/ 동기화 (플러그인: status-bar, filesystem, share, app)
 # → Android Studio → Build → Build APK(s)
 ```
 
-> `npm run build` 는 GitHub Pages용(base=/go_practice), `npm run cap:sync` 는 별도 Capacitor 빌드를 사용합니다.
+`android/AndroidManifest.xml` 에 `RECORD_AUDIO` 권한이 있어야 합니다(마이크). Filesystem 은 앱 캐시만 쓰고 Share 는 공유 시트라 추가 권한이 없습니다.
+뒤로가기는 열린 화면(편집기 → 설정 → 메뉴)을 먼저 닫고, 메인에서는 앱을 종료하지 않고 백그라운드로 보냅니다.
+
+> `npm run build` 는 GitHub Pages용(base=/go_practice/), `npm run cap:sync` 는 별도 Capacitor 빌드(base=/)를 사용합니다.
+> 웹 빌드는 PWA 입니다: Service Worker 가 전 자산을 프리캐시해 오프라인에서도 동작하고, 숫자·로고 폰트는 자체 호스팅입니다. 한글 본문은 시스템 폰트(Android 는 Noto Sans CJK = 동일 서체)이며 온라인이면 Google Fonts 로 보강됩니다.
 
 ---
 

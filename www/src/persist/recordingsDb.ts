@@ -14,6 +14,8 @@ export interface RecMeta { id: number; name?: string; bookmarks: number[]; ab: A
 export interface RecFull extends RecRow { bookmarks: number[]; ab: AB | null; peaks?: Float32Array }
 
 let db: IDBDatabase | null = null
+let metaError: ((m: string) => void) | null = null
+export function onDbError(fn: (m: string) => void): void { metaError = fn }
 const req = <T>(r: IDBRequest<T>): Promise<T> => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error) })
 
 export function openRecDb(): Promise<IDBDatabase> {
@@ -48,7 +50,7 @@ const store = (name: string, mode: IDBTransactionMode) => db!.transaction(name, 
 export async function dbSave(row: RecRow, meta: Omit<RecMeta, 'id'>): Promise<number | null> {
   if (!db) return null
   const id = (await req(store(REC_STORE, 'readwrite').add(row))) as number
-  await req(store(META_STORE, 'readwrite').put({ id, ...meta })).catch(() => {})
+  await req(store(META_STORE, 'readwrite').put({ id, ...meta })).catch(() => { metaError?.('편집 정보를 저장하지 못했어요') })
   return id
 }
 export function dbDelete(id: number | null | undefined): void {
@@ -58,8 +60,10 @@ export function dbDelete(id: number | null | undefined): void {
 /** 편집 상태/이름만 갱신 — blob 은 건드리지 않는다 */
 export async function dbPatchMeta(id: number | null | undefined, patch: Partial<Omit<RecMeta, 'id'>>): Promise<void> {
   if (!db || id == null) return
-  const s = store(META_STORE, 'readwrite'); const cur = ((await req(s.get(id))) as RecMeta | undefined) ?? { id, bookmarks: [], ab: null }
-  await req(s.put({ ...cur, ...patch, id }))
+  try {
+    const s = store(META_STORE, 'readwrite'); const cur = ((await req(s.get(id))) as RecMeta | undefined) ?? { id, bookmarks: [], ab: null }
+    await req(s.put({ ...cur, ...patch, id }))
+  } catch { metaError?.('편집 정보를 저장하지 못했어요') }
 }
 /** 전체 로드 (최신순). TTL 지난 항목은 삭제 후 제외. */
 export async function dbLoadAll(): Promise<RecFull[]> {

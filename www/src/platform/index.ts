@@ -16,10 +16,20 @@ export function initStatusBar(): void {
   }).catch(() => {})
 }
 
+// ── Android 뒤로가기 ──
+/** 앱에서 뒤로가기: handler 가 true 를 돌려주면 소비, 아니면 앱을 백그라운드로 (종료 대신) */
+export function onBackButton(handler: () => boolean): void {
+  if (!isNative()) return
+  import('@capacitor/app').then(({ App }) => { void App.addListener('backButton', () => { if (!handler()) void App.minimizeApp() }) }).catch(() => {})
+}
+
 // ── 화면 켜짐 유지 ──
 let wakeLock: WakeLockSentinel | null = null
+let wakeWarned = false, wakeWarn: ((m: string) => void) | null = null
+export function onWakeLockUnsupported(fn: (m: string) => void): void { wakeWarn = fn }
 export async function acquireWakeLock(): Promise<void> {
-  try { wakeLock = (await navigator.wakeLock?.request('screen')) ?? null } catch { /* 지원 안 함 / 거부 */ }
+  if (!('wakeLock' in navigator)) { if (!wakeWarned) { wakeWarned = true; wakeWarn?.('이 브라우저는 화면 켜짐 유지를 지원하지 않아요') } return }
+  try { wakeLock = await navigator.wakeLock.request('screen') } catch { /* 배터리 절약 모드·백그라운드 — 다음 visible 에서 재시도 */ }
 }
 export function releaseWakeLock(): void { wakeLock?.release(); wakeLock = null }
 

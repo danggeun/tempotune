@@ -6,6 +6,7 @@ import { dbSave, dbDelete, dbPatchMeta, dbLoadAll } from '../persist/recordingsD
 import { computePeaks } from '../core/peaks.ts'
 import { A, onMic } from './engine.ts'
 
+const MAX_REC_SEC = 60 * 60
 let recorder: MediaRecorder | null = null
 let chunks: Blob[] = []
 let startTime = 0
@@ -39,7 +40,10 @@ export function startRec(): RecResult {
   startPeakCapture()
   sessionStore.set({ recording: true, recElapsedSec: 0 })
   if (timerInt) clearInterval(timerInt)
-  timerInt = setInterval(() => sessionStore.set({ recElapsedSec: sessionStore.get().recElapsedSec + 1 }), 1000)
+  timerInt = setInterval(() => {
+    const sec = sessionStore.get().recElapsedSec + 1; sessionStore.set({ recElapsedSec: sec })
+    if (sec >= MAX_REC_SEC) { stopRec(); errorFn?.('60분이 되어 녹음을 저장했어요 (메모리 보호)') } // 청크가 메모리에 쌓이므로 상한을 둔다 (256 kbps × 60 min ≈ 115 MB)
+  }, 1000)
   return { ok: true }
 }
 export function stopRec(): void {

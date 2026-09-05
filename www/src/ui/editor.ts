@@ -212,6 +212,7 @@ export function closeEditor(): void {
 }
 /** 삭제되는 항목을 편집 중이면 닫는다 */
 export function closeEditorIfEditing(item: RecItem): void { if (ed.item === item) closeEditor() }
+export const isEditorOpen = (): boolean => ed.item !== null
 
 function editTitle(): void {
   const current = ed.item ? ed.item.name : ''

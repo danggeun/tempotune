@@ -296,6 +296,48 @@ await scenario('editor: waveform appears; A/B + bookmark persist across close/re
   assert.equal((await state()).range, 'none', 'cleared A-B persisted')
 })
 
+// ── Phase 5: 완결성 ──
+await scenario('offline: service worker precaches everything; reload with network off still works', 'violin_A4.wav', async (p, ctx) => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  // SW 등록·활성 대기
+  await p.evaluate(async () => { const r = await navigator.serviceWorker.ready; await new Promise(res => { if (r.active) res(null); else r.addEventListener('updatefound', () => res(null)) }) })
+  await sleep(p, 1500)
+  await ctx.setOffline(true)
+  await p.reload(); await waitNote(p, t => t.note === '라', 8000)
+  assert.equal(await p.evaluate(() => document.fonts.check("12px 'DM Mono'")), true, 'self-hosted DM Mono available offline')
+  const font = await p.evaluate(() => getComputedStyle(document.getElementById('tuner-cents')).fontFamily); assert.match(font, /DM Mono/)
+  await ctx.setOffline(false)
+})
+await scenario('lifecycle: context suspended externally while metronome plays → auto-resume on visible', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600); await p.click('#metro-play-btn'); await sleep(p, 800)
+  assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running')
+  await p.evaluate(async () => { await window.__gp.ac().suspend() })
+  assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'suspended')
+  await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await sleep(p, 600)
+  assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running', 'resumed')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
+})
+await scenario('lifecycle: idle → context suspended (audio focus released); metronome start resumes it', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel')
+  await p.keyboard.press('Space'); await sleep(p, 500); assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running')
+  await p.keyboard.press('Space'); await sleep(p, 700); assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'suspended', 'idle suspend')
+  await p.keyboard.press('Space'); await sleep(p, 500); assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running')
+}, { permissions: [] })
+await scenario('permission: denied state shows the blocked-mic popup with retry wording', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800)
+  assert.equal(await p.evaluate(() => document.getElementById('mic-popup-bg').classList.contains('show')), true)
+  const state = await p.evaluate(async () => (await navigator.permissions.query({ name: 'microphone' })).state)
+  const title = await p.evaluate(() => document.getElementById('mic-popup-title').textContent)
+  assert.equal(title, state === 'denied' ? '마이크가 차단돼 있어요' : '마이크 접근 필요', `state=${state}`)
+  if (state === 'denied') assert.equal(await p.evaluate(() => document.getElementById('mic-popup-btn').textContent), '다시 시도')
+}, { permissions: [] })
+await scenario('perf: worker frame p95 stays under budget (12 ms) over 10 s', 'violin_scale_Amaj.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000); await sleep(p, 10000)
+  const st = await p.evaluate(() => window.__gp.stats()); assert.ok(st.frameMs < 12, 'p95 frame ms: ' + st.frameMs)
+  results.push(['perf: worker frame p95 = ' + st.frameMs.toFixed(2) + ' ms @' + st.sampleRate + ' Hz', 'ok'])
+})
+
 server.kill()
 let fail = 0
 for (const [n, r] of results) { if (r !== 'ok' && !r.startsWith('NO')) fail++; console.log((r === 'ok' ? '  ok   ' : r.startsWith('NO') ? '  note ' : '  FAIL ') + n + (r === 'ok' ? '' : '  → ' + r)) }

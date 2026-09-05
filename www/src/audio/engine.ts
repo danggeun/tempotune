@@ -27,6 +27,9 @@ const hooks = { afterOpen: [] as Hook[], beforeClose: [] as Hook[], afterClose: 
 /** 다른 모듈(녹음/기준음/UI)이 마이크 생명주기에 끼어드는 지점 */
 export function onMic(event: keyof typeof hooks, fn: Hook): void { hooks[event].push(fn) }
 
+const stateListeners: Array<(s: AudioContextState | 'interrupted') => void> = []
+/** 컨텍스트 상태 변화 구독 (running / suspended / interrupted / closed) */
+export function onContextState(fn: (s: AudioContextState | 'interrupted') => void): void { stateListeners.push(fn) }
 let frameHandler: ((m: WorkerOut) => void) | null = null
 export function onWorkerMessage(fn: (m: WorkerOut) => void): void { frameHandler = fn }
 let onFatal: ((msg: string) => void) | null = null
@@ -37,7 +40,11 @@ export const audioSupported = (): boolean => typeof AudioWorkletNode !== 'undefi
 
 /** 단일 컨텍스트. 없으면 만든다. 사용자 제스처 안에서 부르면 바로 running, 밖이면 suspended 일 수 있다. */
 export function getContext(): AudioContext {
-  if (!A.ac || A.ac.state === 'closed') { A.ac = new (ACCtor())({ latencyHint: 'interactive' }); A.captureLoaded = false; A.sampleRate = A.ac.sampleRate }
+  if (!A.ac || A.ac.state === 'closed') {
+    A.ac = new (ACCtor())({ latencyHint: 'interactive' }); A.captureLoaded = false; A.sampleRate = A.ac.sampleRate
+    // 전화·다른 앱의 오디오 포커스 등으로 컨텍스트가 멈추면(iOS 'interrupted', Android 'suspended') 알린다 — UI 가 "일시정지" 표시/복구
+    A.ac.onstatechange = () => { for (const f of stateListeners) f(A.ac!.state as AudioContextState | 'interrupted') }
+  }
   if (A.ac.state !== 'running') void A.ac.resume().catch(() => {}) // 'suspended' 뿐 아니라 iOS 'interrupted' 도
   return A.ac
 }
@@ -96,9 +103,21 @@ export async function openMic(): Promise<MicResult> {
   } catch (e) {
     opening = false
     teardownMic()
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    return { ok: false, error: micErrorMessage(e) }
   }
 }
+/** getUserMedia 오류를 사용자가 행동할 수 있는 문장으로 (설계서 §D1 권한 흐름) */
+export function micErrorMessage(e: unknown): string {
+  const name = e instanceof Error ? e.name : ''
+  const msg = e instanceof Error ? e.message : String(e)
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return isNativeGuess() ? '마이크 권한이 꺼져 있어요 — 설정 › 앱 › Go practice › 권한에서 마이크를 허용해주세요' : '마이크가 차단돼 있어요 — 주소창의 자물쇠(사이트 설정)에서 마이크를 허용해주세요'
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return '마이크를 찾을 수 없어요'
+  if (name === 'NotReadableError' || name === 'TrackStartError') return '다른 앱이 마이크를 쓰고 있어요 — 그 앱을 닫고 다시 시도해주세요'
+  if (name === 'SecurityError') return '이 페이지에서는 마이크를 쓸 수 없어요 (HTTPS 필요)'
+  return msg || '알 수 없는 오류'
+}
+const isNativeGuess = () => typeof window !== 'undefined' && !!(window as unknown as { Capacitor?: unknown }).Capacitor
+export const isPermissionError = (msg: string): boolean => /권한|차단/.test(msg)
 
 function teardownMic(): void {
   A.micStream?.getTracks().forEach(t => t.stop())
