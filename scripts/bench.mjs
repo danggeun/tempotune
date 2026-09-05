@@ -58,7 +58,7 @@ function runFile(adapterFactory, wavPath) {
         const ok = k => fs[i + k].hz > 0 && hzToMidi(fs[i + k].hz) === hzToMidi(expectedHz(s, fs[i + k].t))
         if (ok(0) && ok(1) && ok(2)) { lat = fs[i].t - s.t0; break }
       }
-      lockLat.push(lat == null ? (s.t1 - s.t0) : lat)
+      if (!s.gliss) lockLat.push(lat == null ? (s.t1 - s.t0) : lat) // 글리산도는 '락' 정의가 무의미 (리뷰)
     }
   }
   for (const f of frames) {
@@ -99,7 +99,9 @@ function runFile(adapterFactory, wavPath) {
 
 const f = v => Number.isNaN(v) ? '—' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1))
 function summarize(rows) {
-  const by = k => rows.map(r => r[k]).filter(v => !Number.isNaN(v))
+  // 종류(kind)별 중앙값을 먼저 구하고 그 중앙값들의 중앙값 — 2초 단음 파일 20개가 요약을 지배하지 않도록 (리뷰)
+  const kinds = [...new Set(rows.map(r => r.kind))]
+  const by = k => kinds.map(kind => median(rows.filter(r => r.kind === kind).map(r => r[k]).filter(v => !Number.isNaN(v)))).filter(v => !Number.isNaN(v))
   // 파일 간 요약은 중앙값 (snr0 같은 극단 스트레스 파일이 평균을 지배하지 않도록). 표는 파일별 상세를 그대로 보여준다.
   return { centsBiasAbs: median(by('centsBias').map(Math.abs)), centsP90: median(by('centsP90')), missingPct: median(by('missingPct')), octavePct: median(by('octavePct')), falseNotePct: median(by('falseNotePct')), lockMs: median(by('lockMs')), playF1: median(by('playF1')), timeErrPct: median(by('timeErrPct')), msP95: pct(by('msP95'), .95) }
 }
@@ -113,7 +115,7 @@ for (const name of names) {
   const rows = files.map(p => runFile(ADAPTERS[name], p))
   all[name] = rows
   const s = summarize(rows)
-  md += `## ${name}\n\n**요약(파일 중앙값)**: |bias| ${f(s.centsBiasAbs)}¢ · p90 ${f(s.centsP90)}¢ · miss ${f(s.missingPct)}% · oct ${f(s.octavePct)}% · false ${f(s.falseNotePct)}% · lock ${f(s.lockMs)} ms · F1 ${f(s.playF1)} · tErr ${f(s.timeErrPct)}% · ${f(s.msP95)} ms\n\n`
+  md += `## ${name}\n\n**요약(종류별 중앙값의 중앙값)**: |bias| ${f(s.centsBiasAbs)}¢ · p90 ${f(s.centsP90)}¢ · miss ${f(s.missingPct)}% · oct ${f(s.octavePct)}% · false ${f(s.falseNotePct)}% · lock ${f(s.lockMs)} ms · F1 ${f(s.playF1)} · tErr ${f(s.timeErrPct)}% · ${f(s.msP95)} ms\n\n`
   md += `| 파일 | 종류 | bias¢ | p90¢ | miss% | oct% | false% | lock ms | F1 | fPlay% | tErr% | ms |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n`
   for (const r of rows) md += `| ${r.file} | ${r.kind} | ${f(r.centsBias)} | ${f(r.centsP90)} | ${f(r.missingPct)} | ${f(r.octavePct)} | ${f(r.falseNotePct)} | ${f(r.lockMs)} | ${f(r.playF1)} | ${f(r.falsePlayPct)} | ${f(r.timeErrPct)} | ${f(r.msP95)} |\n`
   md += '\n'

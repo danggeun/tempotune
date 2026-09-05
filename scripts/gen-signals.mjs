@@ -58,7 +58,7 @@ function whiteNoise(n, gain = 1) { const out = new Float32Array(n); for (let i =
  * - 미세 지터: jitterCents (연주자 손 흔들림)
  * - 활 잡음 noiseDb
  */
-function bowed(f0Fn, sec, { vibHz = 5.5, vibCents = 15, vibDelay = 0.25, jitterCents = 2, noiseDb = -30, attack = 0.08, release = 0.2, nHarm = 20, amp = 0.35 } = {}) {
+function bowed(f0Fn, sec, { vibHz = 5.5, vibCents = 15, vibDelay = 0.25, jitterCents = 2, noiseDb = -30, attack = 0.08, release = 0.2, nHarm = 20, amp = 0.35, harmAmp = null } = {}) {
   const n = Math.round(sec * SR); const out = new Float32Array(n)
   let phase = 0; let jitter = 0
   const env = envelope(n, attack, release)
@@ -71,7 +71,7 @@ function bowed(f0Fn, sec, { vibHz = 5.5, vibCents = 15, vibDelay = 0.25, jitterC
     let s = 0
     for (let h = 1; h <= nHarm; h++) {
       if (f * h > SR * 0.45) break
-      const a = Math.pow(h, -1.1) * (h % 2 === 0 ? 0.79 : 1)
+      const a = harmAmp ? harmAmp(h) : Math.pow(h, -1.1) * (h % 2 === 0 ? 0.79 : 1)
       s += a * Math.sin(phase * h)
     }
     out[i] = s * amp * env[i]
@@ -197,6 +197,69 @@ for (const [name, note] of single) {
   // 참조: 순수 사인파 (하네스 자체 검증용 — 여기서 오차가 0에 가깝지 않으면 하네스 버그)
   const sine = new Float32Array(Math.round(2 * SR)); for (let i = 0; i < sine.length; i++) sine[i] = 0.5 * Math.sin(2 * Math.PI * 440 * i / SR)
   writeWav('ref_sine_A4', sine); writeExpected('ref_sine_A4', [{ t0: 0, t1: 2, midi: 69, hz: 440, playing: true }], { kind: 'ref' })
+}
+
+// ── 세트 4: 리뷰에서 추가된 현실 시나리오 ──
+{
+  const seg = (m, playing = true) => ({ midi: m, hz: midiHz(m), playing })
+  const single = (name, tone, m, meta = {}) => { writeWav(name, concat(silence(.3), tone, silence(.3))); writeExpected(name, [{ t0: 0, t1: .3, midi: null, playing: false }, { t0: .3, t1: .3 + tone.length / SR, ...seg(m) }, { t0: .3 + tone.length / SR, t1: .6 + tone.length / SR, midi: null, playing: false }], { kind: 'realistic', ...meta }) }
+  // 기본음이 약한 저음현 (폰 마이크 HPF): 기본음 −30 dB
+  const weak = h => (h === 1 ? 0.03 : Math.pow(h, -1.1))
+  single('cello_C2_weakfund', bowed(() => midiHz(n2m('C2')), 2, { harmAmp: weak }), n2m('C2'), { note: 'C2 weak fundamental' })
+  single('bass_E1_weakfund', bowed(() => midiHz(n2m('E1')), 2, { harmAmp: weak }), n2m('E1'), { note: 'E1 weak fundamental' })
+  single('violin_G3_weakfund', bowed(() => midiHz(n2m('G3')), 2, { harmAmp: weak }), n2m('G3'), { note: 'G3 weak fundamental' })
+  // 공명하는 개방현: 스톱한 G3 + 개방 G2 가 −20 dB 로 울림
+  const g3 = bowed(() => midiHz(n2m('G3')), 2), g2ring = bowed(() => midiHz(n2m('G2')), 2, { vibCents: 0, noiseDb: -60 })
+  single('cello_G3_with_openG2_ringing', mix(g3, g2ring, 0.1), n2m('G3'), { note: 'sympathetic open string −20 dB' })
+  // 플라졸렛(자연 하모닉스): 배음 1~2개만
+  single('violin_E6_flageolet', bowed(() => midiHz(n2m('E6')), 2, { harmAmp: h => (h === 1 ? 1 : h === 2 ? 0.15 : 0), vibCents: 0, noiseDb: -40 }), n2m('E6'), { note: 'flageolet 1–2 partials' })
+  // 스타카토 런 + 쉼표: 120 bpm 8분음표(150 ms 소리 + 100 ms 공백), 중간에 8분 쉼표(250 ms)
+  {
+    const notes = ['A4', 'B4', 'C#5', 'D5', null, 'E5', 'F#5', 'G#5', 'A5', null, 'A4', 'B4', 'C#5', 'D5']
+    const parts = [silence(.3)], segs = [{ t0: 0, t1: .3, midi: null, playing: false }]; let t = .3
+    for (const nt of notes) {
+      if (nt === null) { parts.push(silence(.25)); segs.push({ t0: t, t1: t + .25, midi: null, playing: false, rest: true }); t += .25; continue }
+      const m = n2m(nt); parts.push(bowed(() => midiHz(m), .15, { attack: .015, release: .04, vibCents: 0 })); segs.push({ t0: t, t1: t + .15, ...seg(m) }); t += .15
+      parts.push(silence(.1)); segs.push({ t0: t, t1: t + .1, midi: null, playing: false, gap: true }); t += .1
+    }
+    parts.push(silence(.3)); segs.push({ t0: t, t1: t + .3, midi: null, playing: false })
+    writeWav('violin_staccato_run', concat(...parts)); writeExpected('violin_staccato_run', segs, { kind: 'realistic', note: 'staccato 150 ms + 100 ms gaps + rests' })
+  }
+  // 긴 모음 말소리: 400–600 ms 음절 (사람이 "아——" 하듯), 음절 간 피치 점프
+  {
+    const parts = [], segs = []; let t = 0, f = 140
+    for (let k = 0; k < 6; k++) {
+      const d = 0.4 + rand() * 0.2; f = Math.max(100, Math.min(250, f * Math.pow(2, (rand() - .5) * 0.6))); const f0 = f, drift = (rand() - .5) * 0.4
+      parts.push(bowed(tt => f0 * Math.pow(2, drift * tt / d), d, { vibCents: 0, attack: .03, release: .05, nHarm: 12, noiseDb: -20 }))
+      segs.push({ t0: t, t1: t + d, midi: null, playing: false, speech: true }); t += d
+      const gap = 0.08 + rand() * 0.12; parts.push(rand() < .5 ? whiteNoise(Math.round(gap * SR), 0.08) : silence(gap)); segs.push({ t0: t, t1: t + gap, midi: null, playing: false }); t += gap
+    }
+    writeWav('speech_long_vowels', concat(...parts)); writeExpected('speech_long_vowels', segs, { kind: 'speech', note: '400–600 ms vowels' })
+  }
+
+  // 억양 있는 말소리: 음절 안에서 피치가 60~150¢ 단조 이동 (실제 대화의 억양 윤곽), 음절 150–300 ms
+  {
+    const parts = [], segs = []; let t = 0, f = 160
+    for (let k = 0; k < 10; k++) {
+      const d = 0.15 + rand() * 0.15
+      f = Math.max(100, Math.min(250, f * Math.pow(2, (rand() - .5) * 0.6))); const f0 = f, move = (rand() < .5 ? -1 : 1) * (60 + rand() * 90) / 1200
+      parts.push(bowed(tt => f0 * Math.pow(2, move * tt / d), d, { vibCents: 0, attack: .02, release: .03, nHarm: 12, noiseDb: -20 }))
+      segs.push({ t0: t, t1: t + d, midi: null, playing: false, speech: true }); t += d
+      const gap = 0.05 + rand() * 0.15; parts.push(rand() < .5 ? whiteNoise(Math.round(gap * SR), 0.08) : silence(gap)); segs.push({ t0: t, t1: t + gap, midi: null, playing: false }); t += gap
+    }
+    writeWav('speech_intonation', concat(...parts)); writeExpected('speech_intonation', segs, { kind: 'speech', note: 'intonation 60–150¢ per syllable' })
+  }
+  // 48 kHz (Android 기본 샘플레이트) — 같은 A4 톤을 48 k 로 렌더
+  {
+    const SR48 = 48000, n = Math.round(2 * SR48), out = new Float32Array(n); let ph = 0
+    for (let i = 0; i < n; i++) { const vib = i / SR48 > .25 ? 15 * Math.sin(2 * Math.PI * 5.5 * (i / SR48 - .25)) : 0; ph += 2 * Math.PI * 440 * Math.pow(2, vib / 1200) / SR48; let s = 0; for (let h = 1; h <= 20; h++) s += Math.pow(h, -1.1) * Math.sin(ph * h); out[i] = 0.35 * s * Math.min(1, i / (0.08 * SR48), (n - i) / (0.2 * SR48)) }
+    const x = new Float32Array(Math.round(.3 * SR48) + n + Math.round(.3 * SR48)); x.set(out, Math.round(.3 * SR48))
+    const ab = Buffer.alloc(44 + x.length * 2)
+    ab.write('RIFF', 0); ab.writeUInt32LE(36 + x.length * 2, 4); ab.write('WAVE', 8); ab.write('fmt ', 12); ab.writeUInt32LE(16, 16); ab.writeUInt16LE(1, 20); ab.writeUInt16LE(1, 22); ab.writeUInt32LE(SR48, 24); ab.writeUInt32LE(SR48 * 2, 28); ab.writeUInt16LE(2, 32); ab.writeUInt16LE(16, 34); ab.write('data', 36); ab.writeUInt32LE(x.length * 2, 40)
+    for (let i = 0; i < x.length; i++) ab.writeInt16LE(Math.round(Math.max(-1, Math.min(1, x[i])) * 0x7fff), 44 + i * 2)
+    writeFileSync(join(OUT, 'violin_A4_48k.wav'), ab)
+    writeFileSync(join(OUT, 'violin_A4_48k.json'), JSON.stringify({ sr: SR48, kind: 'realistic', note: '48 kHz', segments: [{ t0: 0, t1: .3, midi: null, playing: false }, { t0: .3, t1: 2.3, midi: 69, hz: 440, playing: true }, { t0: 2.3, t1: 2.6, midi: null, playing: false }] }, null, 2))
+  }
 }
 
 console.log('signals written to', OUT)

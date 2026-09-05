@@ -60,7 +60,7 @@ export function createYinFast(windowSize: number, opts: { threshold?: number; hz
       if (t === -1) {
         let mn = Infinity
         for (let tau = tauMin; tau < tauMax; tau++) { if (c[tau]! < mn) { mn = c[tau]!; t = tau } }
-        if (t === -1 || mn > 0.5) return NONE
+        if (t === -1 || mn > 0.35) return NONE // 0.5 면 conf 가 정확히 confMin(0.5)이 되어 폴백 프레임이 항상 트래커에 들어간다 (리뷰)
       }
       const b = (t > 0 && t < W - 1) ? t + (c[t + 1]! - c[t - 1]!) / (2 * (2 * c[t]! - c[t - 1]! - c[t + 1]!)) : t
       if (b <= 0 || !isFinite(b)) return NONE

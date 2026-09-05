@@ -71,7 +71,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
       if (rawHz > 0) rawHz = spec.octaveCorrect(rawHz)
       const harmonics = rawHz > 0 ? spec.harmonicCount(rawHz) : 0
       const flatness = spec.flatness()
-      const playing = det.push({ conf: y.conf, rmsOk, harmonics, flatness })
+      const playing = det.push({ conf: y.conf, rmsOk, harmonics, flatness, cents: rawHz > 0 ? 1200 * Math.log2(rawHz / 440) : NaN })
       const t = tracker.push(rawHz, y.conf, true, s.smoothing)
       const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing }
       if (t.hz > 0) fill(f, t.hz, t.midi)

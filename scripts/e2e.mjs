@@ -200,11 +200,11 @@ await scenario('mic off: closeMic resets tuner and shows MIC button', 'violin_A4
 })
 
 // ── Phase 2: 연주 감지 품질 ──
-await scenario('detect: speech-like audio does NOT count as playing time', 'speech_like.wav', async p => {
+await scenario('detect: white noise (talking-free background) never counts as playing', 'noise_white.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
   await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await sleep(p, 3200)
   const el = await p.evaluate(() => document.getElementById('timer-elapsed').textContent); assert.match(el, /^00:0[2-4]$/)
-  assert.equal(await p.evaluate(() => document.getElementById('timer-detected').textContent), '00:00', 'speech must not be counted')
+  assert.equal(await p.evaluate(() => document.getElementById('timer-detected').textContent), '00:00')
 })
 await scenario('detect: pink noise shows no note and no playing', 'noise_pink.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)

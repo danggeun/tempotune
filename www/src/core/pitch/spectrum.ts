@@ -76,10 +76,13 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
       return Math.exp(logSum / n) / (sum / n)
     },
     octaveCorrect(f0) {
-      // 한 옥타브 위로 틀린 경우: 진짜 기본음 f0/2 와 그 홀수 배음 3f0/2 가 실제로 존재한다
-      if (present(f0 / 2) && present(f0 * 1.5)) return f0 / 2
-      // 한 옥타브 아래로 틀린 경우: f0 자리에 에너지가 없고 2f0 부터 배음이 있다
-      if (!present(f0, 6) && present(f0 * 2) && present(f0 * 4)) return f0 * 2
+      const p0 = peakNear(f0, 0.03).db
+      // 한 옥타브 위로 틀린 경우: 진짜 기본음 f0/2 와 그 홀수 배음 3f0/2 가 f0 피크에 견줄 만큼(−15/−20 dB 이내) 존재한다.
+      // 레벨 조건이 없으면 공명하는 개방현(−20 dB 아래)만으로 옥타브가 떨어진다 (리뷰 지적).
+      if (present(f0 / 2) && present(f0 * 1.5) && peakNear(f0 / 2, 0.03).db >= p0 - 15 && peakNear(f0 * 1.5, 0.03).db >= p0 - 20) return f0 / 2
+      // 한 옥타브 아래로 틀린 경우: f0 자리에 에너지가 없고 2f0·4f0 는 있는데 3f0 도 없다.
+      // 3f0 가 있으면 f0 는 진짜 기본음(기본음이 약한 저음현) — 82 Hz 의 배음에 123 Hz 는 없다.
+      if (!present(f0, 6) && present(f0 * 2) && present(f0 * 4) && !present(f0 * 3)) return f0 * 2
       return f0
     },
     peakDbNear(hz, tolRatio = 0.03) { return peakNear(hz, tolRatio).db },

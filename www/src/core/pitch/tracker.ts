@@ -20,7 +20,7 @@ export interface TrackerParams {
   /** 유효 프레임이 끊긴 뒤 표시를 유지하는 프레임 수 */
   releaseFrames: number
 }
-export const DEFAULT_TRACKER: TrackerParams = { confMin: 0.5, confInstant: 0.85, medianLen: 3, switchCents: 65, switchFrames: 2, releaseFrames: 2 }
+export const DEFAULT_TRACKER: TrackerParams = { confMin: 0.5, confInstant: 0.85, medianLen: 3, switchCents: 65, switchFrames: 2, releaseFrames: 6 }
 
 export interface TrackOut { hz: number; midi: number; a: number }
 const NONE: TrackOut = { hz: -1, midi: -1, a: NaN }
@@ -33,7 +33,7 @@ export interface Tracker {
 
 export function createTracker(p: TrackerParams = DEFAULT_TRACKER): Tracker {
   const candA: number[] = [], candW: number[] = []
-  let midi = -1, dispA = NaN, outside = 0, miss = 0, validRun = 0
+  let midi = -1, dispA = NaN, outside = 0, miss = 0, validRun = 0, errSign = 0, sameSignRun = 0
   let last: TrackOut = NONE
 
   function weightedMedian(): number {
@@ -42,7 +42,7 @@ export function createTracker(p: TrackerParams = DEFAULT_TRACKER): Tracker {
     for (const i of idx) { acc += candW[i]!; if (acc >= total / 2) return candA[i]! }
     return candA[idx[idx.length - 1]!]!
   }
-  function reset(): void { candA.length = 0; candW.length = 0; midi = -1; dispA = NaN; outside = 0; miss = 0; validRun = 0; last = NONE }
+  function reset(): void { candA.length = 0; candW.length = 0; midi = -1; dispA = NaN; outside = 0; miss = 0; validRun = 0; errSign = 0; sameSignRun = 0; last = NONE }
   const out = (): TrackOut => { last = { hz: 440 * Math.pow(2, dispA / 1200), midi, a: dispA }; return last }
 
   return {
@@ -66,16 +66,16 @@ export function createTracker(p: TrackerParams = DEFAULT_TRACKER): Tracker {
       }
       // 표시값은 항상 중앙값을 따라간다(평활). 음이름 라벨만 히스테리시스로 바뀐다 —
       // 글리산도/포르타멘토에서 바늘이 끊기지 않고 흐르고, 라벨은 확실할 때만 넘어간다.
-      // 적응 평활: 오차가 작으면 설정 계수(안정), 크면 빠르게 따라붙는다(글리산도/비브라토 폭 밖의 실제 움직임)
-      const err = Math.abs(med - dispA)
-      const aEff = alpha + (1 - alpha) * Math.min(1, Math.max(0, (err - 30) / 60))
-      dispA += (med - dispA) * aEff
+      // 적응 평활: 오차가 크고 *한 방향으로 계속* 벗어날 때만(포르타멘토·실제 음 이동) 빠르게 따라붙는다.
+      // 비브라토는 오차 부호가 반주기(3–4프레임)마다 바뀌므로 설정 계수로 평활된 중심값을 유지한다 (리뷰 지적).
+      const diff = med - dispA, err = Math.abs(diff), sign = diff > 0 ? 1 : diff < 0 ? -1 : 0
+      sameSignRun = sign !== 0 && sign === errSign ? sameSignRun + 1 : 1; errSign = sign
+      const boost = sameSignRun >= 4 ? Math.min(1, Math.max(0, (err - 30) / 60)) : 0
+      dispA += diff * (alpha + (1 - alpha) * boost)
       const dev = med - (midi - 69) * 100
       if (Math.abs(dev) <= p.switchCents) outside = 0
       else {
-        outside++
-        const clearlyNew = conf >= p.confInstant && Math.abs(a - (midi - 69) * 100) > 100 && Math.abs(a - med) < 30
-        if (outside >= p.switchFrames || clearlyNew) { midi = Math.round(med / 100) + 69; dispA = med; outside = 0 }
+        if (++outside >= p.switchFrames) { midi = Math.round(med / 100) + 69; dispA = med; outside = 0 }
       }
       return out()
     },
