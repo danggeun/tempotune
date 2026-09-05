@@ -83,7 +83,7 @@ npm run cap:sync   # Capacitor용 빌드(base=/) + android/ 동기화 (플러그
 # → Android Studio → Build → Build APK(s)
 ```
 
-`android/AndroidManifest.xml` 에 `RECORD_AUDIO` 권한이 있어야 합니다(마이크). Filesystem 은 앱 캐시만 쓰고 Share 는 공유 시트라 추가 권한이 없습니다.
+`cap:sync` 끝에 `scripts/cap-manifest.mjs` 가 `AndroidManifest.xml` 에 `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` 를 보정합니다 (없으면 마이크가 조용히 실패하고 설정에 권한 항목도 안 보입니다). Filesystem 은 앱 캐시만 쓰고 Share 는 공유 시트라 추가 권한이 없습니다. 앱이 백그라운드로 가면 OS 가 마이크를 무음 처리하므로 진행 중인 녹음은 그 시점에 저장됩니다.
 뒤로가기는 열린 화면(편집기 → 설정 → 메뉴)을 먼저 닫고, 메인에서는 앱을 종료하지 않고 백그라운드로 보냅니다.
 
 > `npm run build` 는 GitHub Pages용(base=/go_practice/), `npm run cap:sync` 는 별도 Capacitor 빌드(base=/)를 사용합니다.
