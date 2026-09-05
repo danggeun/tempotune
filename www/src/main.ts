@@ -15,6 +15,7 @@ import { toast } from './ui/toast.ts'
 import { mountTuner, showTapHint } from './ui/tuner.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
+import { onMetroError } from './audio/metronome.ts'
 import { mountRefPanel } from './ui/refPanel.ts'
 import { mountMenu } from './ui/menu.ts'
 import { mountSettings } from './ui/settings.ts'
@@ -37,7 +38,7 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 // ── 마이크 생명주기 ──
 const tryOpenMic = async (): Promise<boolean> => { const r = await openMic(); if (!r.ok && r.error !== 'busy') toast('마이크 오류: ' + r.error); return r.ok }
 mountMicPopup(tryOpenMic)
-onEngineFatal(toast)
+onEngineFatal(toast); onMetroError(toast)
 startAnalysis()
 onMic('afterOpen', () => { if (settingsStore.get().wakeLock) acquireWakeLock() })
 onMic('afterClose', () => { releaseWakeLock(); stopAnalysis(); stopTimer() })
@@ -59,7 +60,7 @@ if (isNative()) {
         if (!ok) { showTapHint(tryOpenMic); return }
         // 자동 시작 시 AudioContext 가 suspended 일 수 있음 (Chrome 자동재생 정책)
         setTimeout(() => {
-          if (A.micAC && A.micAC.state === 'suspended') showTapHint(async () => { await A.micAC?.resume().catch(() => {}); return true })
+          if (A.ac && A.ac.state === 'suspended') showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' })
         }, 400)
       })
     })

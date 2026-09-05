@@ -1,85 +1,67 @@
 /**
- * 메트로놈 — lookahead 스케줄러 (v1 그대로). Phase 3에서 AudioWorklet 기반으로 교체 예정(설계서 §B6).
- * UI 관련(접힘, 버튼, 비트 표시)은 ui/metro.ts 가 metroStore 를 구독해 처리한다.
+ * 메트로놈 — AudioWorklet 안에서 샘플 단위로 클릭을 생성한다 (설계서 §B6).
+ * 메인 스레드는 패턴을 보내고 클릭 이벤트를 받을 뿐이다: 화면이 꺼져도, 백그라운드여도 박자가 흔들리지 않는다.
+ * BPM/볼륨 변경은 다음 틱부터 반영(재시작 없음). 박자·세분 변경은 마디를 처음부터 다시 센다.
+ * UI(접힘, 버튼, 비트 표시)는 ui/metro.ts 가 metroStore 를 구독해 처리한다.
  */
-import { CFG, metroStore, sessionStore, settingsStore, type SubDiv, type TimeSig } from '../state/index.ts'
-import { A, getAC, ensureMetroAC, closeMetroAC, onMic, muteAnalysis } from './engine.ts'
+import { metroStore, sessionStore, settingsStore, CFG, type SubDiv, type TimeSig } from '../state/index.ts'
+import { totalTicks as _totalTicks } from '../core/metro/sequencer.ts'
+import { getContext, micOpen, muteAnalysis, audioSupported } from './engine.ts'
+import metroWorkletUrl from './metro.worklet.ts?worker&url'
 
-let timer: ReturnType<typeof setTimeout> | null = null
-let nextTime = 0, tick = 0, tickN = 0
-let bpmDebounce: ReturnType<typeof setTimeout> | null = null
+let node: AudioWorkletNode | null = null
+let nodeCtx: AudioContext | null = null
+let loading: Promise<AudioWorkletNode> | null = null
+let tickN = 0
 
-function tickInterval(): number {
-  const s = settingsStore.get(); const b = 60 / s.bpm
-  if (s.timeSig === 6) return b / 2
-  if (s.subDiv === 'd') return tick % 2 === 0 ? b * 3 / 4 : b * 1 / 4
-  return b / s.subDiv
-}
-export function totalTicks(): number { const s = settingsStore.get(); return s.subDiv === 'd' ? s.timeSig * 2 : s.timeSig * s.subDiv }
+export function totalTicks(): number { return _totalTicks(settingsStore.get()) }
 
-function scheduleClick(time: number, t: number): void {
-  const ac = getAC(); if (!ac) return
-  const dl = Math.max(0, (time - ac.currentTime) * 1000)
-  setTimeout(() => { metroStore.set({ lastTick: { tick: t, n: ++tickN } }) }, dl)
-  if (sessionStore.get().recording) return // 녹음 중 클릭 무음 (시각 피드백만)
-  const s = settingsStore.get()
-  const osc = ac.createOscillator(), gain = ac.createGain(); osc.connect(gain); gain.connect(ac.destination)
-  let freq: number, vol: number
-  if (s.subDiv === 'd') { const b1 = t === 0, bs = t % 2 === 0; freq = b1 ? 1800 : bs ? 1100 : 750; vol = b1 ? .75 : bs ? .42 : .18 }
-  else { const b1 = t === 0, ib = t % s.subDiv === 0; freq = b1 ? 1800 : ib ? 1100 : 750; vol = b1 ? .75 : ib ? .42 : .18 }
-  vol = Math.min(1, vol * (s.metroVol / .7)); osc.type = 'triangle'
-  gain.gain.setValueAtTime(vol, time); gain.gain.exponentialRampToValueAtTime(.001, time + CFG.metro.clickDurS)
-  osc.frequency.value = freq; osc.onended = () => { osc.disconnect(); gain.disconnect() }; osc.start(time); osc.stop(time + CFG.metro.clickDurS)
-  // 클릭이 스피커→마이크로 누설되는 구간: 클릭 시작 20 ms 전부터, 클릭 + 분석 창(4096/sr) + 여유 80 ms 까지. 워커가 같은 컨텍스트 시계로 판정.
-  if (A.micAC) muteAnalysis(time - 0.02, time + CFG.metro.clickDurS + 4096 / ac.sampleRate + 0.08)
-}
-function sched(): void {
-  const ac = getAC(); if (!ac) return
-  while (nextTime < ac.currentTime + CFG.metro.lookaheadS) { scheduleClick(nextTime, tick); nextTime += tickInterval(); tick = (tick + 1) % totalTicks() }
-  timer = setTimeout(sched, CFG.metro.intervalMs)
+function pattern() { const s = settingsStore.get(); return { bpm: s.bpm, timeSig: s.timeSig, subDiv: s.subDiv, volume: s.metroVol, muted: sessionStore.get().recording } }
+
+async function ensureNode(): Promise<AudioWorkletNode> {
+  const ac = getContext()
+  if (node && nodeCtx === ac) return node
+  if (loading) return loading
+  loading = (async () => {
+    await ac.audioWorklet.addModule(metroWorkletUrl)
+    const n = new AudioWorkletNode(ac, 'gp-metro', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] })
+    n.port.onmessage = (e: MessageEvent) => {
+      const m = e.data; if (m?.type !== 'click' || !metroStore.get().playing) return
+      // 시각 피드백은 실제 재생 시각에 맞춘다 (메시지는 렌더 시점에 먼저 온다)
+      const delay = Math.max(0, (m.t - ac.currentTime) * 1000 + ac.baseLatency * 1000)
+      setTimeout(() => { if (metroStore.get().playing) metroStore.set({ lastTick: { tick: m.tick, n: ++tickN } }) }, delay)
+      // 클릭이 스피커→마이크로 누설되는 구간을 튜너 분석에서 제외: 클릭 −20 ms ~ 클릭 + 길이 + 분석 창 + 여유
+      if (micOpen()) muteAnalysis(m.t - 0.02, m.t + m.dur + 4096 / ac.sampleRate + 0.08)
+    }
+    n.connect(ac.destination)
+    n.port.postMessage({ type: 'pattern', pattern: pattern() })
+    node = n; nodeCtx = ac; loading = null
+    return n
+  })()
+  return loading
 }
 
 export type StartResult = { ok: true } | { ok: false; error: string }
 export function startMetro(): StartResult {
-  if (!A.micAC && !ensureMetroAC()) return { ok: false, error: '오디오를 시작할 수 없습니다' }
-  const ac = getAC(); if (!ac) return { ok: false, error: '오디오를 시작할 수 없습니다' }
-  tick = 0; nextTime = ac.currentTime + .05
-  metroStore.set({ playing: true }); sched()
+  if (!audioSupported()) return { ok: false, error: '오디오를 시작할 수 없습니다' }
+  metroStore.set({ playing: true })
+  ensureNode().then(n => { if (metroStore.get().playing) { n.port.postMessage({ type: 'pattern', pattern: pattern() }); n.port.postMessage({ type: 'start' }) } })
+    .catch(() => { metroStore.set({ playing: false }); toastFn?.('오디오를 시작할 수 없습니다') })
   return { ok: true }
 }
-/** 스케줄만 멈춤 (UI 알림 없음) — 마이크 전환 시 내부용 */
-function stopScheduler(): void { if (timer) clearTimeout(timer); timer = null }
-export function stopMetro(): void {
-  metroStore.set({ playing: false }); stopScheduler(); closeMetroAC()
-}
+export function stopMetro(): void { metroStore.set({ playing: false }); node?.port.postMessage({ type: 'stop' }) }
 export function toggleMetro(): StartResult { return metroStore.get().playing ? (stopMetro(), { ok: true }) : startMetro() }
-function restartIfPlaying(): void { if (metroStore.get().playing) { stopMetro(); startMetro() } }
+let toastFn: ((m: string) => void) | null = null
+export function onMetroError(fn: (m: string) => void): void { toastFn = fn }
 
-export function setBPM(v: number): void {
-  const bpm = Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, v))
-  settingsStore.set({ bpm })
-  if (bpmDebounce) clearTimeout(bpmDebounce)
-  if (metroStore.get().playing) bpmDebounce = setTimeout(() => { stopMetro(); startMetro() }, 300)
-}
+function pushPattern(): void { node?.port.postMessage({ type: 'pattern', pattern: pattern() }) }
+function restartBar(): void { if (metroStore.get().playing && node) { node.port.postMessage({ type: 'pattern', pattern: pattern() }); node.port.postMessage({ type: 'start' }) } }
+
+export function setBPM(v: number): void { settingsStore.set({ bpm: Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, v)) }) } // 다음 틱부터 반영
 export function adjBPM(d: number): void { setBPM(settingsStore.get().bpm + d) }
-export function setTimeSig(v: TimeSig): void {
-  const patch: { timeSig: TimeSig; subDiv?: SubDiv } = { timeSig: v }
-  if (v === 6) patch.subDiv = 1
-  settingsStore.set(patch); restartIfPlaying()
-}
-export function setSubDiv(v: SubDiv): void { settingsStore.set({ subDiv: v }); restartIfPlaying() }
+export function setTimeSig(v: TimeSig): void { const patch: { timeSig: TimeSig; subDiv?: SubDiv } = { timeSig: v }; if (v === 6) patch.subDiv = 1; settingsStore.set(patch); restartBar() }
+export function setSubDiv(v: SubDiv): void { settingsStore.set({ subDiv: v }); restartBar() }
 export function setMetroVol(v: number): void { settingsStore.set({ metroVol: v }) }
 
-// ── 마이크 생명주기와의 상호작용 (v1 openMic/closeMic 내부 로직) ──
-let resumeAfterMic = false
-onMic('afterOpen', () => {
-  // 메트로놈 전용 컨텍스트로 돌고 있었다면 마이크 컨텍스트로 옮겨 탄다
-  if (A.metroAC) {
-    const was = metroStore.get().playing
-    if (was) { stopScheduler(); metroStore.set({ playing: false }) }
-    A.metroAC.close(); A.metroAC = null
-    if (was) startMetro()
-  }
-})
-onMic('beforeClose', () => { resumeAfterMic = metroStore.get().playing; if (resumeAfterMic) { stopScheduler(); metroStore.set({ playing: false }) } })
-onMic('afterClose', () => { if (resumeAfterMic) { resumeAfterMic = false; startMetro() } })
+settingsStore.select(s => [s.bpm, s.metroVol].join(), pushPattern)
+sessionStore.select(s => s.recording, pushPattern) // 녹음 중 클릭 무음 (시각 피드백은 유지)

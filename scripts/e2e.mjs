@@ -6,7 +6,7 @@
 import { chromium } from 'playwright'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { spawn, execSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 
@@ -43,8 +43,8 @@ const sleep = (p, ms) => p.waitForTimeout(ms)
 
 // ── 튜너 ──
 await scenario('tuner: 440 Hz @A=442 → 라4 −8¢ (in-tune ±15)', 'violin_A4.wav', async p => {
-  await p.goto(URL_); const t = await waitNote(p, t => t.note === '라')
-  assert.equal(t.oct, '4'); assert.match(t.cents, /^-(7|8|9) ¢$/); assert.equal(t.inTune, true)
+  await p.goto(URL_); const t = await waitNote(p, t => t.note === '라' && /^-(7|8|9) ¢$/.test(t.cents))
+  assert.equal(t.oct, '4'); assert.equal(t.inTune, true)
   await sleep(p, 300); assert.equal((await tunerText(p)).note, '라')
 })
 await scenario('tuner: cello C2 → 도2', 'cello_C2.wav', async p => { await p.goto(URL_); const t = await waitNote(p, t => t.note === '도'); assert.equal(t.oct, '2') })
@@ -225,6 +225,48 @@ await scenario('metro+tuner: note keeps showing while metronome clicks (mute ran
   assert.ok(shown >= 6, 'note visible in most samples while clicking: ' + shown + '/10')
   await p.click('#metro-play-hdr-btn')
 })
+
+// ── Phase 3: 메트로놈 정확도 / BPM 즉시 반영 / 마이크 없는 기준음 ──
+await scenario('metro accuracy: worklet renders 120 bpm clicks with ≤1-sample jitter over 20 s (OfflineAudioContext)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_)
+  const asset = readdirSync(join(DIST, 'assets')).find(n => /^metro\.worklet-.*\.js$/.test(n)); assert.ok(asset, 'metro worklet asset')
+  const r = await p.evaluate(async url => {
+    const sr = 48000, ac = new OfflineAudioContext(1, sr * 20, sr)
+    await ac.audioWorklet.addModule(url)
+    const n = new AudioWorkletNode(ac, 'gp-metro', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] })
+    n.connect(ac.destination)
+    n.port.postMessage({ type: 'pattern', pattern: { bpm: 120, timeSig: 4, subDiv: 1, volume: .7, muted: false } }); n.port.postMessage({ type: 'start' })
+    await new Promise(r => setTimeout(r, 200)) // 오프라인 렌더는 순식간이라 포트 메시지가 먼저 도착하도록
+    const buf = await ac.startRendering(); const x = buf.getChannelData(0)
+    // 온셋: 200 ms 이상 조용하다가 |x|>0.05 가 되는 샘플
+    const onsets = []; let quiet = sr
+    for (let i = 0; i < x.length; i++) { if (Math.abs(x[i]) > 0.05) { if (quiet > sr * 0.2) onsets.push(i); quiet = 0 } else quiet++ }
+    const d = onsets.slice(1).map((o, i) => o - onsets[i])
+    return { count: onsets.length, first: onsets[0], min: Math.min(...d), max: Math.max(...d), expected: sr * 0.5 }
+  }, '/assets/' + asset)
+  assert.equal(r.count, 40, 'clicks in 20 s: ' + r.count)
+  assert.ok(Math.abs(r.min - r.expected) <= 1 && Math.abs(r.max - r.expected) <= 1, `interval ${r.min}..${r.max} vs ${r.expected}`)
+  assert.ok(Math.abs(r.first - sr48(0.05)) <= 2, 'first click at 50 ms: ' + r.first)
+})
+function sr48(s) { return Math.round(48000 * s) }
+await scenario('metro: bpm change while playing does not restart (beats keep coming, playing stays)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600)
+  await p.click('#metro-play-btn'); await sleep(p, 900)
+  // 재생 중엔 본체가 접혀 있으므로 헤더 ♩BPM 라벨을 드래그해 올린다 (2 px/BPM → 60 px = +30)
+  const box = await p.locator('#metro-hdr-label').boundingBox()
+  await p.mouse.move(box.x + 10, box.y + 10); await p.mouse.down(); await p.mouse.move(box.x + 10, box.y + 10 - 60, { steps: 6 }); await p.mouse.up()
+  assert.equal(await p.evaluate(() => document.getElementById('metro-bpm').textContent), '110')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
+  const seen = new Set(); for (let i = 0; i < 25; i++) { seen.add(await p.evaluate(() => document.querySelector('#beat-vis .bd.lit-a, #beat-vis .bd.lit-b, #beat-vis .bd.lit-s')?.dataset.tick ?? '-')); await sleep(p, 60) }
+  assert.ok(seen.size >= 2, 'beat dots advancing after bpm change: ' + [...seen].join(','))
+  await p.click('#metro-play-hdr-btn')
+})
+await scenario('ref tone plays without mic (single AudioContext)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel')
+  await p.click('#menu-btn'); await p.click('#menu-overlay .ref-note-btn[data-note="라"]')
+  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 2, 'note on without mic')
+  await p.click('#menu-overlay .ref-note-btn[data-note="라"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 0)
+}, { permissions: [] })
 
 server.kill()
 let fail = 0

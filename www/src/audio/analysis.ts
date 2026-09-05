@@ -22,4 +22,4 @@ function onFrame(m: WorkerOut): void {
 export function startAnalysis(): void { onWorkerMessage(onFrame) }
 export function stopAnalysis(): void { /* 워커는 engine.closeMic 이 종료한다 */ }
 /** 감지 상태 즉시 리셋 (설정 변경 등) */
-export function resetPlayingDetection(): void { sendToWorker({ type: 'reset', afterT: A.micAC?.currentTime ?? 0 }); tunerStore.set({ playing: false }) }
+export function resetPlayingDetection(): void { sendToWorker({ type: 'reset', afterT: A.ac?.currentTime ?? 0 }); tunerStore.set({ playing: false }) }
