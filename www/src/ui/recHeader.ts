@@ -6,9 +6,10 @@ import { q, on } from './dom.ts'
 import { toast } from './toast.ts'
 
 export function mountRecHeader(): void {
-  const tb = () => { const r = toggleRec(); if (!r.ok) toast(r.error); else toast(sessionStore.get().recording ? '녹음 시작' : '녹음 완료') }
+  const tb = () => { const r = toggleRec(); if (!r.ok) toast(r.error) }
   on(q('rec-hdr-btn'), 'click', tb); on(q('rec-toggle-btn'), 'click', tb)
   sessionStore.select(s => s.recording, rec => {
+    toast(rec ? '녹음 시작' : '녹음 완료') // 버튼이 아니라 상태 전이에서: 마이크 자동 종료로 멈춘 경우에도 안내
     q('rec-hdr-btn').classList.toggle('rec-on', rec)
     const dot = q('rec-hdr-dot'); dot.style.background = rec ? 'var(--red)' : 'var(--muted)'; dot.style.animation = rec ? 'pulse 1s infinite' : 'none'
     const btn = q('rec-toggle-btn')

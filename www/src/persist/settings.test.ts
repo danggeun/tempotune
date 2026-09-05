@@ -15,3 +15,12 @@ describe('parseStored', () => {
   })
   test('v2 rejects bad timeSig', () => expect(parseStored(JSON.stringify({ v: 2, timeSig: 5 }))).toEqual({}))
 })
+
+describe('parseStored hardening', () => {
+  test('bpm clamped and rounded', () => {
+    expect(parseStored(JSON.stringify({ v: 2, bpm: -5 })).bpm).toBe(20)
+    expect(parseStored(JSON.stringify({ v: 2, bpm: 999 })).bpm).toBe(220)
+    expect(parseStored(JSON.stringify({ bpm: 80.6 })).bpm).toBe(81)
+    expect(parseStored(JSON.stringify({ v: 2, bpm: 'x' })).bpm).toBeUndefined()
+  })
+})

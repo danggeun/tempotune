@@ -143,7 +143,7 @@ function togglePlay(): void {
   if (a.paused) {
     if (ed.ptA !== null && a.currentTime < ed.ptA) a.currentTime = ed.ptA
     btn.textContent = '■'
-    const tryPlay = () => { const p = a.play(); if (p && p.catch) p.catch(() => { setTimeout(() => { if (ed.audio && ed.audio.paused) { const p2 = ed.audio.play(); if (p2 && p2.catch) p2.catch(() => { btn.textContent = '▶' }) } }, 50) }) }
+    const tryPlay = () => { if (ed.audio !== a) return /* 편집기가 닫힌 뒤 canplay 가 와도 재생하지 않음 */; const p = a.play(); if (p && p.catch) p.catch(() => { setTimeout(() => { if (ed.audio && ed.audio.paused) { const p2 = ed.audio.play(); if (p2 && p2.catch) p2.catch(() => { btn.textContent = '▶' }) } }, 50) }) }
     if (a.readyState < 2) a.addEventListener('canplay', tryPlay, { once: true }); else tryPlay()
   } else { a.pause(); btn.textContent = '▶' }
 }

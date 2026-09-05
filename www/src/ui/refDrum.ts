@@ -20,7 +20,7 @@ export function mountRefDrum(): void {
     const hz = Math.max(MIN, Math.min(MAX, yToHz(v)))
     items.forEach((el, i) => el.classList.toggle('active', MAX - i === hz))
   }
-  function snap(): void { const hz = Math.max(MIN, Math.min(MAX, yToHz(y))); settingsStore.set({ refHz: hz }); setY(hzToY(hz), true) }
+  function snap(): void { const hz = Math.max(MIN, Math.min(MAX, yToHz(y))); setY(hzToY(hz), true); settingsStore.set({ refHz: hz }) } // 애니메이션 먼저, 그 다음 알림 (구독자가 transition:none 으로 덮지 않도록)
 
   on(outer, 'mousedown', (e: MouseEvent) => { drag = true; startY = e.clientY; startDrumY = y; inner.style.transition = 'none'; e.preventDefault() })
   on(window, 'mousemove', (e: MouseEvent) => { if (drag) setY(clampY(startDrumY + (e.clientY - startY))) })
@@ -30,6 +30,6 @@ export function mountRefDrum(): void {
   on(window, 'touchend', () => { if (drag) { drag = false; snap() } })
 
   // 외부(설정 복원)에서 refHz 가 바뀌면 드럼 위치 반영. 드래그 중에는 건드리지 않는다.
-  settingsStore.select(s => s.refHz, hz => { if (!drag) setY(hzToY(hz), false) }, { immediate: true })
+  settingsStore.select(s => s.refHz, hz => { if (!drag && yToHz(y) !== hz) setY(hzToY(hz), false) }, { immediate: true })
   setTimeout(() => setY(hzToY(settingsStore.get().refHz)), 30) // v1: 레이아웃 확정 후 재적용
 }

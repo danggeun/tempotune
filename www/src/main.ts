@@ -49,13 +49,13 @@ on(q('logo'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 �
 
 // ── 시작 시퀀스 (v1 그대로) ──
 if (isNative()) {
-  openMic().then(r => { if (!r.ok) { showTapHint(tryOpenMic); toast('마이크 권한을 허용해주세요') } })
+  tryOpenMic().then(ok => { if (!ok) { showTapHint(tryOpenMic); toast('마이크 권한을 허용해주세요') } })
 } else {
   navigator.permissions?.query({ name: 'microphone' as PermissionName })
     .then(p => {
       if (p.state !== 'granted') { showMicPopup(); return }
-      openMic().then(r => {
-        if (!r.ok) { showTapHint(tryOpenMic); return }
+      tryOpenMic().then(ok => {
+        if (!ok) { showTapHint(tryOpenMic); return }
         // 자동 시작 시 AudioContext 가 suspended 일 수 있음 (Chrome 자동재생 정책)
         setTimeout(() => {
           if (A.micAC && A.micAC.state === 'suspended') showTapHint(async () => { await A.micAC?.resume().catch(() => {}); return true })
