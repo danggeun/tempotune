@@ -6,9 +6,7 @@ import { createStore } from './store.ts'
 
 // ── 고정 상수 (사용자 설정 아님) ──
 export const CFG = {
-  detect: { fftSize: 4096, fftSmooth: .88, hzMin: 80, hzMax: 4800, noiseFloor: -44, peakMargin: 8, harmonicDrop: 35, harmonicMin: 2, holdFrames: 45 },
-  yamnet: { intervalMs: 975, threshold: .50, sampleRate: 16000, inputLen: 15600, stringIdx: new Set([132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147]) },
-  tuner: { fftSize: 4096, yinThreshold: .10, lockFrames: 3, histLen: 360 },
+  tuner: { histLen: 360 },
   metro: { bpmMin: 20, bpmMax: 220, lookaheadS: .4, intervalMs: 25, clickDurS: .05, muteTunerMs: 90, swipePxPerBpm: 2 },
   inactiveMs: 15 * 60 * 1000,
   ref: { min: 410, max: 466, default: 442 },
@@ -18,7 +16,8 @@ export const CFG = {
 
 /** 설정 화면의 3단계 값 매핑 (v1 RMS_LEVELS / SMOOTH_LEVELS) */
 export const RMS_LEVELS = [.024, .014, .008] as const
-export const SMOOTH_LEVELS = [.05, .10, .15] as const
+/** 표시 평활 계수 — 분석 프레임(≈43 Hz) 기준. v1(.05/.10/.15 @ 60 Hz·4프레임 스킵)과 시간상수가 같도록 환산 */
+export const SMOOTH_LEVELS = [.06, .12, .20] as const
 
 export type SubDiv = 1 | 2 | 3 | 'd'
 export type TimeSig = 2 | 3 | 4 | 6
@@ -29,7 +28,6 @@ export interface Settings {
   rmsMin: number
   smoothing: number
   wakeLock: boolean
-  aiMode: boolean
   bpm: number
   timeSig: TimeSig
   subDiv: SubDiv
@@ -37,7 +35,7 @@ export interface Settings {
   metroVol: number
 }
 export const settingsStore = createStore<Settings>({
-  tolCents: 15, rmsMin: RMS_LEVELS[1], smoothing: SMOOTH_LEVELS[1], wakeLock: true, aiMode: false,
+  tolCents: 15, rmsMin: RMS_LEVELS[1], smoothing: SMOOTH_LEVELS[1], wakeLock: true,
   bpm: 80, timeSig: 4, subDiv: 1, refHz: CFG.ref.default, metroVol: 0.7,
 })
 
@@ -53,12 +51,14 @@ export interface TunerState {
   midi: number
   cents: number
   inTune: boolean
-  /** 연주 감지 (v1 strOK) */
+  /** 추정 신뢰도 0..1 (YIN 주기성) */
+  conf: number
+  /** 연주 감지 */
   playing: boolean
   lastActivityMs: number
 }
 export const tunerStore = createStore<TunerState>({
-  micReady: false, running: false, frame: 0, hz: -1, midi: -1, cents: 0, inTune: false, playing: false, lastActivityMs: Date.now(),
+  micReady: false, running: false, frame: 0, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, playing: false, lastActivityMs: Date.now(),
 })
 
 // ── 메트로놈 ──

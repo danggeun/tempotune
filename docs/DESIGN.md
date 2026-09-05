@@ -276,9 +276,9 @@ export function mountTuner(root: HTMLElement, deps: {tuner: TunerStore, settings
 
 ## G. 확인 필요 목록
 
-- [ ] Vite 8에서 AudioWorklet 모듈 번들 방식 (Phase 2 스파이크)
+- [x] Vite 8에서 AudioWorklet 모듈 번들 방식 — `?worker&url` 로 해결 (Phase 2 스파이크, 헤드리스 검증)
 - [ ] Android WebView `<a download>` 동작 여부 → Filesystem+Share로 대체 전제
 - [ ] 설정 7일 TTL의 원래 의도
-- [ ] 저음(첼로/베이스) 정확도가 4096 창으로 충분한지 → 벤치마크로 결정
-- [ ] 연주 감지기 말소리 오검출률 → 합성 말소리로 1차, 실사용 피드백으로 2차
+- [x] 저음(첼로/베이스) 정확도 — 4096 창으로 E1 41 Hz 까지 p90 2.8¢ (벤치마크). 창 확장 불필요
+- [x] 연주 감지기 말소리 오검출률 — 합성 말소리 0% (attack 325 ms). 실사용 피드백으로 2차 확인 예정
 - [ ] 햅틱 채택 여부(기본 꺼짐으로 넣고 판단)

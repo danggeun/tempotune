@@ -115,18 +115,18 @@ await scenario('metro: works without mic (permission denied) + spacebar', 'silen
 }, { permissions: [] })
 
 // ── 설정 영속 ──
-await scenario('settings: persist across reload (cents, smooth, rms, wakelock, ai, bpm, ts, ref)', 'silence_lowfloor.wav', async p => {
+await scenario('settings: persist across reload (cents, smooth, rms, wakelock, bpm, ts, ref)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500)
   await p.click('#menu-btn'); await p.click('#settings-open-btn')
   await p.click('#cents-steps .step-btn[data-v="25"]'); await p.click('#smooth-steps .step-btn[data-v="3"]'); await p.click('#rms-steps .step-btn[data-v="1"]')
-  await p.click('#wakelock-steps .step-btn[data-v="0"]'); await p.click('#aimode-steps .step-btn[data-v="1"]')
+  await p.click('#wakelock-steps .step-btn[data-v="0"]')
   await p.click('#settings-back-btn'); await p.click('.menu-close-btn'); await p.click('#metro-collapse-btn'); await sleep(p, 600)
   await p.click('.m-adj:nth-child(2)'); await p.click('[data-ts="3"]')
   await sleep(p, 800)
   await p.reload(); await sleep(p, 800)
   const on = sel => p.evaluate(s => document.querySelector(s + ' .step-btn.on').dataset.v, sel)
   assert.equal(await on('#cents-steps'), '25'); assert.equal(await on('#smooth-steps'), '3'); assert.equal(await on('#rms-steps'), '1')
-  assert.equal(await on('#wakelock-steps'), '0'); assert.equal(await on('#aimode-steps'), '1')
+  assert.equal(await on('#wakelock-steps'), '0')
   assert.equal(await p.evaluate(() => document.getElementById('metro-bpm').textContent), '81')
   assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '3')
 })
@@ -197,6 +197,25 @@ await scenario('mic off: closeMic resets tuner and shows MIC button', 'violin_A4
   // 15분 무활동 대신: hdr-mic-btn 은 마이크 켜짐 시 숨김
   assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn').style.display), 'none')
   assert.equal(await p.evaluate(() => document.getElementById('rec-hdr-btn').style.opacity), '1')
+})
+
+// ── Phase 2: 연주 감지 품질 ──
+await scenario('detect: speech-like audio does NOT count as playing time', 'speech_like.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800)
+  await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await sleep(p, 3200)
+  const el = await p.evaluate(() => document.getElementById('timer-elapsed').textContent); assert.match(el, /^00:0[2-4]$/)
+  assert.equal(await p.evaluate(() => document.getElementById('timer-detected').textContent), '00:00', 'speech must not be counted')
+})
+await scenario('detect: pink noise shows no note and no playing', 'noise_pink.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  assert.equal((await tunerText(p)).note, '--')
+  await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await sleep(p, 2200)
+  assert.equal(await p.evaluate(() => document.getElementById('timer-detected').textContent), '00:00')
+})
+await scenario('detect: sustained violin counts (after ~0.3 s attack)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await sleep(p, 4200)
+  const det = await p.evaluate(() => document.getElementById('timer-detected').textContent); assert.match(det, /^00:0[2-4]$/, 'detected: ' + det)
 })
 
 server.kill()

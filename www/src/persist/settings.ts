@@ -7,7 +7,7 @@ import { settingsStore, RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubD
 export const SETTINGS_KEY = 'gopractice_settings_v1' // 키 이름은 유지 (기존 사용자 데이터 호환)
 
 type StoredV2 = { v: 2 } & Settings
-interface StoredV1 { cents?: number; rms?: number; smooth?: number; wakelock?: boolean; aimode?: boolean; bpm?: number; timeSig?: number; subDiv?: number | string; refHz?: number; vol?: number; savedAt?: number }
+interface StoredV1 { cents?: number; rms?: number; smooth?: number; wakelock?: boolean; bpm?: number; timeSig?: number; subDiv?: number | string; refHz?: number; vol?: number; savedAt?: number }
 
 function isTimeSig(v: unknown): v is TimeSig { return v === 2 || v === 3 || v === 4 || v === 6 }
 function isSubDiv(v: unknown): v is SubDiv { return v === 1 || v === 2 || v === 3 || v === 'd' }
@@ -26,7 +26,6 @@ export function parseStored(raw: string | null): Partial<Settings> {
     if (typeof s.rmsMin === 'number') out.rmsMin = s.rmsMin
     if (typeof s.smoothing === 'number') out.smoothing = s.smoothing
     if (typeof s.wakeLock === 'boolean') out.wakeLock = s.wakeLock
-    if (typeof s.aiMode === 'boolean') out.aiMode = s.aiMode
     if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)
     if (isTimeSig(s.timeSig)) out.timeSig = s.timeSig
     if (isSubDiv(s.subDiv)) out.subDiv = s.subDiv
@@ -38,9 +37,8 @@ export function parseStored(raw: string | null): Partial<Settings> {
   const s = d as StoredV1
   if (s.cents) out.tolCents = s.cents
   if (s.rms && RMS_LEVELS.some(v => Math.abs(v - s.rms!) < .001)) out.rmsMin = s.rms
-  if (s.smooth && SMOOTH_LEVELS.some(v => Math.abs(v - s.smooth!) < .001)) out.smoothing = s.smooth
+  if (s.smooth) { const V1_SMOOTH = [.05, .10, .15]; const i = V1_SMOOTH.findIndex(v => Math.abs(v - s.smooth!) < .001); if (i >= 0) out.smoothing = SMOOTH_LEVELS[i]! }
   if (s.wakelock != null) out.wakeLock = !!s.wakelock
-  if (s.aimode != null) out.aiMode = !!s.aimode
   if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)
   if (isTimeSig(s.timeSig)) out.timeSig = s.timeSig
   if (isSubDiv(s.subDiv)) out.subDiv = s.subDiv

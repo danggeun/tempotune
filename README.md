@@ -12,10 +12,11 @@
 ## 기능
 
 ### 크로마틱 튜너
-- **YIN 알고리즘** 기반 실시간 음정 감지 — 단순 FFT보다 정확한 시간 도메인 자기상관
-- **TensorFlow.js + YAMNet** AI로 현악기 신호 분류 (비음악 소음과 연주음을 구분)
+- **YIN 알고리즘**(FFT 가속) 기반 실시간 음정 감지 + 신뢰도 기반 안정화 — AudioWorklet → Worker 파이프라인으로 메인 스레드 부하 없음
+- 신호처리 기반 연주 감지 — 주기성·배음·평탄도·지속시간으로 말소리/잡음을 걸러 실제 연주 시간만 측정 (오프라인, 모델 없음)
 - 60fps 히스토리 캔버스로 음정 변화를 연속적으로 시각화
 - A=410–466Hz 기준음 드럼 피커로 개인 조율 기준 설정 (바로크 A=415 전후 포함)
+- 40 Hz(콘트라베이스 E1)~4.2 kHz 범위, 옥타브 오류 자동 교정
 
 ### 메트로놈
 - 마이크 없이도 독립 동작 (전용 `AudioContext` 분리)
@@ -33,7 +34,7 @@
 - webm/opus · mp4/aac 자동 선택
 
 ### 연습 타이머
-- 전체 연습 시간 + AI가 실제 연주로 감지한 시간 분리 측정
+- 전체 연습 시간 + 실제 연주로 감지된 시간 분리 측정
 - 15분 비활성 시 자동 마이크 종료
 
 ---
@@ -45,9 +46,9 @@
 | 번들러 | Vite 8 |
 | 언어 | TypeScript (strict) |
 | 테스트 | Vitest 4 단위 · Playwright e2e/스크린샷 · 튜너 벤치마크 |
-| 음정 감지 | YIN 알고리즘 — `www/src/core/yin.js` |
-| AI 분류 | TensorFlow.js + YAMNet (tfhub.dev, 인덱스 132–147 현악기) |
-| 오디오 | Web Audio API (`AudioContext` · `AnalyserNode` · `ScriptProcessorNode`) |
+| 음정 감지 | FFT 기반 YIN + 신뢰도 트래커 — `www/src/core/pitch/` |
+| 연주 감지 | 신호처리 상태기계 — `www/src/core/playing/` |
+| 오디오 | Web Audio API — AudioWorklet 캡처 → Web Worker 분석 |
 | 녹음 영속화 | IndexedDB (`gopractice_rec`) |
 | 화면 유지 | Screen Wake Lock API |
 | 설정 저장 | localStorage |

@@ -87,5 +87,3 @@ export function mountTuner(): void {
   // 초기 렌더 (v1: 200 ms 후)
   setTimeout(() => { drawGauge(null); drawHistory(false) }, 200)
 }
-
-export function setAiDot(state: 'loading' | 'ready'): void { q('ai-dot').className = state === 'loading' ? 'loading' : '' }

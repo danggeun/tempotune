@@ -8,12 +8,11 @@ import { loadSettings, startSettingsAutosave } from './persist/settings.ts'
 import { openRecDb } from './persist/recordingsDb.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning } from './audio/engine.ts'
 import { startAnalysis, stopAnalysis } from './audio/analysis.ts'
-import { loadYamnet, onYamnetStatus } from './audio/yamnet.ts'
 import { restoreRecordings } from './audio/recorder.ts'
 import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
-import { mountTuner, showTapHint, setAiDot } from './ui/tuner.ts'
+import { mountTuner, showTapHint } from './ui/tuner.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { mountRefPanel } from './ui/refPanel.ts'
@@ -38,7 +37,8 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 // ── 마이크 생명주기 ──
 const tryOpenMic = async (): Promise<boolean> => { const r = await openMic(); if (!r.ok && r.error !== 'busy') toast('마이크 오류: ' + r.error); return r.ok }
 mountMicPopup(tryOpenMic)
-onMic('afterOpen', () => { if (settingsStore.get().wakeLock) acquireWakeLock(); startAnalysis() })
+startAnalysis()
+onMic('afterOpen', () => { if (settingsStore.get().wakeLock) acquireWakeLock() })
 onMic('afterClose', () => { releaseWakeLock(); stopAnalysis(); stopTimer() })
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic().then(ok => { if (ok) toast('마이크가 켜졌어요') }))
 settingsStore.select(s => s.wakeLock, v => { if (v) { if (tunerStore.get().running) acquireWakeLock() } else releaseWakeLock() })
@@ -65,7 +65,5 @@ if (isNative()) {
     .catch(() => showMicPopup())
 }
 
-// ── AI 모델 / 녹음 복원 ──
-onYamnetStatus(setAiDot)
-loadYamnet()
+// ── 녹음 복원 ──
 openRecDb().then(restoreRecordings).catch(() => {})
