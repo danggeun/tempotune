@@ -48,7 +48,7 @@ function runFile(adapterFactory, wavPath) {
   }
   // 지표
   const centsErr = [], octaveErr = [], falseNote = [], playTP = [], playFP = [], playFN = [], ms = []
-  const lockLat = []
+  const lockLat = []; let nonPlayFrames = 0
   for (const s of exp.segments) {
     if (s.midi != null || s.gliss) {
       // 락 지연: 온셋 후 최초로 3프레임 연속 올바른 음이름
@@ -81,7 +81,7 @@ function runFile(adapterFactory, wavPath) {
       const prev = exp.segments.find(p => (p.midi != null || p.gliss || p.speech) && f.t >= p.t1 && f.t < p.t1 + W / sr + OFFSET_GRACE)
       if (prev) continue
       if (!s.speech) falseNote.push(shown ? 1 : 0) // 말소리는 튜너가 음을 표시해도 오류가 아님 (연주감지 F1로만 채점)
-      if (f.playing) playFP.push(1)
+      nonPlayFrames++; if (f.playing) playFP.push(1)
     }
   }
   const missing = centsErr.filter(Number.isNaN).length, ce = centsErr.filter(v => !Number.isNaN(v))
@@ -93,7 +93,7 @@ function runFile(adapterFactory, wavPath) {
     octavePct: octaveErr.length ? 100 * octaveErr.reduce((a, b) => a + b, 0) / octaveErr.length : NaN,
     falseNotePct: falseNote.length ? 100 * falseNote.reduce((a, b) => a + b, 0) / falseNote.length : NaN,
     lockMs: lockLat.length ? 1000 * median(lockLat) : NaN,
-    playF1: f1, msP95: pct(ms, .95),
+    playF1: f1, falsePlayPct: nonPlayFrames ? 100 * playFP.length / nonPlayFrames : NaN, timeErrPct: tp + fn ? 100 * (fp + fn) / (tp + fn) : NaN, msP95: pct(ms, .95),
   }
 }
 
@@ -101,21 +101,21 @@ const f = v => Number.isNaN(v) ? '—' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.
 function summarize(rows) {
   const by = k => rows.map(r => r[k]).filter(v => !Number.isNaN(v))
   // 파일 간 요약은 중앙값 (snr0 같은 극단 스트레스 파일이 평균을 지배하지 않도록). 표는 파일별 상세를 그대로 보여준다.
-  return { centsBiasAbs: median(by('centsBias').map(Math.abs)), centsP90: median(by('centsP90')), missingPct: median(by('missingPct')), octavePct: median(by('octavePct')), falseNotePct: median(by('falseNotePct')), lockMs: median(by('lockMs')), playF1: median(by('playF1')), msP95: pct(by('msP95'), .95) }
+  return { centsBiasAbs: median(by('centsBias').map(Math.abs)), centsP90: median(by('centsP90')), missingPct: median(by('missingPct')), octavePct: median(by('octavePct')), falseNotePct: median(by('falseNotePct')), lockMs: median(by('lockMs')), playF1: median(by('playF1')), timeErrPct: median(by('timeErrPct')), msP95: pct(by('msP95'), .95) }
 }
 
 const names = (typeof args.adapters === 'string' ? args.adapters : 'v1').split(',')
 const files = readdirSync(SIG).filter(n => n.endsWith('.wav')).sort().map(n => join(SIG, n))
 let md = `# 튜너 벤치마크\n\n생성: ${new Date().toISOString().slice(0, 10)} · 신호 ${files.length}개 · hop ${HOP} · 정상상태 판정 온셋+${STEADY_SKIP}s\n\n`
-md += `지표: bias=정상상태 cents 오차 중앙값(부호), p90=|오차| 90퍼센타일, miss=정상상태인데 표시 없음 %, oct=옥타브 오류 %, false=비연주 구간에 음 표시 %, lock=온셋→올바른 음이름 3프레임 연속 (ms, 중앙값), F1=연주감지, ms=프레임 처리시간 p95\n\n`
+md += `지표: bias=정상상태 cents 오차 중앙값(부호), p90=|오차| 90퍼센타일, miss=정상상태인데 표시 없음 %, oct=옥타브 오류 %, false=비연주 구간에 음 표시 %, lock=온셋→올바른 음이름 3프레임 연속 (ms, 중앙값), F1=연주감지, fPlay=비연주 구간을 연주로 본 %, tErr=연주시간 계산 오차 %((FP+FN)/실제), ms=프레임 처리시간 p95\n\n`
 const all = {}
 for (const name of names) {
   const rows = files.map(p => runFile(ADAPTERS[name], p))
   all[name] = rows
   const s = summarize(rows)
-  md += `## ${name}\n\n**요약(파일 중앙값)**: |bias| ${f(s.centsBiasAbs)}¢ · p90 ${f(s.centsP90)}¢ · miss ${f(s.missingPct)}% · oct ${f(s.octavePct)}% · false ${f(s.falseNotePct)}% · lock ${f(s.lockMs)} ms · F1 ${f(s.playF1)} · ${f(s.msP95)} ms\n\n`
-  md += `| 파일 | 종류 | bias¢ | p90¢ | miss% | oct% | false% | lock ms | F1 | ms |\n|---|---|---|---|---|---|---|---|---|---|\n`
-  for (const r of rows) md += `| ${r.file} | ${r.kind} | ${f(r.centsBias)} | ${f(r.centsP90)} | ${f(r.missingPct)} | ${f(r.octavePct)} | ${f(r.falseNotePct)} | ${f(r.lockMs)} | ${f(r.playF1)} | ${f(r.msP95)} |\n`
+  md += `## ${name}\n\n**요약(파일 중앙값)**: |bias| ${f(s.centsBiasAbs)}¢ · p90 ${f(s.centsP90)}¢ · miss ${f(s.missingPct)}% · oct ${f(s.octavePct)}% · false ${f(s.falseNotePct)}% · lock ${f(s.lockMs)} ms · F1 ${f(s.playF1)} · tErr ${f(s.timeErrPct)}% · ${f(s.msP95)} ms\n\n`
+  md += `| 파일 | 종류 | bias¢ | p90¢ | miss% | oct% | false% | lock ms | F1 | fPlay% | tErr% | ms |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n`
+  for (const r of rows) md += `| ${r.file} | ${r.kind} | ${f(r.centsBias)} | ${f(r.centsP90)} | ${f(r.missingPct)} | ${f(r.octavePct)} | ${f(r.falseNotePct)} | ${f(r.lockMs)} | ${f(r.playF1)} | ${f(r.falsePlayPct)} | ${f(r.timeErrPct)} | ${f(r.msP95)} |\n`
   md += '\n'
 }
 const out = typeof args.out === 'string' ? args.out : join(ROOT, 'test-assets', 'bench', 'latest.md')
