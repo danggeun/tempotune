@@ -1,0 +1,23 @@
+Go practice v2.0.0 — GitHub 에 올리기 (Windows)
+
+이 폴더는 리포 전체(.git 포함)입니다. main 브랜치에 Phase 0~7 커밋이 전부 합쳐져 있고 v2.0.0 태그가 붙어 있습니다.
+
+1. 이 폴더를 한글·공백 없는 경로에 둡니다. 예: C:\dev\go_practice
+2. 그 폴더에서 탐색기 주소창에  cmd  를 입력하고 Enter (그 폴더에서 터미널이 열립니다)
+3. 아래 한 줄을 붙여넣고 Enter:
+
+   git push origin main --follow-tags
+
+   - 출력 끝에  "main -> main"  과  "[new tag]  v2.0.0"  이 보이면 완료
+   - GitHub 로그인 창이 뜨면 "Sign in with your browser" → 브라우저에서 로그인 → 돌아오면 push 가 이어집니다
+   - "Permission denied" / 403 이 나오면: 제어판 → 자격 증명 관리자 → Windows 자격 증명 → git:https://github.com 항목 삭제 → 3번 다시
+   - "rejected (fetch first)" 가 나오면 GitHub 의 main 이 그 사이 바뀐 것 → 저에게 알려 주세요 (합치는 방법을 안내합니다)
+
+4. GitHub 에서 한 번만: 리포 → Settings → Pages → Build and deployment → Source 를 "GitHub Actions" 로.
+   그러면 push 때마다 CI 가 돌고, main 에 올릴 때마다 https://danggeun.github.io/go_practice/ 가 갱신됩니다.
+   (예전 gh-pages 브랜치는 더 이상 쓰지 않습니다. 지워도 됩니다: git push origin --delete gh-pages)
+
+5. Android APK 는 docs/ARCHITECTURE.md §6 순서대로 (npx cap add android → npm run cap:assets → npm run cap:sync → Android Studio).
+   node_modules 는 zip 에 없으니 먼저  npm install  한 번.
+
+참고: 옛 phase-* 브랜치들은 main 에 전부 포함돼 있어 따로 올릴 필요가 없습니다. 기록으로 남기고 싶으면  git push origin --all
