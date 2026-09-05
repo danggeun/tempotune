@@ -18,7 +18,7 @@ const SIG = join(ROOT, 'test-assets', 'signals')
 if (!existsSync(join(SIG, 'violin_A4.wav'))) execSync('node scripts/gen-signals.mjs', { cwd: ROOT, stdio: 'ignore' })
 
 // 정적 서버 (vite preview 는 outDir 고정이라 직접 띄운다)
-const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore' })
+const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: true }) // detached: 프로세스 그룹째 종료 (자식 serve 잔존 방지)
 await new Promise(r => setTimeout(r, 2500))
 
 const exe = process.env.CHROMIUM_PATH || undefined
@@ -184,6 +184,10 @@ await scenario('timer: elapsed counts, detected counts while playing, reset', 'v
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지')
   await p.click('#timer-reset-btn'); assert.equal(await p.evaluate(() => document.getElementById('timer-elapsed').textContent), '00:00')
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '시작')
+  // Phase 6 A6: 초기화는 즉시 + 실행 취소 토스트 (삭제와 같은 패턴)
+  assert.equal(await p.evaluate(() => document.getElementById('toast').textContent), '초기화됨 · 실행 취소')
+  await p.click('#toast'); await sleep(p, 200)
+  assert.equal(await p.evaluate(() => document.getElementById('timer-elapsed').textContent), el, 'undo restores elapsed')
 })
 await scenario('ref tone: toggle on/off, octave label both places, 도↑', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
@@ -296,6 +300,58 @@ await scenario('editor: waveform appears; A/B + bookmark persist across close/re
   assert.equal((await state()).range, 'none', 'cleared A-B persisted')
 })
 
+// ── Phase 6: UI/UX ──
+await scenario('ux: editor pause glyph ❚❚ (not ■), loop cycles 꺼짐→켜짐→1s 앞→꺼짐 with pre-roll, entry fade class', 'violin_scale_Amaj.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000)
+  await p.click('#rec-hdr-btn'); await sleep(p, 4200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
+  assert.equal(await p.evaluate(() => document.getElementById('editor-page').classList.contains('open')), true, 'fade-in class applied')
+  await p.click('#ed-play-btn'); await sleep(p, 300)
+  assert.equal(await p.evaluate(() => document.getElementById('ed-play-btn').textContent), '❚❚')
+  await sleep(p, 1400); await p.click('#ed-a-btn'); await sleep(p, 900); await p.click('#ed-b-btn'); await sleep(p, 100)
+  const a = await p.evaluate(() => window.__gp.editor().ptA); assert.ok(a > 1.2, 'A set after 1.2 s: ' + a)
+  const label = () => p.evaluate(() => document.querySelector('#ed-loop-btn span').textContent)
+  await p.click('#ed-loop-btn'); assert.equal(await label(), '켜짐')
+  await p.click('#ed-loop-btn'); assert.equal(await label(), '1s 앞')
+  await sleep(p, 150)
+  const cur = await p.evaluate(() => window.__gp.editor().audio.currentTime)
+  assert.ok(cur < a - 0.5 && cur >= a - 1.2, `pre-roll jumps to A−1 s: cur=${cur.toFixed(2)} a=${a.toFixed(2)}`)
+  await p.click('#ed-loop-btn'); assert.equal(await label(), '꺼짐')
+  await p.click('#ed-play-btn'); await sleep(p, 100)
+  assert.equal(await p.evaluate(() => document.getElementById('ed-play-btn').textContent), '▶')
+  await p.click('#ed-back-btn'); await sleep(p, 100)
+  assert.equal(await p.evaluate(() => document.getElementById('editor-page').classList.contains('open')), false)
+})
+await scenario('ux: speed label tap cycles 1.0→0.5→0.7→0.85→1.0 and is remembered per recording (reload)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#rec-hdr-btn'); await sleep(p, 1500); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1200)
+  const val = () => p.evaluate(() => document.getElementById('ed-speed-val').textContent)
+  await p.click('#ed-speed-val'); assert.equal(await val(), '0.5×')
+  await p.click('#ed-speed-val'); assert.equal(await val(), '0.7×')
+  await p.click('#ed-speed-val'); assert.equal(await val(), '0.85×')
+  assert.equal(await p.evaluate(() => document.getElementById('ed-speed').value), '0.85', 'slider follows')
+  assert.equal(await p.evaluate(() => window.__gp.editor().audio.playbackRate), 0.85)
+  await sleep(p, 300); await p.reload(); await sleep(p, 1500)
+  await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1200)
+  assert.equal(await val(), '0.85×', 'speed restored from meta')
+  await p.click('#ed-speed-val'); assert.equal(await val(), '1.0×')
+})
+await scenario('ux: list meta shows 북마크 n · A-B after editing; audio status dot on while mic runs', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  assert.equal(await p.evaluate(() => document.getElementById('ai-dot').classList.contains('on')), true, 'dot on')
+  await p.click('#rec-hdr-btn'); await sleep(p, 2200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  const meta = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-meta').textContent)
+  await p.click('#menu-btn'); assert.equal(await meta(), '', 'no meta line when nothing to say')
+  await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1200)
+  await p.click('#ed-play-btn'); await sleep(p, 500); await p.click('#ed-bm-add-btn'); await sleep(p, 300); await p.click('#ed-a-btn'); await sleep(p, 500); await p.click('#ed-b-btn'); await sleep(p, 300)
+  await p.click('#ed-back-btn'); await sleep(p, 300)
+  assert.equal(await meta(), '북마크 1 · A-B')
+  await p.click('.menu-close-btn'); await sleep(p, 200)
+  await p.evaluate(() => window.__gp.closeMic()); await sleep(p, 300)
+  assert.equal(await p.evaluate(() => document.getElementById('ai-dot').classList.contains('on')), false, 'dot off after mic closed')
+})
+
 // ── Phase 5: 완결성 ──
 await scenario('offline: service worker precaches everything; reload with network off still works', 'violin_A4.wav', async (p, ctx) => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
@@ -352,7 +408,7 @@ await scenario('sw update: new version is applied only when idle (prompt mode, n
   assert.equal(reg, true, 'sw registered on web')
 })
 
-server.kill()
+try { process.kill(-server.pid, 'SIGTERM') } catch { server.kill() }
 let fail = 0
 for (const [n, r] of results) { if (r !== 'ok' && !r.startsWith('NO')) fail++; console.log((r === 'ok' ? '  ok   ' : r.startsWith('NO') ? '  note ' : '  FAIL ') + n + (r === 'ok' ? '' : '  → ' + r)) }
 console.log(`\n${results.length - fail} passed, ${fail} failed`)

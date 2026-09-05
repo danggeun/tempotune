@@ -1,7 +1,7 @@
 /**
  * 녹음 영속화 (IndexedDB). 스키마 v3:
  *   recordings: {id, name, dur, blob, mime, ts}            — 큰 blob, 거의 안 바뀜
- *   meta:       {id, name?, bookmarks, ab, peaks}          — 편집 상태, 자주 바뀜 (blob 을 다시 쓰지 않게 분리)
+ *   meta:       {id, name?, bookmarks, ab, peaks, speed?}          — 편집 상태, 자주 바뀜 (blob 을 다시 쓰지 않게 분리)
  * v1(필드 없음) → v2(같은 행에 bookmarks/ab) → v3(meta 분리) 마이그레이션.
  */
 export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings', META_STORE = 'meta'
@@ -10,8 +10,8 @@ export const REC_TTL = 30 * 24 * 60 * 60 * 1000
 
 export interface AB { a: number; b: number }
 export interface RecRow { id?: number; name: string; dur: number; blob: Blob; mime: string; ts: number }
-export interface RecMeta { id: number; name?: string; bookmarks: number[]; ab: AB | null; peaks?: Float32Array }
-export interface RecFull extends RecRow { bookmarks: number[]; ab: AB | null; peaks?: Float32Array }
+export interface RecMeta { id: number; name?: string; bookmarks: number[]; ab: AB | null; peaks?: Float32Array; speed?: number }
+export interface RecFull extends RecRow { bookmarks: number[]; ab: AB | null; peaks?: Float32Array; speed?: number }
 
 let db: IDBDatabase | null = null
 let metaError: ((m: string) => void) | null = null
@@ -74,7 +74,7 @@ export async function dbLoadAll(): Promise<RecFull[]> {
   for (const r of rows.sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
     if (typeof r.ts === 'number' && now - r.ts > REC_TTL) { dbDelete(r.id); continue } // ts 없는 구버전 행은 보관
     const m = metas.get(r.id!)
-    keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks })
+    keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks, speed: m?.speed })
   }
   return keep
 }

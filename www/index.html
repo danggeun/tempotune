@@ -28,12 +28,12 @@
 <div id="app">
   <div id="hdr">
     <div>
-      <div id="logo" style="cursor:pointer;">Go practice</div>
+      <div id="logo">Go practice</div>
       <div id="logo-sub">play more · tune better</div>
     </div>
     <div id="hdr-right">
-      <button id="hdr-mic-btn" style="padding:6px 11px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;display:flex;align-items:center;gap:4px;">
-        <span style="font-size:10px;">●</span>MIC
+      <button id="hdr-mic-btn">
+        <span id="hdr-mic-dot">●</span>MIC
       </button>
       <span id="hdr-rec-time">0:00</span>
       <button id="rec-hdr-btn" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
@@ -142,7 +142,7 @@
     <span id="ref-oct-num-ext">4</span>
     <button class="ref-oct-btn">+</button>
   </div>
-  <div class="ref-note-grid" style="margin-bottom:7px;">
+  <div class="ref-note-grid">
     <button class="m-seg ref-note-btn" data-note="도">도</button>
     <button class="m-seg ref-note-btn" data-note="레">레</button>
     <button class="m-seg ref-note-btn" data-note="미">미</button>
@@ -167,7 +167,7 @@
     <div class="menu-top">
       <span class="menu-title-txt">메뉴</span>
       <div style="display:flex;align-items:center;gap:8px;margin-right:-6px;">
-        <button id="settings-open-btn" style="padding:6px 12px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.06em;display:flex;align-items:center;">⚙ 설정</button>
+        <button id="settings-open-btn">⚙ 설정</button>
         <button class="menu-close-btn">✕</button>
       </div>
     </div>
@@ -219,8 +219,8 @@
         <div class="timer-box"><div class="timer-lbl">연주 시간</div><div class="timer-val" id="timer-detected">00:00</div></div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="menu-btn-sm" id="timer-toggle-btn" style="flex:1;">시작</button>
-        <button class="menu-btn-sm" id="timer-reset-btn" style="flex:1;">초기화</button>
+        <button class="menu-btn-sm" id="timer-toggle-btn">시작</button>
+        <button class="menu-btn-sm" id="timer-reset-btn">초기화</button>
       </div>
     </div>
 

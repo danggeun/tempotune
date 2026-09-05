@@ -2,6 +2,7 @@
 import { sessionStore, tunerStore } from '../state/index.ts'
 import { fmt } from '../core/format.ts'
 import { q, on } from './dom.ts'
+import { toast } from './toast.ts'
 
 let int: ReturnType<typeof setInterval> | null = null
 function render(): void {
@@ -22,6 +23,11 @@ export function mountTimer(onInactive: () => void): void {
       void onInactive
     }, 1000)
   })
-  on(q('timer-reset-btn'), 'click', () => { stopTimer(); sessionStore.set({ elapsedSec: 0, detectedSec: 0 }) })
+  // 초기화는 확인 없이 즉시 — 대신 삭제와 같은 '실행 취소' 토스트 (활 든 손이 스쳐도 40분 기록이 안 날아가게, UX 감사 A6)
+  on(q('timer-reset-btn'), 'click', () => {
+    const { elapsedSec, detectedSec } = sessionStore.get()
+    stopTimer(); sessionStore.set({ elapsedSec: 0, detectedSec: 0 })
+    if (elapsedSec > 0) toast('초기화됨 · 실행 취소', 5000, () => sessionStore.set({ elapsedSec, detectedSec }))
+  })
   sessionStore.select(s => [s.elapsedSec, s.detectedSec, s.timerRunning].join(), render, { immediate: true })
 }

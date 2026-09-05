@@ -61,6 +61,11 @@ function renderNote(midi: number, cents: number, inTune: boolean): void {
   q('tuner-cents').textContent = (cents > 0 ? '+' : '') + cents + ' ¢'
 }
 
+/** 오디오 상태 점 (튜너 헤더, UX 감사 B1): 켜짐 = 은은한 초록, 주의(컨텍스트 멈춤·탭 필요) = 앰버 펄스, 꺼짐 = 숨김. 글자 없이 점으로만 (v1 66e7159 계승) */
+export function setAudioDot(state: 'off' | 'on' | 'warn'): void {
+  const d = q('ai-dot'); d.classList.toggle('on', state === 'on'); d.classList.toggle('warn', state === 'warn')
+}
+
 /** "탭하여 시작" 안내 — 탭하면 onTap 을 호출, 성공(true) 시 원래 스타일로 복귀 */
 export function showTapHint(onTap: () => Promise<boolean>): void {
   const nEl = q('tuner-note'), card = q('tuner-card')

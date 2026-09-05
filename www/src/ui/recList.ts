@@ -1,7 +1,7 @@
 /** 메뉴의 녹음 목록 — 최신 1개 펼침 + 이전 N개 접힘, 항목별 미니 플레이어 */
 import { recListStore, type RecItem } from '../state/index.ts'
 import { fmtT } from '../core/format.ts'
-import { deleteRec, restoreDeleted, recFileName } from '../audio/recorder.ts'
+import { deleteRec, restoreDeleted, recFileName, REC_TTL } from '../audio/recorder.ts'
 import { saveFile } from '../platform/index.ts'
 import { toast } from './toast.ts'
 import { q, on } from './dom.ts'
@@ -39,13 +39,23 @@ function playPause(idx: number): void {
 function seek(idx: number): void { const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, a = getPlayer(idx); if (sk && a.duration) a.currentTime = +sk.value }
 export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { try { a.pause() } catch { /* */ } delete players[idx] } }
 
+/** 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고 — 열어 보기 전에 '어느 녹음인지' 알 수 있게 (UX 감사 B4). 없으면 줄 자체가 없다 */
+export function itemMeta(item: RecItem, now = Date.now()): string {
+  const parts: string[] = []
+  if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
+  if (item.ab) parts.push('A-B')
+  const daysLeft = Math.max(0, Math.ceil((item.ts + REC_TTL - now) / 86400000))
+  if (daysLeft <= 7) parts.push(daysLeft === 0 ? '오늘 삭제' : `${daysLeft}일 후 삭제`) // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만)
+  return parts.join(' · ')
+}
+
 function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLElement {
   const div = document.createElement('div'); div.className = 'rec-item'
   const m = Math.floor(item.dur / 60), s = String(item.dur % 60).padStart(2, '0')
   div.innerHTML = `
-      <div data-action="toggle" data-idx="${idx}" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
-        <span class="rec-item-name" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;"></span>
-        <span style="font-size:13px;color:var(--muted);">${m}:${s}</span>
+      <div class="rec-item-head" data-action="toggle" data-idx="${idx}">
+        <div><span class="rec-item-name"></span><div class="rec-item-meta"></div></div>
+        <span class="rec-item-dur">${m}:${s}</span>
       </div>
       <div class="rec-item-detail${defaultOpen ? ' open' : ''}" id="rec-detail-${idx}">
         <div class="rec-player">
@@ -55,13 +65,14 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
             <span class="rec-time" id="rec-time-${idx}">00:00</span>
           </div>
           <div class="rec-item-btns">
-            <button class="rec-item-btn" data-action="edit" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">편집</button>
-            <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">다운로드</a>
-            <button class="rec-item-btn del" data-action="delete" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">삭제</button>
+            <button class="rec-item-btn" data-action="edit" data-idx="${idx}">편집</button>
+            <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}">다운로드</a>
+            <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">삭제</button>
           </div>
         </div>
       </div>`
   div.querySelector('.rec-item-name')!.textContent = displayName(item) // 사용자 데이터는 textContent 로만 (인젝션 방지)
+  div.querySelector('.rec-item-meta')!.textContent = itemMeta(item)
   ;(div.querySelector('.rec-dl-link') as HTMLAnchorElement).download = recFileName(item)
   return div
 }
@@ -74,15 +85,14 @@ function render(): void {
   list.appendChild(renderItem(items[0]!, 0, true))
   if (items.length > 1) {
     const oldWrap = document.createElement('div')
-    const toggleBtn = document.createElement('button')
-    toggleBtn.style.cssText = 'width:100%;padding:10px;background:transparent;border:1.5px solid var(--border);border-radius:9px;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;text-align:center;margin-top:4px;'
+    const toggleBtn = document.createElement('button'); toggleBtn.className = 'rec-more'
     toggleBtn.textContent = `이전 녹음 ${items.length - 1}개 보기`
     let oldOpen = false
-    const oldList = document.createElement('div'); oldList.style.display = 'none'
+    const oldList = document.createElement('div'); oldList.className = 'rec-old'
     items.slice(1).forEach((it, i) => oldList.appendChild(renderItem(it, i + 1, false)))
     toggleBtn.onclick = () => {
       oldOpen = !oldOpen
-      oldList.style.display = oldOpen ? 'flex' : 'none'; oldList.style.flexDirection = 'column'; oldList.style.gap = '6px'
+      oldList.classList.toggle('open', oldOpen)
       toggleBtn.textContent = oldOpen ? '이전 녹음 접기' : `이전 녹음 ${items.length - 1}개 보기`
     }
     oldWrap.appendChild(toggleBtn); oldWrap.appendChild(oldList); list.appendChild(oldWrap)

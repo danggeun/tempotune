@@ -8,7 +8,8 @@ const yToHz = (y: number) => MAX - Math.round(-y / IH)
 const clampY = (y: number) => Math.min(hzToY(MAX), Math.max(hzToY(MIN), y))
 
 export function mountRefDrum(): void {
-  const outer = q('ref-drum-outer'), inner = q('ref-drum-inner')
+  // 드래그는 행(#ref-row) 전체에서 받는다 — 78×28 드럼만 잡으면 활 든 손이 자주 빗나간다 (UX 감사 B6)
+  const outer = q('ref-row'), inner = q('ref-drum-inner')
   for (let hz = MAX; hz >= MIN; hz--) { const el = document.createElement('div'); el.className = 'ref-drum-item'; el.textContent = hz + ' Hz'; inner.appendChild(el) }
   const items = Array.from(inner.children) as HTMLElement[]
   let y = 0, drag = false, startY = 0, startDrumY = 0

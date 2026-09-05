@@ -98,6 +98,8 @@ export interface RecItem {
   bookmarks: number[]
   ab: { a: number; b: number } | null
   peaks?: Float32Array
+  /** 마지막 재생 속도 (편집기, 녹음별 기억) */
+  speed?: number
 }
 export interface RecListState { items: RecItem[]; rev: number }
 export const recListStore = createStore<RecListState>({ items: [], rev: 0 })

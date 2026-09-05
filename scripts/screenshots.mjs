@@ -21,7 +21,7 @@ mkdirSync(OUT, { recursive: true })
 let server = null
 if (args.serve) {
   execSync('npx vite build --base=/', { cwd: ROOT, stdio: 'ignore' })
-  server = spawn('npx', ['vite', 'preview', '--base=/', '--port', String(PORT)], { cwd: ROOT, stdio: 'ignore' })
+  server = spawn('npx', ['vite', 'preview', '--base=/', '--port', String(PORT)], { cwd: ROOT, stdio: 'ignore', detached: true }) // detached: 프로세스 그룹째 종료
   await new Promise(r => setTimeout(r, 2500))
 }
 
@@ -37,13 +37,15 @@ const SCENES = {
   metro_open: async p => { await p.click('#metro-collapse-btn'); await p.waitForTimeout(600) },
   menu: async p => { await p.click('#menu-btn'); await p.waitForTimeout(600) },
   settings: async p => { await p.click('#menu-btn'); await p.waitForTimeout(400); await p.click('#settings-open-btn'); await p.waitForTimeout(500) },
-  editor: async p => { await p.evaluate(() => { document.getElementById('editor-page').style.display = 'flex' }); await p.waitForTimeout(300) },
+  editor: async p => { await p.evaluate(() => { const e = document.getElementById('editor-page'); e.style.display = 'flex'; e.classList.add('open') }); await p.waitForTimeout(300) },
+  // 권한 미결정 상태의 첫 진입 팝업 (별도 컨텍스트: 마이크 권한 없음)
+  popup: Object.assign(async p => { await p.waitForTimeout(300) }, { ctx: { permissions: [] } }),
 }
 
 const results = []
 for (const scheme of ['light', 'dark']) {
   for (const [name, prep] of Object.entries(SCENES)) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'] })
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
     const page = await ctx.newPage()
     await page.goto(`http://localhost:${PORT}/`); await page.waitForTimeout(1500)
     await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;caret-color:transparent!important}' })
@@ -67,7 +69,7 @@ for (const scheme of ['light', 'dark']) {
     await ctx.close()
   }
 }
-await browser.close(); server?.kill()
+await browser.close(); if (server) { try { process.kill(-server.pid, 'SIGTERM') } catch { server.kill() } }
 
 let bad = 0
 for (const r of results) {
