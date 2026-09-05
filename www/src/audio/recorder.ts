@@ -7,6 +7,7 @@ import { computePeaks } from '../core/peaks.ts'
 import { A, onMic } from './engine.ts'
 
 const MAX_REC_SEC = 60 * 60
+let cappedNotice: string | null = null
 let recorder: MediaRecorder | null = null
 let chunks: Blob[] = []
 let startTime = 0
@@ -35,14 +36,16 @@ export function startRec(): RecResult {
     item.id = await dbSave({ name: item.name, dur: item.dur, blob: item.blob, mime: item.mime, ts: item.ts }, { bookmarks: [], ab: null, peaks }).catch(() => null)
     if (item.id == null) errorFn?.('녹음을 저장하지 못했어요 — 이번 세션에만 남아 있어요') // 용량 부족·프라이빗 모드 등: 조용한 실패 금지
     const st = recListStore.get(); recListStore.set({ items: [item, ...st.items], rev: st.rev + 1 })
+    chunks = [] // Blob 이 만들어졌으면 청크 배열은 놓는다 (60분 녹음 ≈ 115 MB 가 두 벌 남지 않게)
+    if (cappedNotice) { errorFn?.(cappedNotice); cappedNotice = null }
   }
   recorder.start()
   startPeakCapture()
   sessionStore.set({ recording: true, recElapsedSec: 0 })
   if (timerInt) clearInterval(timerInt)
   timerInt = setInterval(() => {
-    const sec = sessionStore.get().recElapsedSec + 1; sessionStore.set({ recElapsedSec: sec })
-    if (sec >= MAX_REC_SEC) { stopRec(); errorFn?.('60분이 되어 녹음을 저장했어요 (메모리 보호)') } // 청크가 메모리에 쌓이므로 상한을 둔다 (256 kbps × 60 min ≈ 115 MB)
+    const sec = Math.round((Date.now() - startTime) / 1000); sessionStore.set({ recElapsedSec: sec }) // 벽시계 기준 (백그라운드 스로틀링에도 정확)
+    if (sec >= MAX_REC_SEC) { cappedNotice = '60분이 되어 녹음을 저장했어요 (메모리 보호)'; stopRec() } // 청크가 메모리에 쌓이므로 상한을 둔다 (256 kbps × 60 min ≈ 115 MB)
   }, 1000)
   return { ok: true }
 }

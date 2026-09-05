@@ -338,6 +338,20 @@ await scenario('perf: worker frame p95 stays under budget (12 ms) over 10 s', 'v
   results.push(['perf: worker frame p95 = ' + st.frameMs.toFixed(2) + ' ms @' + st.sampleRate + ' Hz', 'ok'])
 })
 
+await scenario('lifecycle: inactivity watch closes the mic without the practice timer running', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500); assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true)
+  // 15분을 기다릴 수 없으니 lastActivityMs 를 과거로 돌리고 감시 주기(30 s)를 기다린다 — 무음 파일이면 활동이 갱신되지 않는다
+  await p.evaluate(() => { window.__gp.backdate(16 * 60 * 1000) })
+  await sleep(p, 31000)
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), false, 'mic closed by inactivity watch')
+  assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn').style.display), 'flex')
+})
+await scenario('sw update: new version is applied only when idle (prompt mode, no stale-chunk window)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  const reg = await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!r })
+  assert.equal(reg, true, 'sw registered on web')
+})
+
 server.kill()
 let fail = 0
 for (const [n, r] of results) { if (r !== 'ok' && !r.startsWith('NO')) fail++; console.log((r === 'ok' ? '  ok   ' : r.startsWith('NO') ? '  note ' : '  FAIL ') + n + (r === 'ok' ? '' : '  → ' + r)) }

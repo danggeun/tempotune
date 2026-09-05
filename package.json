@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:cap": "BASE=/ vite build",
-    "cap:sync": "npm run build:cap && npx cap sync android",
+    "cap:sync": "npm run build:cap && npx cap sync android && node scripts/cap-manifest.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "deploy": "gh-pages -d dist",
@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && node scripts/check-deps.mjs && npm test",
     "e2e": "npm run build:cap && node scripts/e2e.mjs --dist dist",
-    "verify": "npm run check && npm run shots && npm run e2e"
+    "verify": "npm run check && npm run shots && npm run e2e",
+    "cap:manifest": "node scripts/cap-manifest.mjs"
   },
   "keywords": [],
   "author": "",

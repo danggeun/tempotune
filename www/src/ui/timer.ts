@@ -1,5 +1,5 @@
-/** 연습/연주 타이머 (메뉴). 15분 무활동 시 onInactive 호출(마이크 종료는 main 이 결정). */
-import { CFG, sessionStore, tunerStore } from '../state/index.ts'
+/** 연습/연주 타이머 (메뉴). (무활동 자동 종료는 main 의 inactivity watch 가 담당) */
+import { sessionStore, tunerStore } from '../state/index.ts'
 import { fmt } from '../core/format.ts'
 import { q, on } from './dom.ts'
 
@@ -19,7 +19,7 @@ export function mountTimer(onInactive: () => void): void {
       const s = sessionStore.get(); if (!s.timerRunning) return
       const t = tunerStore.get()
       sessionStore.set({ elapsedSec: s.elapsedSec + 1, detectedSec: s.detectedSec + (t.playing ? 1 : 0) })
-      if (Date.now() - t.lastActivityMs > CFG.inactiveMs) onInactive()
+      void onInactive
     }, 1000)
   })
   on(q('timer-reset-btn'), 'click', () => { stopTimer(); sessionStore.set({ elapsedSec: 0, detectedSec: 0 }) })

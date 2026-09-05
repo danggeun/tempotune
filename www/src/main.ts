@@ -26,6 +26,9 @@ import { mountRecHeader } from './ui/recHeader.ts'
 import { mountRecList } from './ui/recList.ts'
 import { mountEditor, openEditor, closeEditorIfEditing, closeEditor, isEditorOpen } from './ui/editor.ts'
 import { stopMetro } from './audio/metronome.ts'
+import { stopRec } from './audio/recorder.ts'
+import { sessionStore } from './state/index.ts'
+import { registerSW } from 'virtual:pwa-register'
 
 initStatusBar()
 
@@ -34,29 +37,42 @@ loadSettings(); startSettingsAutosave()
 
 // ── 화면 ──
 mountTuner(); mountRefDrum(); mountMetro(); mountRefPanel(); mountMenu(); mountSettings()
-mountTimer(() => { toast('비활성으로 마이크 자동 종료'); closeMic() })
+mountTimer(() => { /* 무활동 종료는 아래 inactivity watch 가 담당 */ })
 mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 
 // ── 마이크 생명주기 ──
 const tryOpenMic = async (): Promise<boolean> => {
   const r = await openMic()
-  if (!r.ok && r.error !== 'busy') { if (isPermissionError(r.error) && !isNative()) showMicPopup(true); toast(r.error) }
+  if (!r.ok && r.error !== 'busy') { if (isPermissionError(r.error) && !isNative()) showMicPopup(true); toast(r.error); return false }
+  // 권한 프롬프트를 거치는 동안 사용자 제스처가 만료되면 컨텍스트가 suspended 로 남는다 (iOS/Firefox) → 탭 안내 (모든 경로에서)
+  setTimeout(() => { if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }, 400)
   return r.ok
 }
 mountMicPopup(tryOpenMic)
 onEngineFatal(toast); onMetroError(toast); onRecorderError(toast); onPersistError(toast); onDbError(toast); onWakeLockUnsupported(toast)
 setIdleCheck(() => !metroStore.get().playing && !refToneStore.get().active)
 startAnalysis()
-onMic('afterOpen', () => { if (settingsStore.get().wakeLock) acquireWakeLock() })
-onMic('afterClose', () => { releaseWakeLock(); stopAnalysis(); stopTimer() })
+// wake lock: 튜너(마이크) 또는 메트로놈이 살아 있는 동안 — 메트로놈만 켠 채 화면이 꺼지면 WebView 가 얼어 박자가 멈춘다 (리뷰 #9)
+const wantWake = () => settingsStore.get().wakeLock && (tunerStore.get().running || metroStore.get().playing)
+const syncWake = () => { if (wantWake()) acquireWakeLock(); else releaseWakeLock() }
+onMic('afterOpen', syncWake)
+onMic('afterClose', () => { stopAnalysis(); stopTimer(); syncWake(); stopInactivityWatch() })
+metroStore.select(s => s.playing, syncWake)
+// 15분 무활동 자동 종료 — 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시 (리뷰 #3: v1/이전 구현은 타이머 안에서만 검사했다)
+let inactInt: ReturnType<typeof setInterval> | null = null
+function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); inactInt = null }
+onMic('afterOpen', () => { stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > 15 * 60 * 1000) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic().then(ok => { if (ok) toast('마이크가 켜졌어요') }))
-settingsStore.select(s => s.wakeLock, v => { if (v) { if (tunerStore.get().running) acquireWakeLock() } else releaseWakeLock() })
+settingsStore.select(s => s.wakeLock, syncWake)
 // ── 생명주기 매트릭스 (설계서 §B7) ──
 // 숨김: 오디오는 그대로(마이크 켜져 있으면 분석 계속, 메트로놈은 오디오 스레드). 복귀: 컨텍스트 재개 + 밀린 청크 폐기 + wake lock 재획득.
 on(document, 'visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return
-  resumeIfRunning()
-  if (tunerStore.get().running && settingsStore.get().wakeLock) acquireWakeLock()
+  if (document.visibilityState !== 'visible') {
+    // Android 는 백그라운드 앱의 마이크를 무음으로 만든다(포그라운드 서비스 없이는) → 녹음이 무음 파일이 되기 전에 저장 (리뷰 #2)
+    if (isNative() && sessionStore.get().recording) { stopRec(); toast('앱이 뒤로 가서 녹음을 저장했어요') }
+    return
+  }
+  resumeIfRunning(); syncWake()
 })
 // 전화·다른 앱 오디오 등으로 컨텍스트가 멈추면: 화면에 보일 때 재개를 시도하고, 그래도 안 되면 메트로놈을 멈추고 알린다
 let interruptedTimer: ReturnType<typeof setTimeout> | null = null
@@ -105,8 +121,18 @@ if (isNative()) {
 // ── 녹음 복원 ──
 openRecDb().then(restoreRecordings).catch(() => toast('녹음 저장소를 열 수 없어요 — 녹음은 이번 세션에만 남아요'))
 
+// ── Service Worker (웹 PWA 만): 새 버전은 앱이 유휴일 때 적용해 리로드 — 연습 중에 화면이 갈리지 않게 ──
+if (!isNative() && 'serviceWorker' in navigator) {
+  const idle = () => !tunerStore.get().running && !metroStore.get().playing && !sessionStore.get().recording && !isEditorOpen()
+  const updateSW = registerSW({
+    onNeedRefresh() { const tryApply = () => { if (idle()) void updateSW(true); else setTimeout(tryApply, 60 * 1000) }; tryApply() },
+  })
+}
+
 // ── 진단 훅 (e2e/디버그): 워커 프레임 시간, 컨텍스트 상태 ──
 ;(window as unknown as { __gp: unknown }).__gp = {
   stats: () => ({ frameMs: lastFrameMs(), acState: A.ac?.state ?? 'none', micOpen: !!A.micStream, sampleRate: A.sampleRate }),
   ac: () => A.ac,
+  /** 테스트용: 마지막 활동 시각을 과거로 (무활동 감시 검증) */
+  backdate: (ms: number) => tunerStore.set({ lastActivityMs: Date.now() - ms }),
 }
