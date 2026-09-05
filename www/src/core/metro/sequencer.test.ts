@@ -13,7 +13,7 @@ describe('sequencer', () => {
     expect(tickIntervalS({ bpm: 120, timeSig: 4, subDiv: 2 }, 0)).toBeCloseTo(0.25)
     expect(tickIntervalS({ bpm: 120, timeSig: 4, subDiv: 'd' }, 0)).toBeCloseTo(0.375); expect(tickIntervalS({ bpm: 120, timeSig: 4, subDiv: 'd' }, 1)).toBeCloseTo(0.125)
     expect(tickIntervalS({ bpm: 120, timeSig: 6, subDiv: 1 }, 0)).toBeCloseTo(0.25)
-    expect(tickKind({ subDiv: 3 }, 0)).toBe('accent'); expect(tickKind({ subDiv: 3 }, 3)).toBe('beat'); expect(tickKind({ subDiv: 3 }, 4)).toBe('sub')
+    expect(tickKind({ subDiv: 3, timeSig: 4 }, 0)).toBe('accent'); expect(tickKind({ subDiv: 3, timeSig: 4 }, 3)).toBe('beat'); expect(tickKind({ subDiv: 3, timeSig: 4 }, 4)).toBe('sub')
   })
   test('120 bpm 4/4: clicks exactly 0.5 s apart to the sample, zero drift over 60 s', () => {
     const seq = createSequencer(sr, { bpm: 120, timeSig: 4, subDiv: 1, volume: .7, muted: false }); seq.start()
@@ -30,9 +30,24 @@ describe('sequencer', () => {
     seq.setPattern({ bpm: 120 })
     const b = run(seq, 2, 128, Math.ceil(2.1 * sr / 128) * 128).events
     expect(a.length).toBe(3)
-    // 다음 틱(3 s)은 이미 60 bpm 간격으로 예약돼 있고, 그 다음부터 0.5 s
+    // 마지막 클릭(2 s) 기준으로 새 간격 0.5 s 를 다시 잡는다 → 2.5, 3.0, 3.5 …
     const all = [...a, ...b].map(e => e.sample / sr)
-    expect(all[3]).toBeCloseTo(3, 2); expect(all[4]).toBeCloseTo(3.5, 2); expect(all[5]).toBeCloseTo(4, 2)
+    expect(all[3]).toBeCloseTo(2.5, 2); expect(all[4]).toBeCloseTo(3, 2); expect(all[5]).toBeCloseTo(3.5, 2)
+  })
+  test('bpm change when the new interval is already past: next click comes immediately, not in the past', () => {
+    const seq = createSequencer(sr, { bpm: 40, timeSig: 4, subDiv: 1, volume: .7, muted: false }); seq.start()
+    run(seq, 1.2) // 클릭 0 s, 다음 1.5 s 예약
+    seq.setPattern({ bpm: 240 }) // 새 간격 0.25 s → 0.25 s 는 이미 지남
+    const b = run(seq, 0.3, 128, Math.ceil(1.2 * sr / 128) * 128).events
+    expect(b[0]!.sample).toBeGreaterThanOrEqual(Math.ceil(1.2 * sr / 128) * 128); expect(b[0]!.sample).toBeLessThan(1.25 * sr)
+  })
+  test('volume 0: no NaN, silence', () => {
+    const seq = createSequencer(sr, { bpm: 120, timeSig: 4, subDiv: 1, volume: 0, muted: false }); seq.start()
+    const out = new Float32Array(128); let bad = 0; for (let s = 0; s < sr; s += 128) { out.fill(0); seq.render(out, s); for (const v of out) if (v !== 0 || Number.isNaN(v)) bad++ }
+    expect(bad).toBe(0)
+  })
+  test('6/8: accent on 1, secondary on 4, rest sub', () => {
+    expect([0, 1, 2, 3, 4, 5].map(t => tickKind({ subDiv: 1, timeSig: 6 }, t))).toEqual(['accent', 'sub', 'sub', 'beat', 'sub', 'sub'])
   })
   test('muted: events still fire, no audio', () => {
     const seq = createSequencer(sr, { bpm: 120, timeSig: 4, subDiv: 1, volume: .7, muted: true }); seq.start()

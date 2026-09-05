@@ -5,6 +5,7 @@
  */
 import { CFG, metroStore, settingsStore, type SubDiv, type TimeSig } from '../state/index.ts'
 import { setBPM, adjBPM, setTimeSig, setSubDiv, setMetroVol, toggleMetro, totalTicks } from '../audio/metronome.ts'
+import { tickKind } from '../core/metro/sequencer.ts'
 import { isPhoneLayout } from '../platform/index.ts'
 import { q, qsa, on, reflow } from './dom.ts'
 import { toast } from './toast.ts'
@@ -15,8 +16,7 @@ function buildBeatVis(): void {
   const s = settingsStore.get(), total = totalTicks()
   for (let i = 0; i < total; i++) {
     const dot = document.createElement('div')
-    const isBeat = s.subDiv === 'd' ? i % 2 === 0 : i % s.subDiv === 0
-    dot.className = 'bd ' + (isBeat ? 'beat' : 'subdiv'); dot.dataset.tick = String(i); wrap.appendChild(dot)
+    dot.className = 'bd ' + (tickKind(s, i) === 'sub' ? 'subdiv' : 'beat'); dot.dataset.tick = String(i); wrap.appendChild(dot)
   }
   dots = Array.from(wrap.querySelectorAll<HTMLElement>('.bd'))
 }
@@ -26,8 +26,8 @@ function litBeat(tick: number): void {
   const s = settingsStore.get()
   dots.forEach(d => {
     d.classList.remove('lit-a', 'lit-b', 'lit-s'); if (+d.dataset.tick! !== tick) return
-    if (tick === 0) d.classList.add('lit-a')
-    else d.classList.add((s.subDiv === 'd' ? tick % 2 === 0 : tick % s.subDiv === 0) ? 'lit-b' : 'lit-s')
+    const k = tickKind(s, tick)
+    d.classList.add(k === 'accent' ? 'lit-a' : k === 'beat' ? 'lit-b' : 'lit-s')
   })
 }
 let flashTimer: ReturnType<typeof setTimeout> | null = null

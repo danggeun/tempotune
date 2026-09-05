@@ -6,7 +6,7 @@
  */
 import { metroStore, sessionStore, settingsStore, CFG, type SubDiv, type TimeSig } from '../state/index.ts'
 import { totalTicks as _totalTicks } from '../core/metro/sequencer.ts'
-import { getContext, micOpen, muteAnalysis, audioSupported } from './engine.ts'
+import { getContext, micOpen, muteAnalysis, audioSupported, suspendIfIdle } from './engine.ts'
 import metroWorkletUrl from './metro.worklet.ts?worker&url'
 
 let node: AudioWorkletNode | null = null
@@ -22,22 +22,25 @@ async function ensureNode(): Promise<AudioWorkletNode> {
   const ac = getContext()
   if (node && nodeCtx === ac) return node
   if (loading) return loading
-  loading = (async () => {
+  loading = (async () => { try {
     await ac.audioWorklet.addModule(metroWorkletUrl)
     const n = new AudioWorkletNode(ac, 'gp-metro', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] })
     n.port.onmessage = (e: MessageEvent) => {
       const m = e.data; if (m?.type !== 'click' || !metroStore.get().playing) return
-      // 시각 피드백은 실제 재생 시각에 맞춘다 (메시지는 렌더 시점에 먼저 온다)
-      const delay = Math.max(0, (m.t - ac.currentTime) * 1000 + ac.baseLatency * 1000)
+      if (m.t < ac.currentTime - 0.1) return // 백그라운드에서 밀린 과거 이벤트는 버림 (복귀 시 플래시 폭주 방지)
+      // 시각 피드백은 실제 스피커 재생 시각에 맞춘다: Android 는 outputLatency(40–100 ms) ≫ baseLatency
+      const outLat = (ac as AudioContext & { outputLatency?: number }).outputLatency || ac.baseLatency || 0
+      const delay = Math.max(0, (m.t - ac.currentTime + outLat) * 1000)
       setTimeout(() => { if (metroStore.get().playing) metroStore.set({ lastTick: { tick: m.tick, n: ++tickN } }) }, delay)
-      // 클릭이 스피커→마이크로 누설되는 구간을 튜너 분석에서 제외: 클릭 −20 ms ~ 클릭 + 길이 + 분석 창 + 여유
-      if (micOpen()) muteAnalysis(m.t - 0.02, m.t + m.dur + 4096 / ac.sampleRate + 0.08)
+      // 클릭이 스피커→마이크로 누설되는 구간을 튜너 분석에서 제외. 워커는 창 [t−93 ms, t] 와의 겹침으로 판정하므로
+      // 여기서는 클릭이 실제로 마이크에 닿는 시각(t + 출력지연)부터 클릭 길이 + 입력지연 여유(120 ms)까지만 준다.
+      if (micOpen() && !m.muted) muteAnalysis(m.t - 0.02, m.t + outLat + m.dur + 0.12)
     }
     n.connect(ac.destination)
     n.port.postMessage({ type: 'pattern', pattern: pattern() })
-    node = n; nodeCtx = ac; loading = null
+    node = n; nodeCtx = ac
     return n
-  })()
+  } finally { loading = null } })() // 실패해도 다음 시도가 다시 로드할 수 있게
   return loading
 }
 
@@ -49,13 +52,13 @@ export function startMetro(): StartResult {
     .catch(() => { metroStore.set({ playing: false }); toastFn?.('오디오를 시작할 수 없습니다') })
   return { ok: true }
 }
-export function stopMetro(): void { metroStore.set({ playing: false }); node?.port.postMessage({ type: 'stop' }) }
+export function stopMetro(): void { metroStore.set({ playing: false }); node?.port.postMessage({ type: 'stop' }); setTimeout(suspendIfIdle, 300) } // 마지막 클릭 꼬리가 끝난 뒤
 export function toggleMetro(): StartResult { return metroStore.get().playing ? (stopMetro(), { ok: true }) : startMetro() }
 let toastFn: ((m: string) => void) | null = null
 export function onMetroError(fn: (m: string) => void): void { toastFn = fn }
 
 function pushPattern(): void { node?.port.postMessage({ type: 'pattern', pattern: pattern() }) }
-function restartBar(): void { if (metroStore.get().playing && node) { node.port.postMessage({ type: 'pattern', pattern: pattern() }); node.port.postMessage({ type: 'start' }) } }
+function restartBar(): void { if (metroStore.get().playing && node) { node.port.postMessage({ type: 'pattern', pattern: pattern() }); node.port.postMessage({ type: 'resetBar' }) } } // 다음 예약 클릭을 1박으로 (더블클릭 없음)
 
 export function setBPM(v: number): void { settingsStore.set({ bpm: Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, v)) }) } // 다음 틱부터 반영
 export function adjBPM(d: number): void { setBPM(settingsStore.get().bpm + d) }

@@ -20,13 +20,15 @@ class MetroProcessor extends AudioWorkletProcessor {
       if (m.type === 'pattern') this.seq.setPattern(m.pattern as Partial<Pattern>)
       else if (m.type === 'start') this.seq.start(Math.round(0.05 * sampleRate)) // 50 ms 뒤 첫 클릭 (v1 과 동일)
       else if (m.type === 'stop') this.seq.stop()
+      else if (m.type === 'resetBar') this.seq.resetBar()
     }
   }
   process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const out = outputs[0]?.[0]; if (!out) return true
     out.fill(0)
     const events = this.seq.render(out, currentFrame)
-    for (const ev of events) this.port.postMessage({ type: 'click', tick: ev.tick, kind: ev.kind, t: currentTime + (ev.sample - currentFrame) / sampleRate, dur: CLICK_DUR_S })
+    const muted = this.seq.getPattern().muted
+    for (const ev of events) this.port.postMessage({ type: 'click', tick: ev.tick, kind: ev.kind, t: currentTime + (ev.sample - currentFrame) / sampleRate, dur: CLICK_DUR_S, muted })
     // 다른 채널에 복사 (스테레오 출력)
     const chs = outputs[0]!; for (let c = 1; c < chs.length; c++) chs[c]!.set(out)
     return true

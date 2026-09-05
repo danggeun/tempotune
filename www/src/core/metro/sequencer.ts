@@ -18,8 +18,9 @@ export interface ClickEvent { tick: number; sample: number; kind: 'accent' | 'be
 export const CLICK_DUR_S = 0.05
 
 export function totalTicks(p: Pick<Pattern, 'timeSig' | 'subDiv'>): number { return p.subDiv === 'd' ? p.timeSig * 2 : p.timeSig * p.subDiv }
-export function tickKind(p: Pick<Pattern, 'subDiv'>, tick: number): ClickEvent['kind'] {
+export function tickKind(p: Pick<Pattern, 'subDiv' | 'timeSig'>, tick: number): ClickEvent['kind'] {
   if (tick === 0) return 'accent'
+  if (p.timeSig === 6) return tick === 3 ? 'beat' : 'sub' // 6/8: 둘째 큰 박(4번째 8분음표)에 중간 액센트 (리뷰: 음악적 정확성)
   const isBeat = p.subDiv === 'd' ? tick % 2 === 0 : tick % p.subDiv === 0
   return isBeat ? 'beat' : 'sub'
 }
@@ -35,8 +36,10 @@ const FREQ = { accent: 1800, beat: 1100, sub: 750 } as const
 const VOL = { accent: .75, beat: .42, sub: .18 } as const
 
 export interface Sequencer {
-  /** 패턴 교체 — 다음 틱부터 반영 (재시작 없음) */
+  /** 패턴 교체. BPM 이 바뀌면 이미 예약된 다음 클릭도 새 간격으로 다시 잡는다(마지막 클릭 기준) — 느린 템포에서 한 박을 통째로 기다리지 않게 */
   setPattern(p: Partial<Pattern>): void
+  /** 마디를 처음부터 — 다음 예약된 클릭을 유지한 채 그 클릭을 1박으로 (박자/세분 변경용, 더블클릭 없음) */
+  resetBar(): void
   getPattern(): Pattern
   /** 재생 시작: 첫 틱을 startOffsetSamples 뒤에 */
   start(startOffsetSamples?: number): void
@@ -54,17 +57,26 @@ export function createSequencer(sampleRate: number, initial: Pattern): Sequencer
   let running = false
   let nextClickSample = 0 // 다음 클릭의 절대 샘플 위치 (소수 허용 — 누적 오차 없음)
   let tick = 0
+  let lastClickSample = NaN, lastTick = 0, renderPos = 0
   const active: Array<{ startSample: number; phase: number; freq: number; vol: number }> = []
   const clickLen = Math.round(CLICK_DUR_S * sampleRate)
 
   return {
     get running() { return running },
     getPattern: () => ({ ...p }),
-    setPattern(patch) { Object.assign(p, patch) },
-    start(startOffsetSamples = 0) { running = true; tick = 0; nextClickSample = -1 - startOffsetSamples; active.length = 0 }, // -1: 첫 render 에서 blockStart 기준으로 잡음
+    setPattern(patch) {
+      const bpmChanged = patch.bpm !== undefined && patch.bpm !== p.bpm
+      Object.assign(p, patch)
+      if (bpmChanged && running && !Number.isNaN(lastClickSample) && nextClickSample >= 0) {
+        nextClickSample = Math.max(renderPos, lastClickSample + tickIntervalS(p, lastTick) * sampleRate)
+      }
+    },
+    resetBar() { tick = 0 },
+    start(startOffsetSamples = 0) { running = true; tick = 0; nextClickSample = -1 - startOffsetSamples; lastClickSample = NaN; active.length = 0 }, // -1: 첫 render 에서 blockStart 기준으로 잡음
     stop() { running = false; active.length = 0 },
     render(out, blockStart) {
       const n = out.length, events: ClickEvent[] = []
+      renderPos = blockStart + n // 다음 블록의 시작 (과거로 예약하지 않게)
       if (running) {
         if (nextClickSample < 0) nextClickSample = blockStart + (-1 - nextClickSample) // start(offset) 보정
         // 이 블록 안에서 시작하는 클릭들을 등록
@@ -72,7 +84,10 @@ export function createSequencer(sampleRate: number, initial: Pattern): Sequencer
           const kind = tickKind(p, tick)
           const startSample = Math.round(nextClickSample)
           events.push({ tick, sample: startSample, kind })
-          if (!p.muted) active.push({ startSample, phase: 0, freq: FREQ[kind], vol: Math.min(1, VOL[kind] * (p.volume / .7)) })
+          const vol = Math.min(1, VOL[kind] * (p.volume / .7))
+          // phase 0.25 = 삼각파 영점에서 시작 (0 이면 +1 스텝 트랜지언트 — 거칠고 마이크 누설도 큼). vol≈0 은 렌더 생략 (0·∞ = NaN 방지)
+          if (!p.muted && vol > 0.001) active.push({ startSample, phase: 0.25, freq: FREQ[kind], vol })
+          lastClickSample = nextClickSample; lastTick = tick
           nextClickSample += tickIntervalS(p, tick) * sampleRate
           tick = (tick + 1) % totalTicks(p)
         }

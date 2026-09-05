@@ -4,7 +4,7 @@
  */
 import { KR_MIDI, type KrNote } from '../core/note.ts'
 import { refToneStore, settingsStore } from '../state/index.ts'
-import { getContext, onMic, audioSupported } from './engine.ts'
+import { getContext, onMic, audioSupported, suspendIfIdle } from './engine.ts'
 
 let osc: OscillatorNode | null = null, gain: GainNode | null = null, ctx: AudioContext | null = null
 
@@ -18,6 +18,7 @@ export function stopRefNote(): void {
     } catch { /* 이미 정지 */ }
   }
   osc = null; gain = null
+  setTimeout(suspendIfIdle, 100)
 }
 
 function play(freq: number, active: string): void {

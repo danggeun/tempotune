@@ -38,9 +38,13 @@ export const audioSupported = (): boolean => typeof AudioWorkletNode !== 'undefi
 /** 단일 컨텍스트. 없으면 만든다. 사용자 제스처 안에서 부르면 바로 running, 밖이면 suspended 일 수 있다. */
 export function getContext(): AudioContext {
   if (!A.ac || A.ac.state === 'closed') { A.ac = new (ACCtor())({ latencyHint: 'interactive' }); A.captureLoaded = false; A.sampleRate = A.ac.sampleRate }
-  if (A.ac.state === 'suspended') void A.ac.resume().catch(() => {})
+  if (A.ac.state !== 'running') void A.ac.resume().catch(() => {}) // 'suspended' 뿐 아니라 iOS 'interrupted' 도
   return A.ac
 }
+/** 아무도 컨텍스트를 쓰지 않으면(마이크 off·메트로놈 정지·기준음 없음) 일시정지 — Android 오디오 포커스 반환, 배터리 */
+let idleCheck: (() => boolean) | null = null
+export function setIdleCheck(fn: () => boolean): void { idleCheck = fn }
+export function suspendIfIdle(): void { if (A.ac && A.ac.state === 'running' && !A.micStream && idleCheck?.()) void A.ac.suspend().catch(() => {}) }
 export const micOpen = (): boolean => !!A.micStream
 
 /** 설정 → 분석기 설정 (평활 계수는 43 Hz 프레임 기준) */
@@ -106,12 +110,13 @@ export function closeMic(): void {
   for (const h of hooks.beforeClose) h()
   teardownMic()
   for (const h of hooks.afterClose) h()
+  suspendIfIdle()
 }
 
 /** 화면 복귀 시 컨텍스트 재개 + 백그라운드 동안 쌓인 청크 폐기 */
 export function resumeIfRunning(): void {
   if (!A.ac) return
-  void A.ac.resume().catch(() => {})
+  if (A.micStream || !(idleCheck?.() ?? true)) void A.ac.resume().catch(() => {})
   if (tunerStore.get().running) sendToWorker({ type: 'reset', afterT: A.ac.currentTime })
 }
 /** 메트로놈 클릭 구간을 워커에 알려 그 창의 프레임을 버리게 한다 (같은 컨텍스트 시계) */
