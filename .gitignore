@@ -1,3 +1,6 @@
 node_modules/
 android/
 dist/
+# 생성물 (node scripts/gen-signals.mjs 로 재생성, 결정적)
+test-assets/signals/
+test-assets/screens/current/

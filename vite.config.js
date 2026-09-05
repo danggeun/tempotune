@@ -11,7 +11,7 @@ export default defineConfig({
     open: false,
   },
   test: {
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.test.js', '../scripts/**/*.test.mjs'],
   },
   base: "/go_practice"
 })
