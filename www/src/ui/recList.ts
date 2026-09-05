@@ -2,6 +2,8 @@
 import { recListStore, type RecItem } from '../state/index.ts'
 import { fmtT } from '../core/format.ts'
 import { deleteRec, recFileName } from '../audio/recorder.ts'
+import { saveFile } from '../platform/index.ts'
+import { toast } from './toast.ts'
 import { q, on } from './dom.ts'
 
 const players: Record<number, HTMLAudioElement> = {}
@@ -49,7 +51,7 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
           </div>
           <div class="rec-item-btns">
             <button class="rec-item-btn" data-action="edit" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">편집</button>
-            <a class="rec-item-btn rec-dl-link" href="${item.url}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">다운로드</a>
+            <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">다운로드</a>
             <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">🗑</button>
           </div>
         </div>
@@ -92,6 +94,7 @@ export function mountRecList(openEditor: (idx: number) => void, beforeDelete: (i
       case 'play': playPause(idx); break
       case 'edit': openEditor(idx); break
       case 'delete': beforeDelete(idx); stopPlayer(idx); deleteRec(idx); break
+      case 'download': { e.preventDefault(); const it = recListStore.get().items[idx]; if (it) saveFile(it.blob, recFileName(it)).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }); break }
     }
   })
   on(list, 'input', (e: Event) => { const t = e.target as HTMLElement; if (t.dataset.action === 'seek') seek(+t.dataset.idx!) })

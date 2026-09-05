@@ -1,12 +1,14 @@
 /**
  * 녹음 편집 페이지 — 재생/시크, 속도, A-B 구간·반복, 북마크, A-B WAV 저장.
- * v1 openEditor/closeEditor/ed* 를 옮겼다. 상태는 이 모듈 내부(_ed)에 둔다 — 화면을 벗어나면 사라지는 편집 상태이기 때문.
- * (Phase 4에서 북마크/A-B 영속화 + 파형 추가 예정)
+ * Phase 4: 북마크·A-B 는 녹음과 함께 IndexedDB 에 저장되고(다시 열면 그대로), 트랙에 파형이 그려진다.
+ * 파형은 디자인 언어 안에서: 모노톤(--border/--muted), A-B 구간만 빨강 틴트. 파형 피크는 처음 열 때 계산해 저장한다.
  */
 import { fmtT } from '../core/format.ts'
 import { bufToWav } from '../core/wav.ts'
+import { computePeaks } from '../core/peaks.ts'
 import { recListStore, type RecItem } from '../state/index.ts'
-import { renameRec, recFileName } from '../audio/recorder.ts'
+import { renameRec, patchRec, recFileName } from '../audio/recorder.ts'
+import { saveFile } from '../platform/index.ts'
 import { q, on } from './dom.ts'
 import { toast } from './toast.ts'
 import { hideMenu, showMenuInstant } from './menu.ts'
@@ -26,6 +28,7 @@ const dur = () => (ed.audio && isFinite(ed.audio.duration) && ed.audio.duration 
 function setPosUI(t: number): void {
   const d = dur(); if (!d) return
   q('ed-pos-handle').style.left = pct(t, d); q('ed-progress').style.width = pct(t, d); q('ed-cur').textContent = fmtT(t)
+  requestWave()
 }
 function onTimeUpdate(): void {
   if (ed.dragging || !ed.audio) return
@@ -43,6 +46,7 @@ function updateHandles(): void {
   }
   if (ed.ptB !== null) { const bH = q('ed-b-handle'); bH.style.display = 'block'; bH.style.left = pct(ed.ptB, d); q('ed-b-time').textContent = 'B ' + fmtT(ed.ptB) }
   if (ed.ptA !== null && ed.ptB !== null) { const r = q('ed-ab-range'); r.style.display = 'block'; r.style.left = pct(ed.ptA, d); r.style.width = ((ed.ptB - ed.ptA) / d * 100).toFixed(3) + '%' }
+  requestWave()
 }
 // A/B/반복 버튼 표시 (v1 인라인 스타일 그대로)
 const abBtn = (id: string, active: boolean, label: string, dim = false) => {
@@ -56,6 +60,54 @@ const resetABtn = () => abBtn('ed-a-btn', false, '설정')
 const resetBBtn = () => abBtn('ed-b-btn', false, '설정', true)
 const resetLoopBtn = () => abBtn('ed-loop-btn', false, '꺼짐', true)
 function checkExportBtn(): void { q('ed-export-btn').style.color = ed.ptA !== null && ed.ptB !== null ? 'var(--text)' : 'var(--dim)' }
+
+/** 편집 상태(북마크/A-B)를 녹음 항목에 저장 — 다시 열어도 그대로 */
+function persistEdit(): void {
+  if (ed.idx < 0) return
+  patchRec(ed.idx, { bookmarks: ed.bookmarks.slice(), ab: ed.ptA !== null && ed.ptB !== null ? { a: ed.ptA, b: ed.ptB } : null })
+  ed.item = recListStore.get().items[ed.idx] ?? ed.item
+}
+
+// ── 파형 ──
+let peaks: Float32Array | null = null
+let waveDirty = false, waveRaf: number | null = null
+function requestWave(): void { waveDirty = true; if (waveRaf == null) waveRaf = requestAnimationFrame(drawWave) }
+function drawWave(): void {
+  waveRaf = null; if (!waveDirty) return; waveDirty = false
+  const canvas = q<HTMLCanvasElement>('ed-wave'), rail = q('ed-track-rail'), prog = q('ed-progress')
+  if (!peaks) { canvas.style.display = 'none'; rail.style.display = ''; prog.style.display = ''; return }
+  canvas.style.display = 'block'; rail.style.display = 'none'; prog.style.display = 'none'
+  const W = canvas.offsetWidth, H = canvas.offsetHeight, dpr = devicePixelRatio || 1
+  if (!W || !H) return
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr) }
+  const c = canvas.getContext('2d')!; c.save(); c.scale(dpr, dpr); c.clearRect(0, 0, W, H)
+  const cs = getComputedStyle(document.documentElement)
+  const colUnplayed = cs.getPropertyValue('--border').trim() || '#d4d7dc', colPlayed = cs.getPropertyValue('--muted').trim() || '#555'
+  const d = dur(), pos = ed.audio && d ? ed.audio.currentTime / d : 0
+  const n = peaks.length, mid = H / 2, amp = (H / 2) * 0.92
+  // A-B 구간 틴트 (파형 뒤)
+  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = 'rgba(229,48,48,.12)'; c.fillRect(ed.ptA / d * W, 0, (ed.ptB - ed.ptA) / d * W, H) }
+  // 미러 피크 막대 — 재생된 부분은 진하게
+  const bw = W / n
+  for (let i = 0; i < n; i++) {
+    const h = Math.max(1, peaks[i]! * amp)
+    c.fillStyle = (i + 0.5) / n <= pos ? colPlayed : colUnplayed
+    c.fillRect(i * bw, mid - h, Math.max(1, bw - 0.5), h * 2)
+  }
+  c.restore()
+}
+/** 피크가 없으면 blob 을 디코드해 계산하고 저장 (한 번만) */
+async function ensurePeaks(item: RecItem, idx: number): Promise<void> {
+  if (item.peaks && item.peaks.length) { peaks = item.peaks; requestWave(); return }
+  peaks = null; requestWave()
+  try {
+    const buf = await (await fetch(item.url)).arrayBuffer()
+    const ac = new OfflineAudioContext(1, 1, 44100); const decoded = await ac.decodeAudioData(buf)
+    const p = computePeaks(Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i)), 600)
+    if (ed.idx !== idx) return // 그 사이 다른 항목을 열었음
+    peaks = p; patchRec(idx, { peaks: p }); ed.item = recListStore.get().items[idx] ?? ed.item; requestWave()
+  } catch { /* 디코드 실패 → 레일 유지 */ }
+}
 
 function removeWindowHandlers(): void {
   if (!ed.handlers) return
@@ -72,7 +124,7 @@ function initDrag(): void {
     else if (ed.dragging === 'a') { ed.ptA = Math.max(0, Math.min(ed.ptB !== null ? ed.ptB - 0.1 : d, t)); updateHandles(); updateABtn(); checkExportBtn() }
     else if (ed.dragging === 'b') { ed.ptB = Math.max(ed.ptA !== null ? ed.ptA + 0.1 : 0, Math.min(d, t)); updateHandles(); updateBBtn(); checkExportBtn() }
   }
-  const end = () => { ed.dragging = null; if (ed.audio && dur()) setPosUI(ed.audio.currentTime) }
+  const end = () => { const was = ed.dragging; ed.dragging = null; if (ed.audio && dur()) setPosUI(ed.audio.currentTime); if (was === 'a' || was === 'b') persistEdit() }
   ed.handlers = { mm: e => move(e.clientX), mu: end, tm: e => { if (ed.dragging) move(e.touches[0]!.clientX) }, te: end }
   window.addEventListener('mousemove', ed.handlers.mm); window.addEventListener('mouseup', ed.handlers.mu)
   window.addEventListener('touchmove', ed.handlers.tm, { passive: true }); window.addEventListener('touchend', ed.handlers.te)
@@ -82,18 +134,25 @@ export function openEditor(idx: number): void {
   hideMenu()
   const item = recListStore.get().items[idx]; if (!item) return
   if (ed.audio) { ed.audio.pause(); ed.audio = null }
-  ed.idx = idx; ed.item = item; ed.ptA = null; ed.ptB = null; ed.looping = false; ed.bookmarks = []; ed.dragging = null
+  ed.idx = idx; ed.item = item; ed.ptA = null; ed.ptB = null; ed.looping = false; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null
 
   const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
   ed.audio = audio
   const updateDur = () => { const d = dur() ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0); q('ed-dur').textContent = fmtT(d) }
   audio.addEventListener('loadedmetadata', updateDur); audio.addEventListener('durationchange', updateDur)
-  if (audio.readyState >= 1 && dur()) updateDur()
+  // 저장된 A-B/북마크는 길이를 알아야 그릴 수 있다 — 첫 loadedmetadata 에서 복원
+  let restored = false
+  const restore = () => {
+    if (restored || !dur() || ed.audio !== audio) return; restored = true
+    if (item.ab && item.ab.b > item.ab.a) { ed.ptA = item.ab.a; ed.ptB = Math.min(item.ab.b, dur()); updateHandles(); updateABtn(); updateBBtn(); q('ed-b-btn').style.opacity = '1'; q('ed-loop-btn').style.opacity = '1'; checkExportBtn() }
+    renderBmTicks(); renderBmList()
+  }
+  audio.addEventListener('loadedmetadata', restore); audio.addEventListener('durationchange', restore)
+  if (audio.readyState >= 1 && dur()) { updateDur(); restore() }
   const playBtn = q<HTMLButtonElement>('ed-play-btn')
   const ready = () => { playBtn.textContent = '▶'; playBtn.style.opacity = '1'; playBtn.disabled = false; if (ed.readyTimeout) clearTimeout(ed.readyTimeout) }
   ed.readyTimeout = setTimeout(ready, 3000)
   audio.addEventListener('canplaythrough', ready, { once: true })
-  const dl = q<HTMLAnchorElement>('ed-dl-btn'); dl.href = item.url; dl.download = recFileName(item)
   audio.addEventListener('timeupdate', onTimeUpdate)
   audio.addEventListener('ended', () => {
     playBtn.textContent = '▶'
@@ -109,8 +168,9 @@ export function openEditor(idx: number): void {
   q('ed-progress').style.width = '0%'; q('ed-pos-handle').style.left = '0%'
   for (const id of ['ed-ab-range', 'ed-a-handle', 'ed-b-handle', 'ed-ab-times']) q(id).style.display = 'none'
   q('ed-bm-ticks').innerHTML = ''
-  q('ed-bookmarks').innerHTML = '<span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>'
+  renderBmList()
   resetABtn(); resetBBtn(); resetLoopBtn()
+  void ensurePeaks(item, idx)
   const ex = q('ed-export-btn'); ex.style.color = 'var(--dim)'; ex.style.borderColor = 'var(--border)'
   q('editor-page').style.display = 'flex'
   initDrag()
@@ -118,6 +178,7 @@ export function openEditor(idx: number): void {
 
 export function closeEditor(): void {
   if (ed.audio) { ed.audio.pause(); ed.audio = null }
+  peaks = null; ed.idx = -1
   if (ed.readyTimeout) clearTimeout(ed.readyTimeout)
   removeWindowHandlers()
   showMenuInstant()
@@ -155,7 +216,7 @@ function toggleA(): void {
   if (ed.ptA !== null) {
     ed.ptA = null; ed.ptB = null; ed.looping = false
     for (const id of ['ed-a-handle', 'ed-b-handle', 'ed-ab-range', 'ed-ab-times']) q(id).style.display = 'none'
-    resetABtn(); resetBBtn(); resetLoopBtn(); checkExportBtn()
+    resetABtn(); resetBBtn(); resetLoopBtn(); checkExportBtn(); persistEdit(); requestWave()
   } else {
     if (!dur()) return
     ed.ptA = ed.audio!.currentTime; updateHandles(); updateABtn(); q('ed-b-btn').style.opacity = '1'; checkExportBtn()
@@ -166,11 +227,11 @@ function toggleB(): void {
   if (ed.ptB !== null) {
     ed.ptB = null; ed.looping = false
     q('ed-b-handle').style.display = 'none'; q('ed-ab-range').style.display = 'none'; q('ed-b-time').textContent = 'B —'
-    resetBBtn(); resetLoopBtn(); checkExportBtn()
+    resetBBtn(); resetLoopBtn(); checkExportBtn(); persistEdit(); requestWave()
   } else {
     if (!dur()) return
     const t = ed.audio!.currentTime; if (t <= ed.ptA) { toast('B는 A보다 뒤여야 해요'); return }
-    ed.ptB = t; updateHandles(); updateBBtn(); q('ed-loop-btn').style.opacity = '1'; checkExportBtn()
+    ed.ptB = t; updateHandles(); updateBBtn(); q('ed-loop-btn').style.opacity = '1'; checkExportBtn(); persistEdit()
   }
 }
 function toggleLoop(): void {
@@ -203,7 +264,7 @@ function renderBmList(): void {
     lbl.onclick = () => { if (ed.audio) ed.audio.currentTime = t }
     const del = document.createElement('button'); del.textContent = '✕'
     del.style.cssText = 'background:none;border:none;border-left:1px solid #f59e0b33;color:#888;font-size:11px;cursor:pointer;padding:6px 8px;line-height:1;'
-    del.onclick = e => { e.stopPropagation(); ed.bookmarks.splice(i, 1); renderBmTicks(); renderBmList() }
+    del.onclick = e => { e.stopPropagation(); ed.bookmarks.splice(i, 1); renderBmTicks(); renderBmList(); persistEdit() }
     pill.appendChild(lbl); pill.appendChild(del); wrap.appendChild(pill)
   })
 }
@@ -211,7 +272,7 @@ function addBookmark(): void {
   if (!dur()) return
   const t = ed.audio!.currentTime
   if (ed.bookmarks.some(b => Math.abs(b - t) < 0.3)) { toast('이미 근처에 북마크가 있어요'); return }
-  ed.bookmarks.push(t); ed.bookmarks.sort((a, b) => a - b); renderBmTicks(); renderBmList()
+  ed.bookmarks.push(t); ed.bookmarks.sort((a, b) => a - b); renderBmTicks(); renderBmList(); persistEdit()
 }
 
 async function exportAB(): Promise<void> {
@@ -226,11 +287,14 @@ async function exportAB(): Promise<void> {
     for (let c = 0; c < ch; c++) buf.copyToChannel(decoded.getChannelData(c).slice(s0, s1), c)
     const src = offAC.createBufferSource(); src.buffer = buf; src.connect(offAC.destination); src.start()
     const rendered = await offAC.startRendering()
-    const blob = new Blob([bufToWav(rendered)], { type: 'audio/wav' }); const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = 'gopractice_' + ed.item.name + '_cut.wav'
-    document.body.appendChild(a); a.click(); document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 3000)
+    const blob = new Blob([bufToWav(rendered)], { type: 'audio/wav' })
+    const r = await saveFile(blob, 'gopractice_' + ed.item.name + '_cut.wav')
+    if (!r.ok) toast('저장 실패: ' + r.error)
   } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
+}
+async function downloadWhole(): Promise<void> {
+  if (!ed.item) return
+  const r = await saveFile(ed.item.blob, recFileName(ed.item)); if (!r.ok) toast('저장 실패: ' + r.error)
 }
 
 export function mountEditor(): void {
@@ -250,4 +314,6 @@ export function mountEditor(): void {
   on(q('ed-speed'), 'input', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value))
   on(q('ed-a-btn'), 'click', toggleA); on(q('ed-b-btn'), 'click', toggleB); on(q('ed-loop-btn'), 'click', toggleLoop)
   on(q('ed-bm-add-btn'), 'click', addBookmark); on(q('ed-export-btn'), 'click', exportAB)
+  on(q('ed-dl-btn'), 'click', (e: Event) => { e.preventDefault(); void downloadWhole() })
+  new ResizeObserver(requestWave).observe(q('ed-track'))
 }

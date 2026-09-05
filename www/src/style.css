@@ -220,6 +220,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 #ed-cur{font-family:'DM Mono',monospace;font-size:24px;color:var(--text);font-weight:500;letter-spacing:.02em;}
 #ed-dur{font-family:'DM Mono',monospace;font-size:14px;color:var(--muted);}
 #ed-track{position:relative;height:56px;cursor:pointer;margin-bottom:4px;}
+#ed-wave{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;} /* 파형 미니맵 — 피크가 준비되면 레일 대신 표시 */
 #ed-track-rail{position:absolute;top:50%;left:0;right:0;height:5px;background:var(--border);border-radius:3px;transform:translateY(-50%);}
 #ed-progress{position:absolute;top:50%;left:0;width:0%;height:5px;background:var(--muted);border-radius:3px;transform:translateY(-50%);pointer-events:none;}
 #ed-ab-range{position:absolute;top:50%;height:5px;background:var(--red);opacity:.55;border-radius:2px;transform:translateY(-50%);display:none;pointer-events:none;}

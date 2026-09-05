@@ -268,6 +268,30 @@ await scenario('ref tone plays without mic (single AudioContext)', 'silence_lowf
   await p.click('#menu-overlay .ref-note-btn[data-note="라"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 0)
 }, { permissions: [] })
 
+// ── Phase 4: 편집 상태 영속 + 파형 ──
+await scenario('editor: waveform appears; A/B + bookmark persist across close/reopen and reload', 'violin_scale_Amaj.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000)
+  await p.click('#rec-hdr-btn'); await sleep(p, 3500); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
+  const waveShown = async () => p.evaluate(() => getComputedStyle(document.getElementById('ed-wave')).display === 'block')
+  for (let i = 0; i < 20 && !(await waveShown()); i++) await sleep(p, 200)
+  assert.equal(await waveShown(), true, 'waveform drawn')
+  const painted = await p.evaluate(() => { const c = document.getElementById('ed-wave'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n })
+  assert.ok(painted > 1000, 'waveform has pixels: ' + painted)
+  await p.click('#ed-play-btn'); await sleep(p, 700); await p.click('#ed-a-btn'); await sleep(p, 900); await p.click('#ed-b-btn'); await sleep(p, 200); await p.click('#ed-bm-add-btn'); await sleep(p, 300)
+  const state = () => p.evaluate(() => ({ a: document.querySelector('#ed-a-btn span').textContent, b: document.querySelector('#ed-b-btn span').textContent, range: document.getElementById('ed-ab-range').style.display, bm: document.querySelectorAll('#ed-bookmarks button').length / 2 }))
+  const s1 = await state(); assert.equal(s1.range, 'block'); assert.equal(s1.bm, 1); assert.notEqual(s1.a, '설정')
+  await p.click('#ed-back-btn'); await sleep(p, 300); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1200)
+  const s2 = await state(); assert.deepEqual(s2, s1, 'restored after reopen')
+  await p.reload(); await sleep(p, 1500); await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
+  const s3 = await state(); assert.deepEqual(s3, s1, 'restored after reload (IndexedDB v2)')
+  // 저장된 피크로 즉시 파형 (디코드 없이)
+  assert.equal(await waveShown(), true)
+  await p.click('#ed-a-btn'); await sleep(p, 200); assert.equal((await state()).range, 'none') // A 해제 → 저장
+  await p.click('#ed-back-btn'); await sleep(p, 200); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1000)
+  assert.equal((await state()).range, 'none', 'cleared A-B persisted')
+})
+
 server.kill()
 let fail = 0
 for (const [n, r] of results) { if (r !== 'ok' && !r.startsWith('NO')) fail++; console.log((r === 'ok' ? '  ok   ' : r.startsWith('NO') ? '  note ' : '  FAIL ') + n + (r === 'ok' ? '' : '  → ' + r)) }

@@ -95,6 +95,9 @@ export interface RecItem {
   mime: string
   ts: number
   url: string
+  bookmarks: number[]
+  ab: { a: number; b: number } | null
+  peaks?: Float32Array
 }
 export interface RecListState { items: RecItem[]; rev: number }
 export const recListStore = createStore<RecListState>({ items: [], rev: 0 })

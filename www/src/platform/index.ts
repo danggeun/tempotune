@@ -38,5 +38,29 @@ export function toggleFullscreen(onUnsupported: () => void): void {
   }
 }
 
+// ── 파일 저장 ──
+/**
+ * 파일을 사용자에게 건넨다. 웹: 브라우저 다운로드. Android 앱: 캐시에 쓰고 공유 시트(파일 앱·드라이브 등으로 저장).
+ * WebView 의 <a download> 는 동작하지 않는 경우가 많아(설계서 §D1) 네이티브 경로를 쓴다.
+ */
+export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    if (!isNative()) {
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 3000)
+      return { ok: true }
+    }
+    const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])
+    const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.onerror = () => rej(r.error); r.readAsDataURL(blob) })
+    const w = await Filesystem.writeFile({ path: 'gopractice/' + name, data: b64, directory: Directory.Cache, recursive: true })
+    await Share.share({ title: name, url: w.uri, dialogTitle: '저장 / 공유' })
+    return { ok: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/cancel/i.test(msg)) return { ok: true } // 공유 시트 취소는 오류가 아님
+    return { ok: false, error: msg }
+  }
+}
+
 /** 폰 레이아웃 여부 (v1: window.innerWidth<700) */
 export const isPhoneLayout = (): boolean => window.innerWidth < 700

@@ -8,7 +8,7 @@ import { loadSettings, startSettingsAutosave } from './persist/settings.ts'
 import { openRecDb } from './persist/recordingsDb.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck } from './audio/engine.ts'
 import { startAnalysis, stopAnalysis } from './audio/analysis.ts'
-import { restoreRecordings } from './audio/recorder.ts'
+import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
@@ -38,7 +38,7 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 // ── 마이크 생명주기 ──
 const tryOpenMic = async (): Promise<boolean> => { const r = await openMic(); if (!r.ok && r.error !== 'busy') toast('마이크 오류: ' + r.error); return r.ok }
 mountMicPopup(tryOpenMic)
-onEngineFatal(toast); onMetroError(toast)
+onEngineFatal(toast); onMetroError(toast); onRecorderError(toast)
 setIdleCheck(() => !metroStore.get().playing && !refToneStore.get().active)
 startAnalysis()
 onMic('afterOpen', () => { if (settingsStore.get().wakeLock) acquireWakeLock() })
