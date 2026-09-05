@@ -1,16 +1,16 @@
 import { describe, test, expect } from 'vitest'
-import { bufToWav } from './wav.js'
+import { bufToWav } from './wav.ts'
 
-function mockAudioBuffer(channels, length, sampleRate = 44100) {
+function mockAudioBuffer(channels: number, length: number, sampleRate = 44100) {
   const data = Array.from({ length: channels }, () => new Float32Array(length))
-  return { numberOfChannels: channels, sampleRate, length, getChannelData: (c) => data[c] }
+  return { numberOfChannels: channels, sampleRate, length, getChannelData: (c: number) => data[c]! }
 }
 
 describe('bufToWav', () => {
   test('produces valid RIFF/WAVE header', () => {
     const wav = bufToWav(mockAudioBuffer(1, 100))
     const dv = new DataView(wav)
-    const str = (o, n) => Array.from({ length: n }, (_, i) => String.fromCharCode(dv.getUint8(o + i))).join('')
+    const str = (o: number, n: number) => Array.from({ length: n }, (_, i) => String.fromCharCode(dv.getUint8(o + i))).join('')
     expect(str(0, 4)).toBe('RIFF')
     expect(str(8, 4)).toBe('WAVE')
     expect(str(12, 4)).toBe('fmt ')

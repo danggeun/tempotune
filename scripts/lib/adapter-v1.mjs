@@ -3,7 +3,7 @@
 //  - AnalyserNode의 dB 스케일/Blackman 창 → Hann 창 + 스케일 보정(+24 dB), 0.88 지수 평활은 선형 크기에 적용
 //  - 앱은 rAF(≈60 Hz)마다 4096 창을 읽고 YIN은 4프레임에 1번 → 하네스는 hop 1024(≈43 Hz)에 매 프레임 실행.
 //    `skip` 옵션으로 4프레임 스킵을 흉내 낼 수 있음 (앱 체감치).
-import { yin as yinPure } from '../../www/src/core/yin.js'
+import { yin as yinPure } from '../../www/src/core/yin.ts'
 import { makeFFT } from './fft.mjs'
 
 export function createV1({ sampleRate, skip = 1 } = {}) {

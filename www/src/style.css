@@ -114,8 +114,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #metro-play-hdr-btn{width:44px;height:36px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 #metro-collapse-btn{width:34px;height:34px;background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
-#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:10px;overflow:hidden;transition:max-height .55s ease,padding .55s ease,opacity .35s ease .2s;}
-#metro-body.collapsed{max-height:0!important;padding-top:0;padding-bottom:0;opacity:0;pointer-events:none;}
+/* 접기/펼치기: grid-template-rows 0fr↔1fr 트랜지션 (높이 측정 JS 불필요). clip 이 0 높이로 줄고 body 의 패딩은 clip 안에서 잘린다. */
+#metro-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .55s ease;}
+#metro-body-clip{min-height:0;overflow:hidden;transition:opacity .35s ease .2s;}
+#metro-body{padding:13px 15px;display:flex;flex-direction:column;gap:10px;}
+#metro-body-wrap.collapsed{grid-template-rows:0fr;}
+#metro-body-wrap.collapsed #metro-body-clip{opacity:0;pointer-events:none;}
 
 #metro-bpm-row{display:flex;align-items:center;gap:10px;}
 #metro-bpm-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;touch-action:none;}
@@ -272,5 +276,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
   #ts-grid,#sd-grid{display:flex;flex-direction:column;gap:5px;}
   .m-seg{padding:16px 0;font-size:17px;}
   #metro-collapse-btn{display:none!important;}
-  #metro-body{max-height:none!important;opacity:1!important;pointer-events:auto!important;}
+  #metro-body-wrap{grid-template-rows:1fr!important;}
+  #metro-body-clip{opacity:1!important;pointer-events:auto!important;}
 }

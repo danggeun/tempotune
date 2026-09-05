@@ -15,7 +15,11 @@
     "gen:signals": "node scripts/gen-signals.mjs",
     "bench": "node scripts/gen-signals.mjs && node scripts/bench.mjs",
     "shots": "node scripts/screenshots.mjs --serve --out test-assets/screens/current --compare test-assets/screens/baseline",
-    "shots:baseline": "node scripts/screenshots.mjs --serve --out test-assets/screens/baseline"
+    "shots:baseline": "node scripts/screenshots.mjs --serve --out test-assets/screens/baseline",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && node scripts/check-deps.mjs && npm test",
+    "e2e": "npm run build:cap && node scripts/e2e.mjs --dist dist",
+    "verify": "npm run check && npm run shots && npm run e2e"
   },
   "keywords": [],
   "author": "",
@@ -29,10 +33,13 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@types/node": "^26.4.1",
     "gh-pages": "^6.3.0",
     "pixelmatch": "^7.2.0",
     "playwright": "^1.63.0",
     "pngjs": "^7.0.0",
+    "serve": "^14.2.6",
+    "typescript": "^7.0.2",
     "vite": "^8.0.14",
     "vitest": "^4.1.7"
   }

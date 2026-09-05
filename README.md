@@ -43,7 +43,8 @@
 | | |
 |---|---|
 | 번들러 | Vite 8 |
-| 테스트 | Vitest 4 (YIN · WAV · 포맷 단위 테스트 17개) |
+| 언어 | TypeScript (strict) |
+| 테스트 | Vitest 4 단위 · Playwright e2e/스크린샷 · 튜너 벤치마크 |
 | 음정 감지 | YIN 알고리즘 — `www/src/core/yin.js` |
 | AI 분류 | TensorFlow.js + YAMNet (tfhub.dev, 인덱스 132–147 현악기) |
 | 오디오 | Web Audio API (`AudioContext` · `AnalyserNode` · `ScriptProcessorNode`) |
@@ -88,19 +89,34 @@ npm run cap:sync   # Capacitor용 빌드(base=/) + android/ 동기화
 
 ```
 www/
-  index.html          앱 진입점
+  index.html          앱 진입점 (DOM 은 여기, 로직은 src/)
   src/
-    main.js           런타임 로직 전체 (~1,055줄)
-    style.css         스타일 (~275줄)
-    core/
-      yin.js          YIN 음정 감지 알고리즘 (순수 함수)
-      wav.js          WAV 인코더 (순수 함수)
-      format.js       시간 포맷 유틸 (순수 함수)
+    main.ts           조립 — 모듈 연결과 시작 시퀀스만
+    core/             순수 알고리즘 (브라우저 API 없음, 100% 테스트): yin, note, wav, format
+    state/            스토어 + 타입 (settings / tuner / metro / refTone / session / recList)
+    audio/            Web Audio 어댑터: engine(마이크·컨텍스트), analysis(튜너 루프), metronome, refTone, recorder, yamnet
+    persist/          localStorage 설정, IndexedDB 녹음
+    platform/         웹 / Capacitor 분기 (상태바, wake lock, 전체화면)
+    ui/               카드별 DOM 바인딩 (tuner, metro, refDrum, refPanel, menu, settings, timer, recList, editor …)
+    style.css
+scripts/              검증 도구: gen-signals, bench, screenshots, e2e, check-deps
+test-assets/          벤치마크 기준선, 스크린샷 기준선 (README 참고)
+docs/                 DESIGN.md · ROADMAP.md · CHECKLIST.md
 dist/                 Vite 빌드 결과 (Capacitor webDir)
 android/              Capacitor Android 네이티브 프로젝트
 ```
 
----
+의존 방향은 `ui → state ← audio`, `* → core` 이며 `npm run check` 가 검사한다 (docs/DESIGN.md §C1).
+
+### 검증
+
+```bash
+npm run check    # 타입 검사 + 모듈 경계 + 단위 테스트
+npm run bench    # 튜너 벤치마크 (합성 신호 31개) → test-assets/bench/latest.md
+npm run shots    # 스크린샷 회귀 (기준선 대비 픽셀 diff)
+npm run e2e      # 동작 시나리오 16개 (가짜 마이크에 WAV 주입)
+npm run verify   # 전부
+```
 
 ## 웹 앱
 

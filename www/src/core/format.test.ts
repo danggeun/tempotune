@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { fmt, fmtT } from './format.js'
+import { fmt, fmtT } from './format.ts'
 
 describe('fmt', () => {
   test('zero seconds', () => expect(fmt(0)).toBe('00:00'))

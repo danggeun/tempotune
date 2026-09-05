@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { yin } from './yin.js'
+import { yin } from './yin.ts'
 
 describe('yin', () => {
   test('returns -1 for silence', () => {

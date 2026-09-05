@@ -1,0 +1,253 @@
+/**
+ * 녹음 편집 페이지 — 재생/시크, 속도, A-B 구간·반복, 북마크, A-B WAV 저장.
+ * v1 openEditor/closeEditor/ed* 를 옮겼다. 상태는 이 모듈 내부(_ed)에 둔다 — 화면을 벗어나면 사라지는 편집 상태이기 때문.
+ * (Phase 4에서 북마크/A-B 영속화 + 파형 추가 예정)
+ */
+import { fmtT } from '../core/format.ts'
+import { bufToWav } from '../core/wav.ts'
+import { recListStore, type RecItem } from '../state/index.ts'
+import { renameRec, recFileName } from '../audio/recorder.ts'
+import { q, on } from './dom.ts'
+import { toast } from './toast.ts'
+import { hideMenu, showMenuInstant } from './menu.ts'
+
+interface EdState {
+  idx: number; item: RecItem | null; audio: HTMLAudioElement | null
+  ptA: number | null; ptB: number | null; looping: boolean; bookmarks: number[]
+  dragging: 'pos' | 'a' | 'b' | null
+  readyTimeout: ReturnType<typeof setTimeout> | null
+  handlers: { mm: (e: MouseEvent) => void; mu: () => void; tm: (e: TouchEvent) => void; te: () => void } | null
+}
+const ed: EdState = { idx: -1, item: null, audio: null, ptA: null, ptB: null, looping: false, bookmarks: [], dragging: null, readyTimeout: null, handlers: null }
+
+const pct = (t: number, d: number) => (t / d * 100).toFixed(3) + '%'
+const dur = () => (ed.audio && isFinite(ed.audio.duration) && ed.audio.duration > 0) ? ed.audio.duration : 0
+
+function setPosUI(t: number): void {
+  const d = dur(); if (!d) return
+  q('ed-pos-handle').style.left = pct(t, d); q('ed-progress').style.width = pct(t, d); q('ed-cur').textContent = fmtT(t)
+}
+function onTimeUpdate(): void {
+  if (ed.dragging || !ed.audio) return
+  const d = dur(); if (!d) return
+  const t = ed.audio.currentTime; setPosUI(t)
+  if (ed.looping && ed.ptA !== null && ed.ptB !== null && t >= ed.ptB) ed.audio.currentTime = ed.ptA
+}
+function pctFromClient(clientX: number): number { const r = q('ed-track').getBoundingClientRect(); return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) }
+
+function updateHandles(): void {
+  const d = dur(); if (!d) return
+  if (ed.ptA !== null) {
+    const aH = q('ed-a-handle'); aH.style.display = 'block'; aH.style.left = pct(ed.ptA, d)
+    q('ed-ab-times').style.display = 'flex'; q('ed-a-time').textContent = 'A ' + fmtT(ed.ptA)
+  }
+  if (ed.ptB !== null) { const bH = q('ed-b-handle'); bH.style.display = 'block'; bH.style.left = pct(ed.ptB, d); q('ed-b-time').textContent = 'B ' + fmtT(ed.ptB) }
+  if (ed.ptA !== null && ed.ptB !== null) { const r = q('ed-ab-range'); r.style.display = 'block'; r.style.left = pct(ed.ptA, d); r.style.width = ((ed.ptB - ed.ptA) / d * 100).toFixed(3) + '%' }
+}
+// A/B/반복 버튼 표시 (v1 인라인 스타일 그대로)
+const abBtn = (id: string, active: boolean, label: string, dim = false) => {
+  const btn = q(id); btn.style.borderColor = active ? 'var(--red)' : ''; btn.style.color = active ? 'var(--red)' : 'var(--muted)'
+  if (dim) btn.style.opacity = '0.4'
+  btn.querySelector('span')!.textContent = label
+}
+const updateABtn = () => abBtn('ed-a-btn', true, fmtT(ed.ptA!))
+const updateBBtn = () => abBtn('ed-b-btn', true, fmtT(ed.ptB!))
+const resetABtn = () => abBtn('ed-a-btn', false, '설정')
+const resetBBtn = () => abBtn('ed-b-btn', false, '설정', true)
+const resetLoopBtn = () => abBtn('ed-loop-btn', false, '꺼짐', true)
+function checkExportBtn(): void { q('ed-export-btn').style.color = ed.ptA !== null && ed.ptB !== null ? 'var(--text)' : 'var(--dim)' }
+
+function removeWindowHandlers(): void {
+  if (!ed.handlers) return
+  window.removeEventListener('mousemove', ed.handlers.mm); window.removeEventListener('mouseup', ed.handlers.mu)
+  window.removeEventListener('touchmove', ed.handlers.tm); window.removeEventListener('touchend', ed.handlers.te)
+  ed.handlers = null
+}
+function initDrag(): void {
+  removeWindowHandlers()
+  const move = (clientX: number) => {
+    const d = dur(); if (!ed.dragging || !ed.audio || !d) return
+    const t = pctFromClient(clientX) * d
+    if (ed.dragging === 'pos') { const c = Math.max(0, Math.min(d, t)); ed.audio.currentTime = c; setPosUI(c) }
+    else if (ed.dragging === 'a') { ed.ptA = Math.max(0, Math.min(ed.ptB !== null ? ed.ptB - 0.1 : d, t)); updateHandles(); updateABtn(); checkExportBtn() }
+    else if (ed.dragging === 'b') { ed.ptB = Math.max(ed.ptA !== null ? ed.ptA + 0.1 : 0, Math.min(d, t)); updateHandles(); updateBBtn(); checkExportBtn() }
+  }
+  const end = () => { ed.dragging = null; if (ed.audio && dur()) setPosUI(ed.audio.currentTime) }
+  ed.handlers = { mm: e => move(e.clientX), mu: end, tm: e => { if (ed.dragging) move(e.touches[0]!.clientX) }, te: end }
+  window.addEventListener('mousemove', ed.handlers.mm); window.addEventListener('mouseup', ed.handlers.mu)
+  window.addEventListener('touchmove', ed.handlers.tm, { passive: true }); window.addEventListener('touchend', ed.handlers.te)
+}
+
+export function openEditor(idx: number): void {
+  hideMenu()
+  const item = recListStore.get().items[idx]; if (!item) return
+  if (ed.audio) { ed.audio.pause(); ed.audio = null }
+  ed.idx = idx; ed.item = item; ed.ptA = null; ed.ptB = null; ed.looping = false; ed.bookmarks = []; ed.dragging = null
+
+  const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
+  ed.audio = audio
+  const updateDur = () => { const d = dur() ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0); q('ed-dur').textContent = fmtT(d) }
+  audio.addEventListener('loadedmetadata', updateDur); audio.addEventListener('durationchange', updateDur)
+  if (audio.readyState >= 1 && dur()) updateDur()
+  const playBtn = q<HTMLButtonElement>('ed-play-btn')
+  const ready = () => { playBtn.textContent = '▶'; playBtn.style.opacity = '1'; playBtn.disabled = false; if (ed.readyTimeout) clearTimeout(ed.readyTimeout) }
+  ed.readyTimeout = setTimeout(ready, 3000)
+  audio.addEventListener('canplaythrough', ready, { once: true })
+  const dl = q<HTMLAnchorElement>('ed-dl-btn'); dl.href = item.url; dl.download = recFileName(item)
+  audio.addEventListener('timeupdate', onTimeUpdate)
+  audio.addEventListener('ended', () => {
+    playBtn.textContent = '▶'
+    if (ed.looping && ed.ptA !== null && ed.ptB !== null) { audio.currentTime = ed.ptA; audio.play(); playBtn.textContent = '■' }
+  })
+  audio.load()
+
+  q('editor-title-display').textContent = item.name
+  q('ed-cur').textContent = '00:00'; q('ed-dur').textContent = item.dur ? fmtT(item.dur) : '--:--'
+  playBtn.textContent = '▶'; playBtn.style.opacity = '.4'; playBtn.disabled = true
+  if (audio.readyState >= 3) { playBtn.style.opacity = '1'; playBtn.disabled = false }
+  q<HTMLInputElement>('ed-speed').value = '1.0'; q('ed-speed-val').textContent = '1.0×'
+  q('ed-progress').style.width = '0%'; q('ed-pos-handle').style.left = '0%'
+  for (const id of ['ed-ab-range', 'ed-a-handle', 'ed-b-handle', 'ed-ab-times']) q(id).style.display = 'none'
+  q('ed-bm-ticks').innerHTML = ''
+  q('ed-bookmarks').innerHTML = '<span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>'
+  resetABtn(); resetBBtn(); resetLoopBtn()
+  const ex = q('ed-export-btn'); ex.style.color = 'var(--dim)'; ex.style.borderColor = 'var(--border)'
+  q('editor-page').style.display = 'flex'
+  initDrag()
+}
+
+export function closeEditor(): void {
+  if (ed.audio) { ed.audio.pause(); ed.audio = null }
+  if (ed.readyTimeout) clearTimeout(ed.readyTimeout)
+  removeWindowHandlers()
+  showMenuInstant()
+  q('editor-page').style.display = 'none'
+}
+/** 삭제되는 항목을 편집 중이면 닫는다 */
+export function closeEditorIfEditing(idx: number): void { if (ed.idx === idx) closeEditor() }
+
+function editTitle(): void {
+  const current = ed.item ? ed.item.name : ''
+  const newName = prompt('파일 이름 수정', current)
+  if (newName && newName.trim() && ed.idx >= 0) {
+    const name = newName.trim()
+    renameRec(ed.idx, name) // IndexedDB 에도 저장 (v1 버그 수정)
+    ed.item = recListStore.get().items[ed.idx] ?? ed.item
+    q('editor-title-display').textContent = name
+  }
+}
+
+function togglePlay(): void {
+  if (!ed.audio) return
+  const btn = q('ed-play-btn'), a = ed.audio
+  if (a.paused) {
+    if (ed.ptA !== null && a.currentTime < ed.ptA) a.currentTime = ed.ptA
+    btn.textContent = '■'
+    const tryPlay = () => { const p = a.play(); if (p && p.catch) p.catch(() => { setTimeout(() => { if (ed.audio && ed.audio.paused) { const p2 = ed.audio.play(); if (p2 && p2.catch) p2.catch(() => { btn.textContent = '▶' }) } }, 50) }) }
+    if (a.readyState < 2) a.addEventListener('canplay', tryPlay, { once: true }); else tryPlay()
+  } else { a.pause(); btn.textContent = '▶' }
+}
+function setSpeed(v: number): void {
+  q('ed-speed-val').textContent = (Number.isInteger(v * 10) ? v.toFixed(1) : v.toFixed(2)) + '×'
+  if (ed.audio) { ed.audio.playbackRate = v; ed.audio.preservesPitch = true }
+}
+function toggleA(): void {
+  if (ed.ptA !== null) {
+    ed.ptA = null; ed.ptB = null; ed.looping = false
+    for (const id of ['ed-a-handle', 'ed-b-handle', 'ed-ab-range', 'ed-ab-times']) q(id).style.display = 'none'
+    resetABtn(); resetBBtn(); resetLoopBtn(); checkExportBtn()
+  } else {
+    if (!dur()) return
+    ed.ptA = ed.audio!.currentTime; updateHandles(); updateABtn(); q('ed-b-btn').style.opacity = '1'; checkExportBtn()
+  }
+}
+function toggleB(): void {
+  if (ed.ptA === null) { toast('먼저 A 지점을 설정해주세요'); return }
+  if (ed.ptB !== null) {
+    ed.ptB = null; ed.looping = false
+    q('ed-b-handle').style.display = 'none'; q('ed-ab-range').style.display = 'none'; q('ed-b-time').textContent = 'B —'
+    resetBBtn(); resetLoopBtn(); checkExportBtn()
+  } else {
+    if (!dur()) return
+    const t = ed.audio!.currentTime; if (t <= ed.ptA) { toast('B는 A보다 뒤여야 해요'); return }
+    ed.ptB = t; updateHandles(); updateBBtn(); q('ed-loop-btn').style.opacity = '1'; checkExportBtn()
+  }
+}
+function toggleLoop(): void {
+  if (ed.ptA === null || ed.ptB === null) { toast('A, B 지점을 먼저 설정해주세요'); return }
+  ed.looping = !ed.looping
+  const btn = q('ed-loop-btn')
+  if (ed.looping) {
+    btn.style.borderColor = 'var(--red)'; btn.style.color = 'var(--red)'; btn.querySelector('span')!.textContent = '켜짐'
+    ed.audio!.currentTime = ed.ptA
+    if (ed.audio!.paused) { ed.audio!.play(); q('ed-play-btn').textContent = '■' }
+  } else { btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--muted)'; btn.querySelector('span')!.textContent = '꺼짐' }
+}
+
+function renderBmTicks(): void {
+  const wrap = q('ed-bm-ticks'); wrap.innerHTML = ''; const d = dur(); if (!d) return
+  for (const t of ed.bookmarks) {
+    const tick = document.createElement('div')
+    tick.style.cssText = `position:absolute;top:50%;left:${pct(t, d)};width:2px;height:22px;background:#f59e0b;border-radius:1px;transform:translate(-50%,-50%);z-index:2;pointer-events:none;`
+    wrap.appendChild(tick)
+  }
+}
+function renderBmList(): void {
+  const wrap = q('ed-bookmarks'); wrap.innerHTML = ''
+  if (ed.bookmarks.length === 0) { wrap.innerHTML = '<span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>'; return }
+  ed.bookmarks.forEach((t, i) => {
+    const pill = document.createElement('div')
+    pill.style.cssText = 'display:flex;align-items:center;gap:0;background:var(--surface);border:1.5px solid #f59e0b66;border-radius:8px;overflow:hidden;cursor:pointer;'
+    const lbl = document.createElement('button'); lbl.textContent = fmtT(t)
+    lbl.style.cssText = "background:none;border:none;padding:6px 10px;font-family:'DM Mono',monospace;font-size:12px;color:#f59e0b;font-weight:700;cursor:pointer;"
+    lbl.onclick = () => { if (ed.audio) ed.audio.currentTime = t }
+    const del = document.createElement('button'); del.textContent = '✕'
+    del.style.cssText = 'background:none;border:none;border-left:1px solid #f59e0b33;color:#888;font-size:11px;cursor:pointer;padding:6px 8px;line-height:1;'
+    del.onclick = e => { e.stopPropagation(); ed.bookmarks.splice(i, 1); renderBmTicks(); renderBmList() }
+    pill.appendChild(lbl); pill.appendChild(del); wrap.appendChild(pill)
+  })
+}
+function addBookmark(): void {
+  if (!dur()) return
+  const t = ed.audio!.currentTime
+  if (ed.bookmarks.some(b => Math.abs(b - t) < 0.3)) { toast('이미 근처에 북마크가 있어요'); return }
+  ed.bookmarks.push(t); ed.bookmarks.sort((a, b) => a - b); renderBmTicks(); renderBmList()
+}
+
+async function exportAB(): Promise<void> {
+  if (ed.ptA === null || ed.ptB === null || !ed.item) { toast('A, B 지점을 먼저 설정해주세요'); return }
+  try {
+    const arrayBuf = await (await fetch(ed.item.url)).arrayBuffer()
+    const tmpAC = new AudioContext(); const decoded = await tmpAC.decodeAudioData(arrayBuf); await tmpAC.close()
+    const sr = decoded.sampleRate, ch = decoded.numberOfChannels
+    const s0 = Math.floor(ed.ptA * sr), s1 = Math.floor(ed.ptB * sr), len = s1 - s0
+    if (len <= 0) { toast('구간이 너무 짧아요'); return }
+    const offAC = new OfflineAudioContext(ch, len, sr); const buf = offAC.createBuffer(ch, len, sr)
+    for (let c = 0; c < ch; c++) buf.copyToChannel(decoded.getChannelData(c).slice(s0, s1), c)
+    const src = offAC.createBufferSource(); src.buffer = buf; src.connect(offAC.destination); src.start()
+    const rendered = await offAC.startRendering()
+    const blob = new Blob([bufToWav(rendered)], { type: 'audio/wav' }); const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'gopractice_' + ed.item.name + '_cut.wav'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 3000)
+  } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
+}
+
+export function mountEditor(): void {
+  const track = q('ed-track')
+  on(track, 'click', (e: MouseEvent) => {
+    if (ed.dragging || (e.target as HTMLElement).closest('#ed-pos-handle,#ed-a-handle,#ed-b-handle')) return
+    const d = dur(); if (!d) return
+    const t = pctFromClient(e.clientX) * d; ed.audio!.currentTime = t; setPosUI(t)
+  })
+  const start = (which: EdState['dragging']) => (e: Event) => { e.stopPropagation(); ed.dragging = which }
+  for (const [id, w] of [['ed-pos-handle', 'pos'], ['ed-a-handle', 'a'], ['ed-b-handle', 'b']] as const) {
+    on(q(id), 'mousedown', start(w)); on(q(id), 'touchstart', start(w), { passive: true })
+  }
+  on(q('ed-back-btn'), 'click', closeEditor)
+  on(q('ed-title-edit'), 'click', editTitle)
+  on(q('ed-play-btn'), 'click', togglePlay)
+  on(q('ed-speed'), 'input', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value))
+  on(q('ed-a-btn'), 'click', toggleA); on(q('ed-b-btn'), 'click', toggleB); on(q('ed-loop-btn'), 'click', toggleLoop)
+  on(q('ed-bm-add-btn'), 'click', addBookmark); on(q('ed-export-btn'), 'click', exportAB)
+}
