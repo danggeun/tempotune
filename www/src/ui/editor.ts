@@ -7,7 +7,7 @@ import { fmtT } from '../core/format.ts'
 import { bufToWav } from '../core/wav.ts'
 import { computePeaks } from '../core/peaks.ts'
 import { recListStore, type RecItem } from '../state/index.ts'
-import { renameRec, patchRec, recFileName } from '../audio/recorder.ts'
+import { patchRec, recFileName } from '../audio/recorder.ts'
 import { saveFile } from '../platform/index.ts'
 import { q, on } from './dom.ts'
 import { toast } from './toast.ts'
@@ -23,7 +23,9 @@ interface EdState {
 const ed: EdState = { idx: -1, item: null, audio: null, ptA: null, ptB: null, looping: false, bookmarks: [], dragging: null, readyTimeout: null, handlers: null }
 
 const pct = (t: number, d: number) => (t / d * 100).toFixed(3) + '%'
-const dur = () => (ed.audio && isFinite(ed.audio.duration) && ed.audio.duration > 0) ? ed.audio.duration : 0
+// Chromium 은 MediaRecorder webm 의 duration 을 끝까지 seek 하기 전까지 Infinity 로 보고한다(crbug 642012).
+// 그러면 A-B/북마크/진행바가 전부 멈추므로 녹음 시 잰 길이(item.dur)로 폴백한다. 정확한 길이는 loadedmetadata 에서 seek 트릭으로 얻는다.
+const dur = () => (ed.audio && isFinite(ed.audio.duration) && ed.audio.duration > 0) ? ed.audio.duration : (ed.item?.dur ?? 0)
 
 function setPosUI(t: number): void {
   const d = dur(); if (!d) return
@@ -33,9 +35,16 @@ function setPosUI(t: number): void {
 function onTimeUpdate(): void {
   if (ed.dragging || !ed.audio) return
   const d = dur(); if (!d) return
-  const t = ed.audio.currentTime; setPosUI(t)
-  if (ed.looping && ed.ptA !== null && ed.ptB !== null && t >= ed.ptB) ed.audio.currentTime = ed.ptA
+  setPosUI(ed.audio.currentTime)
 }
+// A-B 반복은 timeupdate(≈4 Hz, 최대 250 ms 늦음)가 아니라 rAF 로 검사 — 다음 마디 첫 음이 새어 들리지 않게
+let loopRaf: number | null = null
+function loopTick(): void {
+  loopRaf = null; const a = ed.audio; if (!a || a.paused) return
+  if (ed.looping && ed.ptA !== null && ed.ptB !== null && a.currentTime >= ed.ptB - 0.02) a.currentTime = ed.ptA
+  loopRaf = requestAnimationFrame(loopTick)
+}
+function startLoopWatch(): void { if (loopRaf == null) loopRaf = requestAnimationFrame(loopTick) }
 function pctFromClient(clientX: number): number { const r = q('ed-track').getBoundingClientRect(); return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) }
 
 function updateHandles(): void {
@@ -59,13 +68,20 @@ const updateBBtn = () => abBtn('ed-b-btn', true, fmtT(ed.ptB!))
 const resetABtn = () => abBtn('ed-a-btn', false, '설정')
 const resetBBtn = () => abBtn('ed-b-btn', false, '설정', true)
 const resetLoopBtn = () => abBtn('ed-loop-btn', false, '꺼짐', true)
+/** A/B 지점을 ±0.25 s 미세 조정 (재생 중 찍으면 반응 지연만큼 늦는 것을 손가락 드래그 없이 보정) */
+function nudge(which: 'a' | 'b', d: number): void {
+  const len = dur(); if (!len) return
+  if (which === 'a' && ed.ptA !== null) ed.ptA = Math.max(0, Math.min(ed.ptB !== null ? ed.ptB - 0.1 : len, ed.ptA + d))
+  if (which === 'b' && ed.ptB !== null) ed.ptB = Math.max(ed.ptA !== null ? ed.ptA + 0.1 : 0, Math.min(len, ed.ptB + d))
+  updateHandles(); if (ed.ptA !== null) updateABtn(); if (ed.ptB !== null) updateBBtn(); persistEdit()
+}
 function checkExportBtn(): void { q('ed-export-btn').style.color = ed.ptA !== null && ed.ptB !== null ? 'var(--text)' : 'var(--dim)' }
 
 /** 편집 상태(북마크/A-B)를 녹음 항목에 저장 — 다시 열어도 그대로 */
 function persistEdit(): void {
-  if (ed.idx < 0) return
-  patchRec(ed.idx, { bookmarks: ed.bookmarks.slice(), ab: ed.ptA !== null && ed.ptB !== null ? { a: ed.ptA, b: ed.ptB } : null })
-  ed.item = recListStore.get().items[ed.idx] ?? ed.item
+  if (!ed.item) return
+  const next = patchRec(ed.item, { bookmarks: ed.bookmarks.slice(), ab: ed.ptA !== null && ed.ptB !== null ? { a: ed.ptA, b: ed.ptB } : null })
+  if (next) ed.item = next
 }
 
 // ── 파형 ──
@@ -84,28 +100,33 @@ function drawWave(): void {
   const cs = getComputedStyle(document.documentElement)
   const colUnplayed = cs.getPropertyValue('--border').trim() || '#d4d7dc', colPlayed = cs.getPropertyValue('--muted').trim() || '#555'
   const d = dur(), pos = ed.audio && d ? ed.audio.currentTime / d : 0
-  const n = peaks.length, mid = H / 2, amp = (H / 2) * 0.92
-  // A-B 구간 틴트 (파형 뒤)
-  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = 'rgba(229,48,48,.12)'; c.fillRect(ed.ptA / d * W, 0, (ed.ptB - ed.ptA) / d * W, H) }
-  // 미러 피크 막대 — 재생된 부분은 진하게
-  const bw = W / n
-  for (let i = 0; i < n; i++) {
-    const h = Math.max(1, peaks[i]! * amp)
-    c.fillStyle = (i + 0.5) / n <= pos ? colPlayed : colUnplayed
-    c.fillRect(i * bw, mid - h, Math.max(1, bw - 0.5), h * 2)
+  const mid = H / 2, amp = (H / 2) * 0.92
+  const dark = matchMedia('(prefers-color-scheme:dark)').matches
+  // A-B 구간 틴트 (파형 뒤) — 다크에서는 더 진하게 (리뷰: .12 는 다크에서 안 보임)
+  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = dark ? 'rgba(229,48,48,.22)' : 'rgba(229,48,48,.12)'; c.fillRect(ed.ptA / d * W, 0, (ed.ptB - ed.ptA) / d * W, H) }
+  // 2 px 컬럼으로 리샘플(600 bin 을 340 px 에 그리면 겹쳐서 덩어리가 된다), pow(.6) 으로 조용한 부분도 보이게
+  const colW = 2, cols = Math.floor(W / colW), n = peaks.length
+  for (let k = 0; k < cols; k++) {
+    let m = 0; const i0 = Math.floor(k * n / cols), i1 = Math.max(i0 + 1, Math.floor((k + 1) * n / cols))
+    for (let i = i0; i < i1; i++) if (peaks[i]! > m) m = peaks[i]!
+    const h = Math.max(1, Math.pow(m, 0.6) * amp)
+    c.fillStyle = (k + 0.5) / cols <= pos ? colPlayed : colUnplayed
+    c.fillRect(k * colW, mid - h, colW - 0.5, h * 2)
   }
   c.restore()
 }
 /** 피크가 없으면 blob 을 디코드해 계산하고 저장 (한 번만) */
-async function ensurePeaks(item: RecItem, idx: number): Promise<void> {
+/** 녹음 중 누적한 피크가 없는 항목(구버전)만 디코드해 계산 — 긴 녹음(10분+)은 메모리를 많이 써서 12분 이상은 건너뛴다 */
+async function ensurePeaks(item: RecItem): Promise<void> {
   if (item.peaks && item.peaks.length) { peaks = item.peaks; requestWave(); return }
   peaks = null; requestWave()
+  if (item.dur > 12 * 60) return
   try {
     const buf = await (await fetch(item.url)).arrayBuffer()
-    const ac = new OfflineAudioContext(1, 1, 44100); const decoded = await ac.decodeAudioData(buf)
+    const ac = new OfflineAudioContext(1, 1, 48000); const decoded = await ac.decodeAudioData(buf)
     const p = computePeaks(Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i)), 600)
-    if (ed.idx !== idx) return // 그 사이 다른 항목을 열었음
-    peaks = p; patchRec(idx, { peaks: p }); ed.item = recListStore.get().items[idx] ?? ed.item; requestWave()
+    if (ed.item !== item) return // 그 사이 다른 항목을 열었음
+    peaks = p; const next = patchRec(item, { peaks: p }); if (next) ed.item = next; requestWave()
   } catch { /* 디코드 실패 → 레일 유지 */ }
 }
 
@@ -130,15 +151,18 @@ function initDrag(): void {
   window.addEventListener('touchmove', ed.handlers.tm, { passive: true }); window.addEventListener('touchend', ed.handlers.te)
 }
 
-export function openEditor(idx: number): void {
+export function openEditor(item: RecItem): void {
   hideMenu()
-  const item = recListStore.get().items[idx]; if (!item) return
+  if (!recListStore.get().items.includes(item)) return
   if (ed.audio) { ed.audio.pause(); ed.audio = null }
-  ed.idx = idx; ed.item = item; ed.ptA = null; ed.ptB = null; ed.looping = false; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null
+  ed.idx = 0; ed.item = item; ed.ptA = null; ed.ptB = null; ed.looping = false; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null
 
   const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
   ed.audio = audio
-  const updateDur = () => { const d = dur() ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0); q('ed-dur').textContent = fmtT(d) }
+  const updateDur = () => { q('ed-dur').textContent = fmtT(isFinite(audio.duration) && audio.duration > 0 ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0)) }
+  // webm duration=Infinity 트릭: 끝으로 seek 하면 durationchange 로 실제 길이가 온다
+  let fixing = false
+  audio.addEventListener('loadedmetadata', () => { if (audio.duration === Infinity && !fixing) { fixing = true; audio.currentTime = 1e101; audio.addEventListener('durationchange', () => { if (fixing && isFinite(audio.duration)) { fixing = false; audio.currentTime = 0 } }) } })
   audio.addEventListener('loadedmetadata', updateDur); audio.addEventListener('durationchange', updateDur)
   // 저장된 A-B/북마크는 길이를 알아야 그릴 수 있다 — 첫 loadedmetadata 에서 복원
   let restored = false
@@ -154,6 +178,7 @@ export function openEditor(idx: number): void {
   ed.readyTimeout = setTimeout(ready, 3000)
   audio.addEventListener('canplaythrough', ready, { once: true })
   audio.addEventListener('timeupdate', onTimeUpdate)
+  audio.addEventListener('play', startLoopWatch)
   audio.addEventListener('ended', () => {
     playBtn.textContent = '▶'
     if (ed.looping && ed.ptA !== null && ed.ptB !== null) { audio.currentTime = ed.ptA; audio.play(); playBtn.textContent = '■' }
@@ -170,7 +195,7 @@ export function openEditor(idx: number): void {
   q('ed-bm-ticks').innerHTML = ''
   renderBmList()
   resetABtn(); resetBBtn(); resetLoopBtn()
-  void ensurePeaks(item, idx)
+  void ensurePeaks(item)
   const ex = q('ed-export-btn'); ex.style.color = 'var(--dim)'; ex.style.borderColor = 'var(--border)'
   q('editor-page').style.display = 'flex'
   initDrag()
@@ -178,22 +203,22 @@ export function openEditor(idx: number): void {
 
 export function closeEditor(): void {
   if (ed.audio) { ed.audio.pause(); ed.audio = null }
-  peaks = null; ed.idx = -1
+  if (loopRaf != null) { cancelAnimationFrame(loopRaf); loopRaf = null }
+  peaks = null; ed.idx = -1; ed.item = null
   if (ed.readyTimeout) clearTimeout(ed.readyTimeout)
   removeWindowHandlers()
   showMenuInstant()
   q('editor-page').style.display = 'none'
 }
 /** 삭제되는 항목을 편집 중이면 닫는다 */
-export function closeEditorIfEditing(idx: number): void { if (ed.idx === idx) closeEditor() }
+export function closeEditorIfEditing(item: RecItem): void { if (ed.item === item) closeEditor() }
 
 function editTitle(): void {
   const current = ed.item ? ed.item.name : ''
   const newName = prompt('파일 이름 수정', current)
-  if (newName && newName.trim() && ed.idx >= 0) {
+  if (newName && newName.trim() && ed.item) {
     const name = newName.trim()
-    renameRec(ed.idx, name) // IndexedDB 에도 저장 (v1 버그 수정)
-    ed.item = recListStore.get().items[ed.idx] ?? ed.item
+    const next = patchRec(ed.item, { name }); if (next) ed.item = next // IndexedDB(meta) 에도 저장
     q('editor-title-display').textContent = name
   }
 }
@@ -315,5 +340,9 @@ export function mountEditor(): void {
   on(q('ed-a-btn'), 'click', toggleA); on(q('ed-b-btn'), 'click', toggleB); on(q('ed-loop-btn'), 'click', toggleLoop)
   on(q('ed-bm-add-btn'), 'click', addBookmark); on(q('ed-export-btn'), 'click', exportAB)
   on(q('ed-dl-btn'), 'click', (e: Event) => { e.preventDefault(); void downloadWhole() })
+  on(q('ed-a-nudge-l'), 'click', () => nudge('a', -0.25)); on(q('ed-a-nudge-r'), 'click', () => nudge('a', 0.25))
+  on(q('ed-b-nudge-l'), 'click', () => nudge('b', -0.25)); on(q('ed-b-nudge-r'), 'click', () => nudge('b', 0.25))
+  on(q('ed-a-time'), 'click', () => { if (ed.audio && ed.ptA !== null) { ed.audio.currentTime = ed.ptA; setPosUI(ed.ptA) } }) // A 로 돌아가기
+  on(q('ed-b-time'), 'click', () => { if (ed.audio && ed.ptB !== null) { ed.audio.currentTime = ed.ptB; setPosUI(ed.ptB) } })
   new ResizeObserver(requestWave).observe(q('ed-track'))
 }

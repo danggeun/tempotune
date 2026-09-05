@@ -1,11 +1,16 @@
 /** 메뉴의 녹음 목록 — 최신 1개 펼침 + 이전 N개 접힘, 항목별 미니 플레이어 */
 import { recListStore, type RecItem } from '../state/index.ts'
 import { fmtT } from '../core/format.ts'
-import { deleteRec, recFileName } from '../audio/recorder.ts'
+import { deleteRec, restoreDeleted, recFileName } from '../audio/recorder.ts'
 import { saveFile } from '../platform/index.ts'
 import { toast } from './toast.ts'
 import { q, on } from './dom.ts'
 
+/** 자동 이름(YYYYMMDD_HHMM)은 저장명으로 두고 표시는 읽히는 형태로: '9/5 10:50'. 사용자가 바꾼 이름은 그대로 */
+export function displayName(item: RecItem): string {
+  const m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})$/.exec(item.name)
+  return m ? `${+m[2]!}/${+m[3]!} ${m[4]}:${m[5]}` : item.name
+}
 const players: Record<number, HTMLAudioElement> = {}
 function getPlayer(idx: number): HTMLAudioElement {
   let a = players[idx]
@@ -52,11 +57,11 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
           <div class="rec-item-btns">
             <button class="rec-item-btn" data-action="edit" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">편집</button>
             <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">다운로드</a>
-            <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">🗑</button>
+            <button class="rec-item-btn del" data-action="delete" data-idx="${idx}" style="font-size:12px;font-weight:700;letter-spacing:.04em;">삭제</button>
           </div>
         </div>
       </div>`
-  div.querySelector('.rec-item-name')!.textContent = item.name // 사용자 데이터는 textContent 로만 (인젝션 방지)
+  div.querySelector('.rec-item-name')!.textContent = displayName(item) // 사용자 데이터는 textContent 로만 (인젝션 방지)
   ;(div.querySelector('.rec-dl-link') as HTMLAnchorElement).download = recFileName(item)
   return div
 }
@@ -84,17 +89,22 @@ function render(): void {
   }
 }
 
-export function mountRecList(openEditor: (idx: number) => void, beforeDelete: (idx: number) => void): void {
+export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: (item: RecItem) => void): void {
   const list = q('rec-list')
   on(list, 'click', (e: MouseEvent) => {
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-action]'); if (!t) return
-    const idx = +t.dataset.idx!
+    const idx = +t.dataset.idx!, item = recListStore.get().items[idx]
     switch (t.dataset.action) {
       case 'toggle': document.getElementById('rec-detail-' + idx)?.classList.toggle('open'); break
       case 'play': playPause(idx); break
-      case 'edit': openEditor(idx); break
-      case 'delete': beforeDelete(idx); stopPlayer(idx); deleteRec(idx); break
-      case 'download': { e.preventDefault(); const it = recListStore.get().items[idx]; if (it) saveFile(it.blob, recFileName(it)).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }); break }
+      case 'edit': if (item) openEditor(item); break
+      case 'delete': { // 확인 대신 실행 취소 (텍스트 버튼 언어, 5 s 토스트)
+        if (!item) break
+        beforeDelete(item); stopPlayer(idx); deleteRec(item)
+        toast('삭제됨 · 실행 취소', 5000, () => { void restoreDeleted(item, idx) })
+        break
+      }
+      case 'download': { e.preventDefault(); if (item) saveFile(item.blob, recFileName(item)).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }); break }
     }
   })
   on(list, 'input', (e: Event) => { const t = e.target as HTMLElement; if (t.dataset.action === 'seek') seek(+t.dataset.idx!) })

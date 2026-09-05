@@ -39,6 +39,12 @@ export function toggleFullscreen(onUnsupported: () => void): void {
 }
 
 // ── 파일 저장 ──
+/** 사용자 이름에서 경로 문자·제어 문자를 제거 (하위 폴더로 새거나 실패하지 않게) */
+export function sanitizeFileName(name: string): string {
+  const cleaned = name.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').replace(/\.{2,}/g, '.').trim().replace(/^\.+/, '')
+  return (cleaned || 'recording').slice(0, 120)
+}
+const toBase64 = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
 /**
  * 파일을 사용자에게 건넨다. 웹: 브라우저 다운로드. Android 앱: 캐시에 쓰고 공유 시트(파일 앱·드라이브 등으로 저장).
  * WebView 의 <a download> 는 동작하지 않는 경우가 많아(설계서 §D1) 네이티브 경로를 쓴다.
@@ -51,9 +57,19 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
       return { ok: true }
     }
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])
-    const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.onerror = () => rej(r.error); r.readAsDataURL(blob) })
-    const w = await Filesystem.writeFile({ path: 'gopractice/' + name, data: b64, directory: Directory.Cache, recursive: true })
-    await Share.share({ title: name, url: w.uri, dialogTitle: '저장 / 공유' })
+    const safe = sanitizeFileName(name)
+    // 이전 공유 파일 정리 (캐시에 50 MB 씩 쌓이지 않게)
+    await Filesystem.rmdir({ path: 'gopractice', directory: Directory.Cache, recursive: true }).catch(() => {})
+    await Filesystem.mkdir({ path: 'gopractice', directory: Directory.Cache, recursive: true }).catch(() => {})
+    // 큰 파일은 1 MB 씩 나눠 쓴다 — base64 문자열 한 덩어리로 브리지를 건너면 ANR/OOM
+    const CHUNK = 1024 * 1024; const path = 'gopractice/' + safe
+    for (let off = 0; off < blob.size; off += CHUNK) {
+      const b64 = await toBase64(blob.slice(off, off + CHUNK))
+      if (off === 0) await Filesystem.writeFile({ path, data: b64, directory: Directory.Cache })
+      else await Filesystem.appendFile({ path, data: b64, directory: Directory.Cache })
+    }
+    const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
+    await Share.share({ title: safe, url: uri, dialogTitle: '저장 / 공유' })
     return { ok: true }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

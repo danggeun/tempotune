@@ -1,25 +1,17 @@
 /**
- * 녹음 영속화 (IndexedDB). 스키마 v2: 북마크·A-B 구간·파형 피크를 녹음과 함께 저장한다.
- * v1 → v2 마이그레이션은 onupgradeneeded 에서 기존 행에 기본값을 채운다.
+ * 녹음 영속화 (IndexedDB). 스키마 v3:
+ *   recordings: {id, name, dur, blob, mime, ts}            — 큰 blob, 거의 안 바뀜
+ *   meta:       {id, name?, bookmarks, ab, peaks}          — 편집 상태, 자주 바뀜 (blob 을 다시 쓰지 않게 분리)
+ * v1(필드 없음) → v2(같은 행에 bookmarks/ab) → v3(meta 분리) 마이그레이션.
  */
-export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings'
-export const REC_DB_VERSION = 2
+export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings', META_STORE = 'meta'
+export const REC_DB_VERSION = 3
 export const REC_TTL = 30 * 24 * 60 * 60 * 1000
 
 export interface AB { a: number; b: number }
-export interface RecRow {
-  id?: number
-  name: string
-  dur: number
-  blob: Blob
-  mime: string
-  ts: number
-  /** v2 */
-  bookmarks: number[]
-  ab: AB | null
-  /** 파형 미니맵 (0..1 피크, 길이 ≈ 600). 편집기가 처음 열 때 계산해 저장 */
-  peaks?: Float32Array
-}
+export interface RecRow { id?: number; name: string; dur: number; blob: Blob; mime: string; ts: number }
+export interface RecMeta { id: number; name?: string; bookmarks: number[]; ab: AB | null; peaks?: Float32Array }
+export interface RecFull extends RecRow { bookmarks: number[]; ab: AB | null; peaks?: Float32Array }
 
 let db: IDBDatabase | null = null
 const req = <T>(r: IDBRequest<T>): Promise<T> => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error) })
@@ -29,38 +21,56 @@ export function openRecDb(): Promise<IDBDatabase> {
     const r = indexedDB.open(REC_DB, REC_DB_VERSION)
     r.onupgradeneeded = e => {
       const d = (e.target as IDBOpenDBRequest).result, tx = (e.target as IDBOpenDBRequest).transaction!
-      const store = d.objectStoreNames.contains(REC_STORE) ? tx.objectStore(REC_STORE) : d.createObjectStore(REC_STORE, { keyPath: 'id', autoIncrement: true })
-      if (e.oldVersion < 2) { // v1 행에 v2 필드 채우기
-        const cur = store.openCursor()
-        cur.onsuccess = () => { const c = cur.result; if (!c) return; const row = c.value as Partial<RecRow>; if (!Array.isArray(row.bookmarks)) row.bookmarks = []; if (row.ab === undefined) row.ab = null; c.update(row); c.continue() }
+      const recs = d.objectStoreNames.contains(REC_STORE) ? tx.objectStore(REC_STORE) : d.createObjectStore(REC_STORE, { keyPath: 'id', autoIncrement: true })
+      const meta = d.objectStoreNames.contains(META_STORE) ? tx.objectStore(META_STORE) : d.createObjectStore(META_STORE, { keyPath: 'id' })
+      if (e.oldVersion < 3) { // v1/v2 행의 편집 필드를 meta 로 옮기고 행에서는 제거
+        const cur = recs.openCursor()
+        cur.onsuccess = () => {
+          const c = cur.result; if (!c) return
+          const row = c.value as RecRow & Partial<RecMeta>
+          meta.put({ id: row.id!, bookmarks: Array.isArray(row.bookmarks) ? row.bookmarks : [], ab: row.ab ?? null, peaks: row.peaks })
+          if ('bookmarks' in row || 'ab' in row || 'peaks' in row) { delete row.bookmarks; delete row.ab; delete row.peaks; c.update(row) }
+          c.continue()
+        }
       }
     }
-    r.onsuccess = e => { db = (e.target as IDBOpenDBRequest).result; res(db) }
+    r.onsuccess = e => {
+      const d = (e.target as IDBOpenDBRequest).result
+      d.onversionchange = () => { d.close(); if (db === d) db = null } // 다른 탭이 업그레이드하면 놓아준다 (blocked 방지)
+      db = d; res(d)
+    }
     r.onerror = () => rej(r.error)
     r.onblocked = () => rej(new Error('db blocked'))
   })
 }
-const store = (mode: IDBTransactionMode) => db!.transaction(REC_STORE, mode).objectStore(REC_STORE)
+const store = (name: string, mode: IDBTransactionMode) => db!.transaction(name, mode).objectStore(name)
 
-export async function dbSave(row: RecRow): Promise<number | null> {
+export async function dbSave(row: RecRow, meta: Omit<RecMeta, 'id'>): Promise<number | null> {
   if (!db) return null
-  return req(store('readwrite').add(row)) as Promise<number>
+  const id = (await req(store(REC_STORE, 'readwrite').add(row))) as number
+  await req(store(META_STORE, 'readwrite').put({ id, ...meta })).catch(() => {})
+  return id
 }
-export function dbDelete(id: number | null | undefined): void { if (db && id != null) store('readwrite').delete(id) }
-/** 일부 필드만 갱신 (get → put). 실패는 조용히 — 편집 상태는 메모리에 남아 있다 */
-export async function dbPatch(id: number | null | undefined, patch: Partial<Omit<RecRow, 'id'>>): Promise<void> {
+export function dbDelete(id: number | null | undefined): void {
   if (!db || id == null) return
-  const s = store('readwrite'); const row = (await req(s.get(id))) as RecRow | undefined
-  if (row) { Object.assign(row, patch); await req(s.put(row)) }
+  store(REC_STORE, 'readwrite').delete(id); store(META_STORE, 'readwrite').delete(id)
+}
+/** 편집 상태/이름만 갱신 — blob 은 건드리지 않는다 */
+export async function dbPatchMeta(id: number | null | undefined, patch: Partial<Omit<RecMeta, 'id'>>): Promise<void> {
+  if (!db || id == null) return
+  const s = store(META_STORE, 'readwrite'); const cur = ((await req(s.get(id))) as RecMeta | undefined) ?? { id, bookmarks: [], ab: null }
+  await req(s.put({ ...cur, ...patch, id }))
 }
 /** 전체 로드 (최신순). TTL 지난 항목은 삭제 후 제외. */
-export async function dbLoadAll(): Promise<RecRow[]> {
+export async function dbLoadAll(): Promise<RecFull[]> {
   if (!db) return []
-  const rows = (await req(store('readonly').getAll())) as Partial<RecRow>[]
-  const now = Date.now(), keep: RecRow[] = []
-  for (const r of rows.sort((a, b) => b.ts! - a.ts!)) {
-    if (now - r.ts! > REC_TTL) { dbDelete(r.id); continue }
-    keep.push({ ...r, bookmarks: r.bookmarks ?? [], ab: r.ab ?? null } as RecRow)
+  const rows = (await req(store(REC_STORE, 'readonly').getAll())) as RecRow[]
+  const metas = new Map(((await req(store(META_STORE, 'readonly').getAll())) as RecMeta[]).map(m => [m.id, m]))
+  const now = Date.now(), keep: RecFull[] = []
+  for (const r of rows.sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
+    if (typeof r.ts === 'number' && now - r.ts > REC_TTL) { dbDelete(r.id); continue } // ts 없는 구버전 행은 보관
+    const m = metas.get(r.id!)
+    keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks })
   }
   return keep
 }

@@ -139,7 +139,7 @@ await scenario('rec: start/stop → list item, persists reload, rename persists 
   assert.equal(await p.evaluate(() => document.getElementById('hdr-rec-time').classList.contains('show')), true)
   await p.click('#rec-hdr-btn'); await sleep(p, 800)
   const names = () => p.evaluate(() => Array.from(document.querySelectorAll('#rec-list .rec-item-name')).map(e => e.textContent))
-  assert.equal((await names()).length, 1); assert.match((await names())[0], /^\d{8}_\d{4}$/)
+  assert.equal((await names()).length, 1); assert.match((await names())[0], /^\d{1,2}\/\d{1,2} \d{2}:\d{2}$/) // 표시명 '9/5 10:50' (저장명은 YYYYMMDD_HHMM)
   await p.reload(); await sleep(p, 1200); assert.equal((await names()).length, 1, 'restored from IndexedDB')
   await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('editor-page').style.display), 'flex')
@@ -153,6 +153,10 @@ await scenario('rec: start/stop → list item, persists reload, rename persists 
   results.push(['rec: rename persisted after reload', (await names())[0] === '연습곡A' ? 'ok' : 'NO (v1 known bug)'])
   await p.click('#menu-btn'); await p.click('[data-action="delete"][data-idx="0"]'); await sleep(p, 300)
   assert.equal((await names()).length, 0)
+  await p.click('#toast'); await sleep(p, 500) // 실행 취소
+  assert.equal((await names()).length, 1, 'undo restores'); assert.equal((await names())[0], '연습곡A')
+  await p.reload(); await sleep(p, 1200); assert.equal((await names()).length, 1, 'restored item persisted')
+  await p.click('#menu-btn'); await p.click('[data-action="delete"][data-idx="0"]'); await sleep(p, 5600); assert.equal((await names()).length, 0)
 })
 await scenario('editor: A/B/loop/bookmark flows', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')

@@ -200,6 +200,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 /* ── 토스트 ── */
 #toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(10px);background:#111;border-radius:10px;padding:10px 20px;font-size:14px;color:#fff;opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:nowrap;z-index:200;}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.show.actionable{pointer-events:auto;cursor:pointer;text-decoration:underline;text-underline-offset:3px;} /* 실행 취소처럼 탭할 수 있는 토스트 */
 
 /* ══════════════════════════════════
    편집 페이지
@@ -231,7 +232,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 #ed-pos-handle{position:absolute;top:50%;left:0%;width:20px;height:20px;background:var(--text);border-radius:50%;transform:translate(-50%,-50%);z-index:5;cursor:ew-resize;touch-action:none;box-shadow:0 1px 6px rgba(0,0,0,.25);}
 #ed-pos-hit{position:absolute;inset:-16px;}
 #ed-ab-times{display:none;justify-content:space-between;margin-top:4px;}
-#ed-a-time,#ed-b-time{font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-weight:700;}
+#ed-a-time,#ed-b-time{font-family:'DM Mono',monospace;font-size:11px;color:var(--red);font-weight:700;cursor:pointer;}
+.ed-ab-time-group{display:inline-flex;align-items:center;gap:2px;}
+.ed-nudge{background:none;border:none;color:var(--red);font-family:'DM Mono',monospace;font-size:15px;line-height:1;padding:4px 7px;cursor:pointer;opacity:.7;} /* A/B ±0.25 s 미세 조정 */
 #ed-transport{display:flex;align-items:center;gap:8px;padding:14px 16px;margin:6px 22px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;flex-shrink:0;}
 #ed-play-btn{width:52px;height:52px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 #ed-speed-ctrl{flex:1;display:flex;flex-direction:column;border-left:1.5px solid var(--border);padding-left:14px;}
