@@ -1,17 +1,27 @@
 {
-  "name": "gopractice",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "go-practice",
+  "version": "2.0.0",
+  "description": "현악기 연습 앱 — 튜너 · 메트로놈 · 기준음 · 녹음 편집 (PWA + Capacitor Android)",
+  "private": true,
+  "license": "MIT",
+  "author": "Yeonho (danggeun)",
+  "homepage": "https://danggeun.github.io/go_practice/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danggeun/go_practice.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:cap": "BASE=/ vite build",
+    "build:cap": "cross-env BASE=/ vite build",
     "cap:sync": "npm run build:cap && npx cap sync android && node scripts/cap-manifest.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "deploy": "gh-pages -d dist",
     "gen:signals": "node scripts/gen-signals.mjs",
     "bench": "node scripts/gen-signals.mjs && node scripts/bench.mjs",
     "shots": "node scripts/screenshots.mjs --serve --out test-assets/screens/current --compare test-assets/screens/baseline",
@@ -20,12 +30,10 @@
     "check": "npm run typecheck && node scripts/check-deps.mjs && npm test",
     "e2e": "npm run build:cap && node scripts/e2e.mjs --dist dist",
     "verify": "npm run check && npm run shots && npm run e2e",
-    "cap:manifest": "node scripts/cap-manifest.mjs"
+    "cap:manifest": "node scripts/cap-manifest.mjs",
+    "cap:assets": "capacitor-assets generate --android --iconBackgroundColor #000000 --iconBackgroundColorDark #000000 --splashBackgroundColor #f7f8fb --splashBackgroundColorDark #0f0f0f",
+    "icons": "node scripts/gen-icons.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
     "@capacitor/android": "^8.3.0",
     "@capacitor/app": "^8.1.1",
@@ -40,7 +48,7 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@types/node": "^26.4.1",
-    "gh-pages": "^6.3.0",
+    "cross-env": "^10.1.0",
     "pixelmatch": "^7.2.0",
     "playwright": "^1.63.0",
     "pngjs": "^7.0.0",

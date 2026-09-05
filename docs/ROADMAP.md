@@ -146,6 +146,7 @@ www/src/
 - 서명 APK 릴리즈 자동화, 버전 태깅, CHANGELOG
 - `ARCHITECTURE.md` (왜 이런 구조인지), README 갱신, 튜너 정확도 측정 결과 공개
 - 라이선스 결정
+- **상태 (2026-09-05): 완료.** 최종 검토(제품/UX·코드·릴리즈 세 리뷰)에서 나온 결함 — 기준음 ≠ 440 음이름 오류, 메트로놈 중 튜너 정지, 녹음 재시작 경합 — 을 먼저 고치고(docs/UX-AUDIT.md §7), CI(`.github/workflows/ci.yml`)·Pages 배포·README·ARCHITECTURE·CHANGELOG·MIT·아이콘 재생성·Windows 호환 스크립트. 서명 APK 는 사용자 PC 에서 (ARCHITECTURE §6). 릴리즈 자동화(APK 를 Actions 에서 서명)는 키스토어를 시크릿에 올려야 해 보류 — 확인 필요.
 
 ## 5. 순서와 규모
 

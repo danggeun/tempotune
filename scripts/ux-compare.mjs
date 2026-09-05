@@ -51,7 +51,7 @@ const SCENES = [
 let port = 4300
 for (const v of variants) {
   // detached + 프로세스 그룹 kill: npx 만 죽이면 자식 serve 가 포트를 물고 남아 다음 실행이 옛 빌드를 찍는다
-  const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(port), v.dist], { stdio: 'ignore', detached: true })
+  const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(port), v.dist], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' })
   await new Promise(r => setTimeout(r, 2200))
   for (const [scene, wav, prep] of SCENES) {
     if (only && !only.includes(scene)) continue

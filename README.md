@@ -1,131 +1,94 @@
-# Go Practice
+# Go practice
 
-> 악기 연습자를 위한 크로마틱 튜너 · 메트로놈 · 녹음 편집기  
-> PWA + Android 네이티브 앱
+> 현악기 연습을 위한 크로마틱 튜너 · 메트로놈 · 기준음 · 녹음 편집기
+> 웹(PWA) + Android 앱 (Capacitor)
 
-[![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://carrot-dev01.github.io/go_practice)
-[![Android](https://img.shields.io/badge/Android-APK-3ddc84?style=flat-square&logo=android)](#android-빌드)
-[![License](https://img.shields.io/badge/License-ISC-blue?style=flat-square)](#)
+[![CI](https://github.com/danggeun/go_practice/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/go_practice/actions/workflows/ci.yml)
+[![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/go_practice/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+
+**웹 앱: <https://danggeun.github.io/go_practice/>** — Chrome · Safari · Edge 최신 버전. 홈 화면에 추가하면 오프라인에서도 동작하는 PWA.
+
+보면대 위 60–90 cm 에서, 활을 든 채 쓰는 것을 전제로 만들었다: 검정 무대 위의 큰 음이름, 초록은 '맞음' 하나의 뜻, 확인 대화상자 없이 실행 취소, 글자 버튼.
 
 ---
 
 ## 기능
 
-### 크로마틱 튜너
-- **YIN 알고리즘**(FFT 가속) 기반 실시간 음정 감지 + 신뢰도 기반 안정화 — AudioWorklet → Worker 파이프라인으로 메인 스레드 부하 없음
-- 신호처리 기반 연주 감지 — 주기성·배음·평탄도·지속시간으로 말소리/잡음을 걸러 실제 연주 시간만 측정 (오프라인, 모델 없음)
-- 60fps 히스토리 캔버스로 음정 변화를 연속적으로 시각화
-- A=410–466Hz 기준음 드럼 피커로 개인 조율 기준 설정 (바로크 A=415 전후 포함)
-- 40 Hz(콘트라베이스 E1)~4.2 kHz 범위, 옥타브 오류 자동 교정
+### 튜너
+- FFT 기반 YIN 음정 감지 + 신뢰도 트래커. AudioWorklet → Web Worker 파이프라인이라 메인 스레드는 화면만 그린다
+- 40 Hz(콘트라베이스 E1) ~ 4.2 kHz, 스펙트럼 배음 비교로 옥타브 오류 자동 교정
+- 신호처리 기반 **연주 감지** — 주기성·배음·평탄도·지속시간으로 말소리/잡음을 걸러 실제 연주 시간만 센다 (오프라인, 모델 없음)
+- 기준음 A = 410–466 Hz 드럼 피커(바로크 415 포함), 헤더의 **A 듣기**로 메뉴 없이 A 현을 맞춘다
+- 음이름 도레미 / C D E (선택하지 않은 쪽은 작게 병기), 이명동음 병기, 허용 오차 ±5–25 ¢, 반응 속도·마이크 감도 설정
+- 합성 신호 39개 벤치마크 (`test-assets/bench/phase2-v1-vs-v2.md`)
 
 ### 메트로놈
-- AudioWorklet 안에서 샘플 단위로 클릭 생성 — 화면이 꺼지거나 백그라운드여도 박자가 흔들리지 않음
-- 2/4 · 3/4 · 4/4 · 6/8 박자, 4종 세분화, BPM 드래그 조절
-- 재생 중 BPM을 바꿔도 끊김 없이 다음 박부터 반영
+- AudioWorklet 안에서 샘플 단위로 클릭 합성 — 화면이 꺼지거나 백그라운드여도 박자가 흔들리지 않음 (20 s 동안 ±1 샘플, e2e 검증)
+- 2/4 · 3/4 · 4/4 · 6/8, 세분 4종, BPM 20–220 (버튼·드래그), 재생 중 변경은 다음 박부터 즉시 반영
+- 폰에서는 재생 시작 시 접혀 튜너만 남고(♩BPM + 박 점), 재생 중에도 펼쳐서 바꿀 수 있다. 녹음 중에는 클릭 무음 + 시각 피드백
 
-### 기준음 재생
-- 한국 음이름(도~시♯) + 옥타브 조절
-- 마이크 없이도 재생 (단일 AudioContext)
+### 기준음
+- 도~시(♯ 포함) + 옥타브 2–6, 마이크 없이도 재생 (단일 AudioContext)
 
-### 녹음 + 편집기
-- **IndexedDB 영속화** — 녹음 목록과 편집 상태(북마크·A-B 구간·파형)가 앱 재시작 후에도 유지
-- 파형 미니맵 위에서 A-B 구간 드래그, 구간 반복, WAV 잘라내기 저장
-- 북마크, 0.5×–1.5× 배속 조절 (`preservesPitch`)
-- Android 앱에서는 공유 시트로 저장 (파일 앱·드라이브 등)
-- webm/opus · mp4/aac 자동 선택
+### 녹음 · 편집기
+- 녹음 목록은 IndexedDB 에 영속 (30일 자동 삭제 — 설정에서 끌 수 있음, 마지막 7일 예고)
+- 파형, A-B 구간 반복(꺼짐 / 켜짐 / 1초 전부터), **구간 확대**, 북마크, 0.5–1.5× 배속(`preservesPitch`, 값 탭으로 프리셋 순환, 녹음별 기억), 구간 WAV 저장
+- 웹은 브라우저 다운로드, Android 앱은 공유 시트(파일·드라이브 등)로 저장
+- 삭제·타이머 초기화는 확인 없이 즉시 + 5초 실행 취소. 저장 실패는 반드시 알린다 (조용한 실패 없음)
 
 ### 연습 타이머
-- 전체 연습 시간 + 실제 연주로 감지된 시간 분리 측정
-- 15분 비활성 시 자동 마이크 종료
+- 경과 시간과 "소리 낸 시간"(연주 감지) 분리 측정, 15분 무활동 시 마이크 자동 종료
+
+### 앱 완결성
+- 오프라인 PWA (Service Worker 프리캐시, 자체 호스팅 폰트), 업데이트는 앱이 유휴일 때만 적용
+- 오디오 생명주기: 인터럽트 복구, 유휴 시 컨텍스트 suspend, 화면 켜짐 유지(Wake Lock), 백그라운드 진입 시 녹음 저장
+- 권한 흐름: 미결정/거부/차단 각각 안내 (앱은 시스템 설정 경로). Android 뒤로가기는 열린 화면부터 닫음
+- 라이트/다크, 터치 타겟 44 px, 대비 AA, 상태는 점으로
 
 ---
 
-## 기술 스택
-
-| | |
-|---|---|
-| 번들러 | Vite 8 |
-| 언어 | TypeScript (strict) |
-| 테스트 | Vitest 4 단위 · Playwright e2e/스크린샷 · 튜너 벤치마크 |
-| 음정 감지 | FFT 기반 YIN + 신뢰도 트래커 — `www/src/core/pitch/` |
-| 연주 감지 | 신호처리 상태기계 — `www/src/core/playing/` |
-| 오디오 | Web Audio API — AudioWorklet 캡처 → Web Worker 분석 |
-| 녹음 영속화 | IndexedDB (`gopractice_rec`) |
-| 화면 유지 | Screen Wake Lock API |
-| 설정 저장 | localStorage |
-| 모바일 앱 | Capacitor 8 (Android) |
-| 상태바 | `@capacitor/status-bar` — 라이트/다크 자동 대응 |
-
----
-
-## 시작하기
-
-### 웹 개발 서버
+## 실행
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173
+npm install          # 처음 한 번 (Node 22 이상)
+npm run dev          # http://localhost:5173 — 마이크는 localhost 또는 HTTPS 에서만
+npm run build        # GitHub Pages 용 (base=/go_practice/) → dist/
 ```
-
-> 마이크는 `localhost` 또는 HTTPS에서만 동작합니다.
-
-### 테스트
-
-```bash
-npm run test       # 단위 테스트 17개 실행
-npm run test:watch # 파일 변경 감지 자동 재실행
-```
-
-### Android 빌드
-
-```bash
-npm run cap:sync   # Capacitor용 빌드(base=/) + android/ 동기화 (플러그인: status-bar, filesystem, share, app)
-# → Android Studio → Build → Build APK(s)
-```
-
-`cap:sync` 끝에 `scripts/cap-manifest.mjs` 가 `AndroidManifest.xml` 에 `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` 를 보정합니다 (없으면 마이크가 조용히 실패하고 설정에 권한 항목도 안 보입니다). Filesystem 은 앱 캐시만 쓰고 Share 는 공유 시트라 추가 권한이 없습니다. 앱이 백그라운드로 가면 OS 가 마이크를 무음 처리하므로 진행 중인 녹음은 그 시점에 저장됩니다.
-뒤로가기는 열린 화면(편집기 → 설정 → 메뉴)을 먼저 닫고, 메인에서는 앱을 종료하지 않고 백그라운드로 보냅니다.
-
-> `npm run build` 는 GitHub Pages용(base=/go_practice/), `npm run cap:sync` 는 별도 Capacitor 빌드(base=/)를 사용합니다.
-> 웹 빌드는 PWA 입니다: Service Worker 가 전 자산을 프리캐시해 오프라인에서도 동작하고, 숫자·로고 폰트는 자체 호스팅입니다. 한글 본문은 시스템 폰트(Android 는 Noto Sans CJK = 동일 서체)이며 온라인이면 Google Fonts 로 보강됩니다.
-
----
-
-## 파일 구조
-
-```
-www/
-  index.html          앱 진입점 (DOM 은 여기, 로직은 src/)
-  src/
-    main.ts           조립 — 모듈 연결과 시작 시퀀스만
-    core/             순수 알고리즘 (브라우저 API 없음, 100% 테스트): yin, note, wav, format
-    state/            스토어 + 타입 (settings / tuner / metro / refTone / session / recList)
-    audio/            Web Audio 어댑터: engine(마이크·컨텍스트), analysis(튜너 루프), metronome, refTone, recorder, yamnet
-    persist/          localStorage 설정, IndexedDB 녹음
-    platform/         웹 / Capacitor 분기 (상태바, wake lock, 전체화면)
-    ui/               카드별 DOM 바인딩 (tuner, metro, refDrum, refPanel, menu, settings, timer, recList, editor …)
-    style.css
-scripts/              검증 도구: gen-signals, bench, screenshots, e2e, check-deps
-test-assets/          벤치마크 기준선, 스크린샷 기준선 (README 참고)
-docs/                 DESIGN.md · ROADMAP.md · CHECKLIST.md
-dist/                 Vite 빌드 결과 (Capacitor webDir)
-android/              Capacitor Android 네이티브 프로젝트
-```
-
-의존 방향은 `ui → state ← audio`, `* → core` 이며 `npm run check` 가 검사한다 (docs/DESIGN.md §C1).
 
 ### 검증
 
 ```bash
-npm run check    # 타입 검사 + 모듈 경계 + 단위 테스트
-npm run bench    # 튜너 벤치마크 (합성 신호 31개) → test-assets/bench/latest.md
-npm run shots    # 스크린샷 회귀 (기준선 대비 픽셀 diff)
-npm run e2e      # 동작 시나리오 16개 (가짜 마이크에 WAV 주입)
-npm run verify   # 전부
+npm run check        # 타입 검사 + 모듈 경계 검사 + 단위 테스트 (Vitest, 73개)
+npm run e2e          # 헤드리스 Chromium 에 WAV 를 가짜 마이크로 주입해 동작 시나리오 38개 실행
+npm run shots        # 라이트/다크 × 6화면 스크린샷을 기준선과 픽셀 비교
+npm run bench        # 튜너 벤치마크 (합성 신호 39개)
+npm run verify       # check + shots + e2e
 ```
 
-## 웹 앱
+e2e/스크린샷은 Playwright Chromium 이 필요하다: `npx playwright install chromium` (또는 `CHROMIUM_PATH` 환경변수로 기존 Chrome 지정).
+CI(GitHub Actions)가 push/PR 마다 같은 검증을 돌리고, `main` 에 push 하면 GitHub Pages 에 자동 배포한다 (리포 Settings › Pages › Source 를 **GitHub Actions** 로).
 
-[https://carrot-dev01.github.io/go_practice](https://carrot-dev01.github.io/go_practice)
+디자인 후보를 실제 화면으로 비교할 때: `node scripts/ux-compare.mjs --variant a=dist --variant b=dist:override.css`.
 
-Chrome · Safari · Edge 최신 버전 지원. 홈 화면에 추가하면 PWA로 사용 가능.
+## 구조
+
+`www/src/` 아래 `core / state / audio / persist / platform / ui / main.ts` 층으로 나뉘며 의존 방향은 `npm run check` 가 강제한다.
+왜 이런 구조인지, 오디오 파이프라인과 검증 방식은 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** 참고.
+결정 기록은 [docs/DESIGN.md](docs/DESIGN.md), UI 의도와 감사는 [docs/UX-AUDIT.md](docs/UX-AUDIT.md), 진행 이력은 [docs/ROADMAP.md](docs/ROADMAP.md), 기능 체크리스트는 [docs/CHECKLIST.md](docs/CHECKLIST.md).
+
+## Android 빌드
+
+```bash
+npx cap add android   # android/ 가 없을 때 한 번 (생성물이라 리포에 없음)
+npm run cap:assets    # resources/icon*.png 에서 런처 아이콘(adaptive) 생성
+npm run cap:sync      # Capacitor 용 빌드(base=/) + android/ 동기화 + 매니페스트 보정(권한·세로 고정·버전)
+npx cap open android  # Android Studio → Build › Generate Signed App Bundle / APK
+```
+
+`cap:sync` 끝에 `scripts/cap-manifest.mjs` 가 `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` / `INTERNET` 권한, 세로 고정, `versionName/versionCode`(package.json 의 version) 를 보정한다.
+서명 APK 절차는 [docs/ARCHITECTURE.md §6](docs/ARCHITECTURE.md#6-android-릴리즈) 참고. `capacitor.config.json` 의 `androidScheme` 은 바꾸지 말 것 — origin 이 바뀌면 저장된 녹음·설정이 사라진다.
+
+## 라이선스
+
+[MIT](LICENSE). 번들 폰트 DM Mono · Cormorant Garamond 는 SIL Open Font License.

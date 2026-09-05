@@ -18,7 +18,7 @@ const SIG = join(ROOT, 'test-assets', 'signals')
 if (!existsSync(join(SIG, 'violin_A4.wav'))) execSync('node scripts/gen-signals.mjs', { cwd: ROOT, stdio: 'ignore' })
 
 // 정적 서버 (vite preview 는 outDir 고정이라 직접 띄운다)
-const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: true }) // detached: 프로세스 그룹째 종료 (자식 serve 잔존 방지)
+const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (자식 serve 잔존 방지)
 await new Promise(r => setTimeout(r, 2500))
 
 const exe = process.env.CHROMIUM_PATH || undefined

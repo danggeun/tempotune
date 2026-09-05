@@ -21,7 +21,7 @@ mkdirSync(OUT, { recursive: true })
 let server = null
 if (args.serve) {
   execSync('npx vite build --base=/', { cwd: ROOT, stdio: 'ignore' })
-  server = spawn('npx', ['vite', 'preview', '--base=/', '--port', String(PORT)], { cwd: ROOT, stdio: 'ignore', detached: true }) // detached: 프로세스 그룹째 종료
+  server = spawn('npx', ['vite', 'preview', '--base=/', '--port', String(PORT)], { cwd: ROOT, stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (Windows 는 shell 로)
   await new Promise(r => setTimeout(r, 2500))
 }
 

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck · boundaries · unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run check
+
+  build:
+    name: build (pages + capacitor base)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: build (base=/go_practice/)
+        run: npm run build
+      - name: build (base=/ for Capacitor)
+        run: npm run build:cap
+      - uses: actions/upload-artifact@v4
+        with: { name: dist-capacitor, path: dist, retention-days: 7 }
+
+  e2e:
+    name: e2e (fake mic WAV, 38 scenarios)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: install chromium
+        run: npx playwright install --with-deps chromium
+      # CHROMIUM_PATH 는 설정하지 않는다 — scripts/e2e.mjs 가 Playwright 기본 Chromium 을 쓴다
+      - run: npm run e2e
+
+  screenshots:
+    name: screenshot regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: install chromium + korean fonts
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk
+      - name: shots (compare with baseline)
+        id: shots
+        # 기준선은 이 환경(헤드리스 Chromium, 시스템 한글 폰트)과 다른 곳에서 찍혔을 수 있다 → 처음엔 non-blocking.
+        # CI 아티팩트의 current/*.png 를 baseline/ 으로 커밋해 기준선을 CI 환경으로 옮긴 뒤 이 줄을 지운다.
+        continue-on-error: true
+        run: npm run shots
+      - name: upload diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-diffs
+          path: |
+            test-assets/screens/current/*.diff.png
+            test-assets/screens/current/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: report
+        if: steps.shots.outcome == 'failure'
+        run: echo "::warning::스크린샷이 기준선과 다릅니다. 'screenshot-diffs' 아티팩트를 확인하세요."
