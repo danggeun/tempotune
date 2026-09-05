@@ -22,7 +22,8 @@ export function createStore<S extends object>(initial: S): Store<S> {
     get: () => state,
     set(patch) {
       let changed = false
-      for (const k in patch) { if (!Object.is((state as any)[k], (patch as any)[k])) { changed = true; break } }
+      const cur = state as Record<string, unknown>, nxt = patch as Record<string, unknown>
+      for (const k in nxt) { if (!Object.is(cur[k], nxt[k])) { changed = true; break } }
       if (!changed) return
       const prev = state
       state = { ...state, ...patch }

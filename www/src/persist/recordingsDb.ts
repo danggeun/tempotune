@@ -7,6 +7,7 @@
 export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings', META_STORE = 'meta'
 export const REC_DB_VERSION = 3
 import { REC_TTL } from '../core/recPolicy.ts'
+import { settingsStore } from '../state/index.ts'
 export { REC_TTL }
 
 export interface AB { a: number; b: number }
@@ -73,7 +74,7 @@ export async function dbLoadAll(): Promise<RecFull[]> {
   const metas = new Map(((await req(store(META_STORE, 'readonly').getAll())) as RecMeta[]).map(m => [m.id, m]))
   const now = Date.now(), keep: RecFull[] = []
   for (const r of rows.sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
-    if (typeof r.ts === 'number' && now - r.ts > REC_TTL) { dbDelete(r.id); continue } // ts 없는 구버전 행은 보관
+    if (settingsStore.get().autoDelete && typeof r.ts === 'number' && now - r.ts > REC_TTL) { dbDelete(r.id); continue } // ts 없는 구버전 행은 보관. 설정 '계속' 이면 지우지 않음
     const m = metas.get(r.id!)
     keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks, speed: m?.speed })
   }

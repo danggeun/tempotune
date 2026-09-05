@@ -4,4 +4,16 @@ dist/
 # 생성물 (node scripts/gen-signals.mjs 로 재생성, 결정적)
 test-assets/signals/
 test-assets/screens/current/
-dist-v1/
+dist-*/
+# 서명 키 — 절대 커밋 금지
+*.jks
+*.keystore
+keystore.properties
+# OS / 편집기
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+.env
+.env.*

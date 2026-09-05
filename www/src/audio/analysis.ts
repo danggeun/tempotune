@@ -3,7 +3,7 @@
  * 메트로놈 클릭 구간은 워커가 오디오 시계 기준으로 버린다(engine.muteAnalysis) — v1 의 벽시계 isClick 추정을 대체.
  */
 import { tunerStore } from '../state/index.ts'
-import { A, onWorkerMessage, sendToWorker } from './engine.ts'
+import { onWorkerMessage } from './engine.ts'
 import type { WorkerOut } from './messages.ts'
 
 let lastMs = 0
@@ -20,7 +20,4 @@ function onFrame(m: WorkerOut): void {
   else tunerStore.set({ frame: st.frame + 1, hz: f.hz, midi: f.midi, cents: f.cents, inTune: f.inTune, conf: f.conf, playing: f.playing, lastActivityMs: Date.now() })
 }
 
-export function startAnalysis(): void { onWorkerMessage(onFrame) }
-export function stopAnalysis(): void { /* 워커는 engine.closeMic 이 종료한다 */ }
-/** 감지 상태 즉시 리셋 (설정 변경 등) */
-export function resetPlayingDetection(): void { sendToWorker({ type: 'reset', afterT: A.ac?.currentTime ?? 0 }); tunerStore.set({ playing: false }) }
+export function startAnalysis(): void { onWorkerMessage(onFrame) } // 워커 종료는 engine.closeMic 이 한다

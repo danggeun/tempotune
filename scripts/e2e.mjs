@@ -71,6 +71,25 @@ await scenario('ref drum: drag to 440 → 0¢', 'violin_A4.wav', async p => {
   await waitNote(p, t => /^(\+1|-1|0) ¢$/.test(t.cents) || t.cents === '0 ¢')
 })
 
+await scenario('ref drum: A=415 (baroque) → 440 Hz input reads 라♯4 ≈ 0¢, not 라 +100¢ (final review blocker)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  const box = await p.locator('#ref-drum-outer').boundingBox()
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse.down(); await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 28 * 27, { steps: 20 }); await p.mouse.up()
+  await sleep(p, 300)
+  assert.equal(await p.evaluate(() => document.querySelector('.ref-drum-item.active').textContent), '415 Hz')
+  const t = await waitNote(p, t => t.note === '라' && t.acc === '♯' && /^(\+?[0-3]|-[0-3]) ¢$/.test(t.cents), 5000)
+  assert.equal(t.oct, '4')
+})
+await scenario('settings: note names C D E — tuner shows A with 라 as secondary; ref buttons relabel', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#menu-btn'); await p.click('#settings-open-btn'); await p.click('#notenames-steps .step-btn[data-v="1"]'); await p.click('#settings-back-btn')
+  assert.equal(await p.evaluate(() => document.querySelector('#menu-overlay .ref-note-btn[data-note="라"]').textContent), 'A')
+  await p.click('.menu-close-btn')
+  const t = await waitNote(p, t => t.note === 'A'); assert.equal(t.oct, '4')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent), '라')
+  await p.reload(); await waitNote(p, t => t.note === 'A', 5000) // 영속
+})
+
 // ── 메트로놈 ──
 await scenario('metro: play/stop, collapse on play (phone), header bpm', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 900)
@@ -84,8 +103,15 @@ await scenario('metro: play/stop, collapse on play (phone), header bpm', 'silenc
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display), 'flex')
   await sleep(p, 1600)
   const lit = await p.evaluate(() => document.querySelectorAll('#beat-vis .bd.lit-a, #beat-vis .bd.lit-b, #beat-vis .bd.lit-s').length); assert.ok(lit >= 0)
+  // 재생 중에도 펼쳐서 박자를 바꿀 수 있다 (final review) — 접기 버튼이 남아 있다
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('metro-collapse-btn')).display), 'flex', 'collapse btn stays while playing')
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false, 'expanded while playing')
+  await p.click('[data-ts="3"]'); assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '3')
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), true)
   await p.click('#metro-play-hdr-btn'); await sleep(p, 700)
-  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶'); assert.equal(await collapsedEl(), false, 'expands back (user had it open)')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶'); assert.equal(await collapsedEl(), true, 'user collapsed it explicitly → stays')
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); await p.click('#metro-play-btn'); await sleep(p, 300); assert.equal(await collapsedEl(), true)
+  await p.click('#metro-play-hdr-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false, 'expands back (auto-collapsed at start)')
 })
 await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots count', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600)
@@ -197,11 +223,11 @@ await scenario('timer: elapsed counts, detected counts while playing, reset', 'v
 await scenario('ref tone: toggle on/off, octave label both places, 도↑', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#menu-btn'); await p.click('#menu-overlay .ref-note-btn[data-note="라"]')
-  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 2, 'on in both panel and menu')
+  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 1, 'note on')
   await p.click('#menu-overlay .ref-note-btn[data-note="도2"]'); assert.equal(await p.evaluate(() => document.querySelector('.ref-note-btn.on').dataset.note), '도2')
   await p.click('#menu-overlay .ref-note-btn[data-note="도2"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 0)
   await p.click('#menu-overlay .ref-oct-btn:nth-of-type(2)')
-  assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '5'); assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-ext').textContent), '5')
+  assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '5')
   for (let i = 0; i < 3; i++) await p.click('#menu-overlay .ref-oct-btn:nth-of-type(2)'); assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '6', 'clamp 6')
 })
 await scenario('mic off: closeMic resets tuner and shows MIC button', 'violin_A4.wav', async p => {
@@ -277,8 +303,10 @@ await scenario('metro: bpm change while playing does not restart (beats keep com
 await scenario('ref tone plays without mic (single AudioContext)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel')
   await p.click('#menu-btn'); await p.click('#menu-overlay .ref-note-btn[data-note="라"]')
-  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 2, 'note on without mic')
+  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 1, 'note on without mic')
   await p.click('#menu-overlay .ref-note-btn[data-note="라"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 0)
+  await p.click('.menu-close-btn'); await p.click('#ref-a-btn'); assert.equal(await p.evaluate(() => document.getElementById('ref-a-btn').classList.contains('on')), true, 'A 듣기 on without mic')
+  await p.click('#ref-a-btn'); assert.equal(await p.evaluate(() => document.getElementById('ref-a-btn').classList.contains('on')), false)
 }, { permissions: [] })
 
 // ── Phase 4: 편집 상태 영속 + 파형 ──
@@ -359,6 +387,25 @@ await scenario('ux: list meta shows 북마크 n · A-B after editing; audio stat
   assert.equal(await p.evaluate(() => document.getElementById('ai-dot').classList.contains('on')), false, 'dot off after mic closed')
 })
 
+await scenario('ux: waveform zoom — 구간 확대 maps track to [A−2, B+2]; handles/ticks follow; off when A cleared', 'violin_scale_Amaj.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000)
+  await p.click('#rec-hdr-btn'); await sleep(p, 7500); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
+  assert.equal(await p.evaluate(() => document.getElementById('ed-zoom-btn').classList.contains('dim')), true, 'dim without A-B')
+  await p.click('#ed-play-btn'); await sleep(p, 1200); await p.click('#ed-a-btn'); await sleep(p, 1000); await p.click('#ed-b-btn'); await sleep(p, 200); await p.click('#ed-bm-add-btn'); await sleep(p, 200)
+  await p.click('#ed-play-btn'); await sleep(p, 100)
+  const left = sel => p.evaluate(s => parseFloat(document.querySelector(s).style.left), sel)
+  const aWhole = await left('#ed-a-handle'), bWhole = await left('#ed-b-handle')
+  await p.click('#ed-zoom-btn'); await sleep(p, 200)
+  assert.equal(await p.evaluate(() => document.getElementById('ed-zoom-btn').textContent), '전체 보기')
+  const aZ = await left('#ed-a-handle'), bZ = await left('#ed-b-handle'), tick = await left('#ed-bm-ticks .bm-tick')
+  assert.ok(bZ - aZ > (bWhole - aWhole) * 1.5, `zoomed span wider: ${aZ}-${bZ} vs ${aWhole}-${bWhole}`)
+  assert.ok(tick > aZ && tick < 100, `bookmark tick (set just after B) stays inside the zoom window: ${tick}`)
+  await p.click('#ed-a-btn'); await sleep(p, 200) // A 해제 → 확대 해제
+  assert.equal(await p.evaluate(() => document.getElementById('ed-zoom-btn').textContent), '구간 확대')
+  assert.equal(await p.evaluate(() => document.getElementById('ed-zoom-btn').classList.contains('dim')), true)
+})
+
 // ── Phase 5: 완결성 ──
 await scenario('offline: service worker precaches everything; reload with network off still works', 'violin_A4.wav', async (p, ctx) => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
@@ -392,7 +439,7 @@ await scenario('permission: denied state shows the blocked-mic popup with retry 
   assert.equal(await p.evaluate(() => document.getElementById('mic-popup-bg').classList.contains('show')), true)
   const state = await p.evaluate(async () => (await navigator.permissions.query({ name: 'microphone' })).state)
   const title = await p.evaluate(() => document.getElementById('mic-popup-title').textContent)
-  assert.equal(title, state === 'denied' ? '마이크가 차단돼 있어요' : '마이크 접근 필요', `state=${state}`)
+  assert.equal(title, state === 'denied' ? '마이크가 차단돼 있어요' : '마이크를 켜 주세요', `state=${state}`)
   if (state === 'denied') assert.equal(await p.evaluate(() => document.getElementById('mic-popup-btn').textContent), '다시 시도')
 }, { permissions: [] })
 await scenario('perf: worker frame p95 stays under budget (12 ms) over 10 s', 'violin_scale_Amaj.wav', async p => {

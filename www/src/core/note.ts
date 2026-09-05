@@ -6,6 +6,16 @@ export const KR = ['도', '도♯', '레', '레♯', '미', '파', '파♯', '�
 export type KrNote = typeof KR[number]
 
 export const ENHARMONIC: Readonly<Partial<Record<KrNote, string>>> = { '도♯': '레♭', '레♯': '미♭', '파♯': '솔♭', '솔♯': '라♭', '라♯': '시♭' }
+/** 영문 음이름 — 현 이름(A현·D현)이 영문이라 병기/전환 옵션 (설정 noteNames). 기본은 도레미 */
+export const EN = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const
+export const EN_ENHARMONIC: Readonly<Record<string, string>> = { 'C♯': 'D♭', 'D♯': 'E♭', 'F♯': 'G♭', 'G♯': 'A♭', 'A♯': 'B♭' }
+export type NoteNames = 'ko' | 'en'
+/** 표시용 이름: 선택한 체계의 이름과, 보조 줄(다른 체계 + 이명동음) */
+export function noteLabel(midi: number, system: NoteNames): { name: string; secondary: string } {
+  const i = ((midi % 12) + 12) % 12, ko = KR[i]!, en = EN[i]!
+  if (system === 'en') return { name: en, secondary: [EN_ENHARMONIC[en], ko].filter(Boolean).join(' · ') }
+  return { name: ko, secondary: [ENHARMONIC[ko], en + (EN_ENHARMONIC[en] ? ' · ' + EN_ENHARMONIC[en] : '')].filter(Boolean).join(' · ') }
+}
 export const KR_MIDI: Readonly<Record<KrNote, number>> = { '도': 0, '도♯': 1, '레': 2, '레♯': 3, '미': 4, '파': 5, '파♯': 6, '솔': 7, '솔♯': 8, '라': 9, '라♯': 10, '시': 11 }
 
 /** 주파수 → 가장 가까운 MIDI 번호 (A4=440 기준; 기준음 보정은 centsFrom에서) */

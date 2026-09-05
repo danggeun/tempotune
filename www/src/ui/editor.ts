@@ -26,7 +26,20 @@ interface EdState {
 }
 const ed: EdState = { idx: -1, item: null, audio: null, ptA: null, ptB: null, loop: 0, bookmarks: [], dragging: null, readyTimeout: null, handlers: null }
 
-const pct = (t: number, d: number) => (t / d * 100).toFixed(3) + '%'
+// ── 시간 ↔ 트랙 위치 매핑. 기본은 전체, '구간 확대' 면 [A−2 s, B+2 s] 창 (긴 녹음에서 4마디 구간이 18 px 로 뭉개지지 않게, 리뷰)
+let view: { t0: number; t1: number } | null = null
+const ZOOM_PAD = 2
+function viewRange(): { t0: number; t1: number } { const d = dur(); return view && view.t1 > view.t0 ? view : { t0: 0, t1: d || 1 } }
+/** 시간 → 0..1 (창 밖은 가장자리에 붙음) */
+function frac(t: number): number { const { t0, t1 } = viewRange(); return Math.max(0, Math.min(1, (t - t0) / (t1 - t0))) }
+const pct = (t: number, _d?: number) => (frac(t) * 100).toFixed(3) + '%'
+function setZoom(on: boolean): void {
+  const d = dur()
+  view = on && ed.ptA !== null && ed.ptB !== null && d ? { t0: Math.max(0, ed.ptA - ZOOM_PAD), t1: Math.min(d, ed.ptB + ZOOM_PAD) } : null
+  q('ed-zoom-btn').classList.toggle('on', !!view); q('ed-zoom-btn').textContent = view ? '전체 보기' : '구간 확대'
+  updateHandles(); renderBmTicks(); if (ed.audio) setPosUI(ed.audio.currentTime); requestWave()
+}
+function updateZoomBtn(): void { const ok = ed.ptA !== null && ed.ptB !== null; q('ed-zoom-btn').classList.toggle('dim', !ok); if (!ok && view) setZoom(false) }
 // Chromium 은 MediaRecorder webm 의 duration 을 끝까지 seek 하기 전까지 Infinity 로 보고한다(crbug 642012).
 // 그러면 A-B/북마크/진행바가 전부 멈추므로 녹음 시 잰 길이(item.dur)로 폴백한다. 정확한 길이는 loadedmetadata 에서 seek 트릭으로 얻는다.
 const dur = () => (ed.audio && isFinite(ed.audio.duration) && ed.audio.duration > 0) ? ed.audio.duration : (ed.item?.dur ?? 0)
@@ -55,7 +68,8 @@ function loopTick(): void {
   loopRaf = requestAnimationFrame(loopTick)
 }
 function startLoopWatch(): void { if (loopRaf == null) loopRaf = requestAnimationFrame(loopTick) }
-function pctFromClient(clientX: number): number { const r = q('ed-track').getBoundingClientRect(); return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) }
+/** 포인터 x → 시간 (현재 창 기준) */
+function tFromClient(clientX: number): number { const r = q('ed-track').getBoundingClientRect(); const f = Math.max(0, Math.min(1, (clientX - r.left) / r.width)); const { t0, t1 } = viewRange(); return t0 + f * (t1 - t0) }
 
 function updateHandles(): void {
   const d = dur(); if (!d) return
@@ -64,7 +78,8 @@ function updateHandles(): void {
     q('ed-ab-times').style.display = 'flex'; q('ed-a-time').textContent = 'A ' + fmtT(ed.ptA)
   }
   if (ed.ptB !== null) { const bH = q('ed-b-handle'); bH.style.display = 'block'; bH.style.left = pct(ed.ptB, d); q('ed-b-time').textContent = 'B ' + fmtT(ed.ptB) }
-  if (ed.ptA !== null && ed.ptB !== null) { const r = q('ed-ab-range'); r.style.display = 'block'; r.style.left = pct(ed.ptA, d); r.style.width = ((ed.ptB - ed.ptA) / d * 100).toFixed(3) + '%' }
+  if (ed.ptA !== null && ed.ptB !== null) { const r = q('ed-ab-range'); r.style.display = 'block'; r.style.left = pct(ed.ptA); r.style.width = ((frac(ed.ptB) - frac(ed.ptA)) * 100).toFixed(3) + '%' }
+  updateZoomBtn()
   requestWave()
 }
 // A/B/반복 버튼 표시 — 상태는 클래스(.on 액센트 / .dim 비활성)로, 색은 CSS 토큰이 정한다
@@ -112,15 +127,16 @@ function drawWave(): void {
   const cs = getComputedStyle(document.documentElement)
   const colUnplayed = cs.getPropertyValue('--line').trim() || '#d4d7dc', colPlayed = cs.getPropertyValue('--text-2').trim() || '#555'
   const accentRgb = cs.getPropertyValue('--accent-rgb').trim() || '209,42,42'
-  const d = dur(), pos = ed.audio && d ? ed.audio.currentTime / d : 0
+  const d = dur(), pos = ed.audio && d ? frac(ed.audio.currentTime) : 0
   const mid = H / 2, amp = (H / 2) * 0.92
   const dark = matchMedia('(prefers-color-scheme:dark)').matches
   // A-B 구간 틴트 (파형 뒤) — 다크에서는 더 진하게 (리뷰: .12 는 다크에서 안 보임)
-  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = `rgba(${accentRgb},${dark ? .22 : .12})`; c.fillRect(ed.ptA / d * W, 0, (ed.ptB - ed.ptA) / d * W, H) }
-  // 2 px 컬럼으로 리샘플(600 bin 을 340 px 에 그리면 겹쳐서 덩어리가 된다), pow(.6) 으로 조용한 부분도 보이게
-  const colW = 2, cols = Math.floor(W / colW), n = peaks.length
+  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = `rgba(${accentRgb},${dark ? .22 : .12})`; c.fillRect(frac(ed.ptA) * W, 0, (frac(ed.ptB) - frac(ed.ptA)) * W, H) }
+  // 2 px 컬럼으로 리샘플(600 bin 을 340 px 에 그리면 겹쳐서 덩어리가 된다), pow(.6) 으로 조용한 부분도 보이게. 확대 창이면 그 구간의 bin 만
+  const { t0, t1 } = viewRange(), n = peaks.length, b0 = d ? Math.floor(t0 / d * n) : 0, b1 = d ? Math.max(b0 + 1, Math.ceil(t1 / d * n)) : n, nb = b1 - b0
+  const colW = 2, cols = Math.floor(W / colW)
   for (let k = 0; k < cols; k++) {
-    let m = 0; const i0 = Math.floor(k * n / cols), i1 = Math.max(i0 + 1, Math.floor((k + 1) * n / cols))
+    let m = 0; const i0 = b0 + Math.floor(k * nb / cols), i1 = Math.max(i0 + 1, b0 + Math.floor((k + 1) * nb / cols))
     for (let i = i0; i < i1; i++) if (peaks[i]! > m) m = peaks[i]!
     const h = Math.max(1, Math.pow(m, 0.6) * amp)
     c.fillStyle = (k + 0.5) / cols <= pos ? colPlayed : colUnplayed
@@ -156,14 +172,14 @@ function pickHandle(clientX: number): EdState['dragging'] {
   const r = q('ed-track').getBoundingClientRect(), x = clientX - r.left
   const cands: Array<[EdState['dragging'], number | null]> = [['pos', ed.audio?.currentTime ?? 0], ['a', ed.ptA], ['b', ed.ptB]]
   let best: EdState['dragging'] = null, bestDist = 24
-  for (const [k, t] of cands) { if (t === null) continue; const dist = Math.abs(t / d * r.width - x); if (dist < bestDist) { bestDist = dist; best = k } }
+  for (const [k, t] of cands) { if (t === null) continue; const dist = Math.abs(frac(t) * r.width - x); if (dist < bestDist) { bestDist = dist; best = k } }
   return best
 }
 function initDrag(): void {
   removeWindowHandlers()
   const move = (clientX: number) => {
     const d = dur(); if (!ed.dragging || !ed.audio || !d) return
-    const t = pctFromClient(clientX) * d
+    const t = tFromClient(clientX)
     if (ed.dragging === 'pos') { const c = Math.max(0, Math.min(d, t)); ed.audio.currentTime = c; setPosUI(c) }
     else if (ed.dragging === 'a') { ed.ptA = Math.max(0, Math.min(ed.ptB !== null ? ed.ptB - 0.1 : d, t)); updateHandles(); updateABtn(); checkExportBtn() }
     else if (ed.dragging === 'b') { ed.ptB = Math.max(ed.ptA !== null ? ed.ptA + 0.1 : 0, Math.min(d, t)); updateHandles(); updateBBtn(); checkExportBtn() }
@@ -178,7 +194,7 @@ export function openEditor(item: RecItem): void {
   if (!recListStore.get().items.includes(item)) return
   hideMenu()
   if (ed.audio) { releaseAudio(ed.audio); ed.audio = null }
-  ed.idx = 0; ed.item = item; ed.ptA = null; ed.ptB = null; ed.loop = 0; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null
+  ed.idx = 0; ed.item = item; ed.ptA = null; ed.ptB = null; ed.loop = 0; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null; view = null
 
   const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
   ed.audio = audio
@@ -218,7 +234,7 @@ export function openEditor(item: RecItem): void {
   for (const id of ['ed-ab-range', 'ed-a-handle', 'ed-b-handle', 'ed-ab-times']) q(id).style.display = 'none'
   q('ed-bm-ticks').innerHTML = ''
   renderBmList()
-  resetABtn(); resetBBtn(); resetLoopBtn()
+  resetABtn(); resetBBtn(); resetLoopBtn(); updateZoomBtn()
   void ensurePeaks(item)
   checkExportBtn()
   // 진입은 메뉴와 같은 .2 s 페이드(UX 감사 B5) — display 를 켠 다음 프레임에 .open 을 붙여야 전이가 걸린다. 복귀(closeEditor)는 의도대로 즉시
@@ -229,7 +245,7 @@ export function openEditor(item: RecItem): void {
 export function closeEditor(): void {
   if (ed.audio) { releaseAudio(ed.audio); ed.audio = null }
   if (loopRaf != null) { cancelAnimationFrame(loopRaf); loopRaf = null }
-  peaks = null; ed.idx = -1; ed.item = null; ed.ptA = null; ed.ptB = null; ed.loop = 0 // 닫힌 뒤 늦게 오는 ended 가 반복을 되살리지 않게
+  peaks = null; ed.idx = -1; ed.item = null; ed.ptA = null; ed.ptB = null; ed.loop = 0; view = null // 닫힌 뒤 늦게 오는 ended 가 반복을 되살리지 않게
   if (ed.readyTimeout) clearTimeout(ed.readyTimeout)
   removeWindowHandlers()
   showMenuInstant()
@@ -280,7 +296,7 @@ function toggleA(): void {
   if (ed.ptA !== null) {
     ed.ptA = null; ed.ptB = null
     for (const id of ['ed-a-handle', 'ed-b-handle', 'ed-ab-range', 'ed-ab-times']) q(id).style.display = 'none'
-    resetABtn(); resetBBtn(); resetLoopBtn(); checkExportBtn(); persistEdit(); requestWave()
+    resetABtn(); resetBBtn(); resetLoopBtn(); checkExportBtn(); updateZoomBtn(); persistEdit(); requestWave()
   } else {
     if (!dur()) return
     ed.ptA = ed.audio!.currentTime; updateHandles(); updateABtn(); q('ed-b-btn').classList.remove('dim'); checkExportBtn()
@@ -291,7 +307,7 @@ function toggleB(): void {
   if (ed.ptB !== null) {
     ed.ptB = null
     q('ed-b-handle').style.display = 'none'; q('ed-ab-range').style.display = 'none'; q('ed-b-time').textContent = 'B —'
-    resetBBtn(); resetLoopBtn(); checkExportBtn(); persistEdit(); requestWave()
+    resetBBtn(); resetLoopBtn(); checkExportBtn(); updateZoomBtn(); persistEdit(); requestWave()
   } else {
     if (!dur()) return
     const t = ed.audio!.currentTime; if (t <= ed.ptA) { toast('B는 A보다 뒤여야 해요'); return }
@@ -363,7 +379,7 @@ export function mountEditor(): void {
   on(track, 'click', (e: MouseEvent) => {
     if (ed.dragging || Date.now() - dragEndedAt < 300) return // 드래그 직후의 click 은 시크가 아니다
     const d = dur(); if (!d) return
-    const t = pctFromClient(e.clientX) * d; ed.audio!.currentTime = t; setPosUI(t)
+    const t = tFromClient(e.clientX); ed.audio!.currentTime = t; setPosUI(t)
   })
   on(track, 'mousedown', (e: MouseEvent) => { ed.dragging = pickHandle(e.clientX) })
   on(track, 'touchstart', (e: TouchEvent) => { ed.dragging = pickHandle(e.touches[0]!.clientX) }, { passive: true })
@@ -375,6 +391,7 @@ export function mountEditor(): void {
   on(q('ed-speed-val'), 'click', cycleSpeed)
   on(q('ed-a-btn'), 'click', toggleA); on(q('ed-b-btn'), 'click', toggleB); on(q('ed-loop-btn'), 'click', toggleLoop)
   on(q('ed-bm-add-btn'), 'click', addBookmark); on(q('ed-export-btn'), 'click', exportAB)
+  on(q('ed-zoom-btn'), 'click', () => { if (ed.ptA !== null && ed.ptB !== null) setZoom(!view); else toast('A, B 지점을 먼저 설정해주세요') })
   on(q('ed-dl-btn'), 'click', (e: Event) => { e.preventDefault(); void downloadWhole() })
   on(q('ed-a-nudge-l'), 'click', () => nudge('a', -0.25)); on(q('ed-a-nudge-r'), 'click', () => nudge('a', 0.25))
   on(q('ed-b-nudge-l'), 'click', () => nudge('b', -0.25)); on(q('ed-b-nudge-r'), 'click', () => nudge('b', 0.25))

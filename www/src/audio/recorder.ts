@@ -87,7 +87,6 @@ export async function restoreDeleted(item: RecItem, at: number): Promise<void> {
   const id = await dbSave({ name: back.name, dur: back.dur, blob: back.blob, mime: back.mime, ts: back.ts }, { bookmarks: back.bookmarks, ab: back.ab, peaks: back.peaks }).catch(() => null)
   const st2 = recListStore.get(); const i = st2.items.indexOf(back); if (i >= 0) { const items2 = st2.items.slice(); items2[i] = { ...back, id }; recListStore.set({ items: items2, rev: st2.rev }) }
 }
-export function renameRec(item: RecItem, name: string): RecItem | null { return patchRec(item, { name }) }
 /** 편집 상태(북마크/A-B/파형/속도)·이름을 메모리와 IndexedDB(meta) 에 반영. 새 항목 객체를 반환 */
 export function patchRec(item: RecItem, patch: Partial<Pick<RecItem, 'name' | 'bookmarks' | 'ab' | 'peaks' | 'speed'>>): RecItem | null {
   const st = recListStore.get(); const idx = st.items.indexOf(item); if (idx < 0) return null

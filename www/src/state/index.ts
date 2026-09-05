@@ -7,11 +7,10 @@ import { createStore } from './store.ts'
 // ── 고정 상수 (사용자 설정 아님) ──
 export const CFG = {
   tuner: { histLen: 360 },
-  metro: { bpmMin: 20, bpmMax: 220, lookaheadS: .4, intervalMs: 25, clickDurS: .05, swipePxPerBpm: 2 },
+  metro: { bpmMin: 20, bpmMax: 220, swipePxPerBpm: 2 },
+  /** 무활동 자동 종료 (마이크 켜진 채 소리 없음) */
   inactiveMs: 15 * 60 * 1000,
   ref: { min: 410, max: 466, default: 442 },
-  /** 폰 레이아웃 판정 폭 (CSS 미디어쿼리와 동일하게 유지) */
-  phoneMaxWidth: 700,
 } as const
 
 /** 설정 화면의 3단계 값 매핑 (v1 RMS_LEVELS / SMOOTH_LEVELS) */
@@ -33,10 +32,14 @@ export interface Settings {
   subDiv: SubDiv
   refHz: number
   metroVol: number
+  /** 음이름 표기: 도레미(기본) / CDE */
+  noteNames: 'ko' | 'en'
+  /** 녹음 자동 삭제(30일) 켜짐 — 끄면 계속 보관 */
+  autoDelete: boolean
 }
 export const settingsStore = createStore<Settings>({
   tolCents: 15, rmsMin: RMS_LEVELS[1], smoothing: SMOOTH_LEVELS[1], wakeLock: true,
-  bpm: 80, timeSig: 4, subDiv: 1, refHz: CFG.ref.default, metroVol: 0.7,
+  bpm: 80, timeSig: 4, subDiv: 1, refHz: CFG.ref.default, metroVol: 0.7, noteNames: 'ko', autoDelete: true,
 })
 
 // ── 튜너 (고빈도) ──

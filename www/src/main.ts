@@ -4,11 +4,11 @@
  */
 import './fonts.css'
 import './style.css'
-import { settingsStore, tunerStore, metroStore, refToneStore } from './state/index.ts'
+import { settingsStore, tunerStore, metroStore, refToneStore, CFG } from './state/index.ts'
 import { loadSettings, startSettingsAutosave, onPersistError } from './persist/settings.ts'
 import { openRecDb, onDbError } from './persist/recordingsDb.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError } from './audio/engine.ts'
-import { startAnalysis, stopAnalysis, lastFrameMs } from './audio/analysis.ts'
+import { startAnalysis, lastFrameMs } from './audio/analysis.ts'
 import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
@@ -43,7 +43,7 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 // ── 마이크 생명주기 ──
 const tryOpenMic = async (): Promise<boolean> => {
   const r = await openMic()
-  if (!r.ok && r.error !== 'busy') { if (isPermissionError(r.error) && !isNative()) showMicPopup(true); toast(r.error); return false }
+  if (!r.ok && r.error !== 'busy') { if (isPermissionError(r.error)) showMicPopup(true); else toast(r.error); return false } // 권한 문제는 팝업(앱: 시스템 설정 경로), 그 외는 토스트
   // 권한 프롬프트를 거치는 동안 사용자 제스처가 만료되면 컨텍스트가 suspended 로 남는다 (iOS/Firefox) → 탭 안내 (모든 경로에서)
   setTimeout(() => { if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }, 400)
   return r.ok
@@ -56,12 +56,12 @@ startAnalysis()
 const wantWake = () => settingsStore.get().wakeLock && (tunerStore.get().running || metroStore.get().playing)
 const syncWake = () => { if (wantWake()) acquireWakeLock(); else releaseWakeLock() }
 onMic('afterOpen', syncWake)
-onMic('afterClose', () => { stopAnalysis(); stopTimer(); syncWake(); stopInactivityWatch() })
+onMic('afterClose', () => { stopTimer(); syncWake(); stopInactivityWatch() })
 metroStore.select(s => s.playing, syncWake)
 // 15분 무활동 자동 종료 — 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시 (리뷰 #3: v1/이전 구현은 타이머 안에서만 검사했다)
 let inactInt: ReturnType<typeof setInterval> | null = null
 function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); inactInt = null }
-onMic('afterOpen', () => { stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > 15 * 60 * 1000) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
+onMic('afterOpen', () => { stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic().then(ok => { if (ok) toast('마이크가 켜졌어요') }))
 settingsStore.select(s => s.wakeLock, syncWake)
 // ── 생명주기 매트릭스 (설계서 §B7) ──
@@ -107,7 +107,10 @@ on(q('logo'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 �
 
 // ── 시작 시퀀스 (v1 그대로) ──
 if (isNative()) {
-  tryOpenMic().then(ok => { if (!ok) { showTapHint(tryOpenMic); toast('마이크 권한을 허용해주세요') } })
+  // 첫 실행엔 OS 권한 다이얼로그 전에 '왜 필요한지' 를 한 번 보여준다 (팝업의 '마이크 켜기' 가 OS 다이얼로그를 띄운다). 그 뒤로는 바로 시도
+  let intro = false; try { intro = !localStorage.getItem('gp_mic_intro') } catch { /* */ }
+  if (intro) { try { localStorage.setItem('gp_mic_intro', '1') } catch { /* */ } showMicPopup(false) }
+  else tryOpenMic().then(ok => { if (!ok) showTapHint(tryOpenMic) })
 } else {
   navigator.permissions?.query({ name: 'microphone' as PermissionName })
     .then(p => {

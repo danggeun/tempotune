@@ -19,7 +19,7 @@ function startTimer(): void {
   int = setInterval(() => {
     const s = sessionStore.get(); if (!s.timerRunning) return
     const now = Date.now(); acc += (now - last) / 1000; last = now
-    const whole = Math.floor(acc); if (whole <= 0) return
+    const whole = Math.round(acc); if (whole <= 0) return // round: 틱이 몇 ms 이르게 와도 1초를 잃지 않는다 (잔여는 다음 틱에 상쇄)
     acc -= whole
     sessionStore.set({ elapsedSec: s.elapsedSec + whole, detectedSec: s.detectedSec + (tunerStore.get().playing ? whole : 0) })
   }, 1000)

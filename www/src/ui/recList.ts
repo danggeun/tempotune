@@ -1,5 +1,5 @@
 /** 메뉴의 녹음 목록 — 최신 1개 펼침 + 이전 N개 접힘, 항목별 미니 플레이어 */
-import { recListStore, type RecItem } from '../state/index.ts'
+import { recListStore, settingsStore, type RecItem } from '../state/index.ts'
 import { fmtT } from '../core/format.ts'
 import { deleteRec, restoreDeleted, recFileName } from '../audio/recorder.ts'
 import { REC_TTL, REC_WARN_DAYS } from '../core/recPolicy.ts'
@@ -49,7 +49,7 @@ export function itemMeta(item: RecItem, now = Date.now()): string {
   const parts: string[] = []
   if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
   if (item.ab) parts.push('A-B')
-  if (typeof item.ts === 'number') { // ts 없는 구버전 행은 보관되므로 예고 없음
+  if (settingsStore.get().autoDelete && typeof item.ts === 'number') { // ts 없는 구버전 행은 보관되므로 예고 없음
     const daysLeft = Math.max(0, Math.floor((item.ts + REC_TTL - now) / 86400000)) // floor: 24시간 미만 = '오늘'
     // 30일 자동 삭제 예고는 마지막 7일만, 대응 수단(다운로드)과 함께 (정보는 있는 것만)
     if (daysLeft < REC_WARN_DAYS) parts.push((daysLeft === 0 ? '오늘 삭제' : `${daysLeft}일 후 삭제`) + ' · 보관하려면 다운로드')
@@ -126,6 +126,7 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
   })
   on(list, 'input', (e: Event) => { const t = e.target as HTMLElement; if (t.dataset.action === 'seek') seek(+t.dataset.idx!) })
   recListStore.select(s => s.rev, render)
+  settingsStore.select(s => s.autoDelete, () => { const st = recListStore.get(); recListStore.set({ rev: st.rev + 1 }) }) // 보관 설정이 바뀌면 예고문 갱신
   // 북마크/A-B 가 바뀌면(patchRec 은 items 배열만 교체) 메타 줄만 제자리 갱신 — 전체 재렌더는 펼침 상태와 미니 플레이어를 리셋한다
   recListStore.select(s => s.items, items => {
     list.querySelectorAll<HTMLElement>('.rec-item[data-idx]').forEach(el => { const it = items[+el.dataset.idx!]; const m = el.querySelector('.rec-item-meta'); if (it && m) m.textContent = itemMeta(it) })

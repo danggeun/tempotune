@@ -51,10 +51,13 @@ function attachDrag(el: HTMLElement): void {
   on(window, 'touchend', () => { sw = false })
 }
 
+/** 재생 시작이 접었으면(사용자가 펼쳐 두었던 것) 정지 때 다시 펼친다 — v1 동작 유지. 재생 중 사용자가 펼치면 그대로 둔다 */
+let autoCollapsed = false
 function applyCollapse(): void {
   const { collapsed, playing } = metroStore.get()
-  const effective = isPhoneLayout() && (collapsed || playing)
+  const effective = isPhoneLayout() && collapsed // 재생 '시작' 시 자동으로 접히지만(아래), 재생 중에도 펼쳐서 박자·세분·음량을 바꿀 수 있다 (리뷰)
   q('metro-body-wrap').classList.toggle('collapsed', effective)
+  q('metro-card').classList.toggle('bar', effective && playing) // 접힌 채 재생: 헤더 점을 키워 원거리에서 박이 보이게
   if (effective) clearDots()
 }
 
@@ -62,7 +65,7 @@ export function mountMetro(): void {
   attachDrag(q('metro-bpm-wrap')); attachDrag(q('metro-hdr-label'))
   on(q('metro-play-hdr-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
   on(q('metro-play-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
-  on(q('metro-collapse-btn'), 'click', () => metroStore.set({ collapsed: !metroStore.get().collapsed }))
+  on(q('metro-collapse-btn'), 'click', () => { autoCollapsed = false; metroStore.set({ collapsed: !metroStore.get().collapsed }) }) // 사용자가 직접 만지면 자동 접힘 기억은 지운다
   qsa('.m-adj, .m-adj-pad').forEach(b => on(b, 'click', () => adjBPM(b.textContent === '−' ? -1 : 1)))
   const volMain = q<HTMLInputElement>('metro-vol'), volPad = q<HTMLInputElement>('metro-vol-pad-input')
   on(volMain, 'input', () => { setMetroVol(+volMain.value); volPad.value = volMain.value })
@@ -89,8 +92,12 @@ export function mountMetro(): void {
 
   metroStore.select(s => s.playing, playing => {
     const btn = q('metro-play-btn')
-    btn.textContent = playing ? '■' : '▶'; btn.style.borderColor = playing ? 'var(--red)' : 'var(--border)'
-    if (isPhoneLayout()) { q('metro-play-hdr-btn').style.display = playing ? 'flex' : 'none'; q('metro-collapse-btn').style.display = playing ? 'none' : 'flex' }
+    btn.textContent = playing ? '■' : '▶'
+    if (isPhoneLayout()) {
+      q('metro-play-hdr-btn').style.display = playing ? 'flex' : 'none'
+      if (playing && !metroStore.get().collapsed) { autoCollapsed = true; metroStore.set({ collapsed: true }) } // 시작 시 자동 접힘 (연습 중엔 튜너만). 접기 버튼은 남아 재생 중에도 펼칠 수 있다
+      else if (!playing && autoCollapsed) { autoCollapsed = false; metroStore.set({ collapsed: false }) }
+    }
     if (playing) buildBeatVis(); else clearDots()
     applyCollapse()
   })

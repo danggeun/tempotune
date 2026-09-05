@@ -34,6 +34,8 @@ export function parseStored(raw: string | null): Partial<Settings> {
     if (isSubDiv(s.subDiv)) out.subDiv = s.subDiv
     { const v = num(s.refHz, CFG.ref.min, CFG.ref.max); if (v !== null) out.refHz = Math.round(v) }
     { const v = num(s.metroVol, 0, 1); if (v !== null) out.metroVol = v }
+    if (s.noteNames === 'ko' || s.noteNames === 'en') out.noteNames = s.noteNames
+    if (typeof s.autoDelete === 'boolean') out.autoDelete = s.autoDelete
     return out
   }
   // v1 (main.js 시절) — 값 검증은 v1 loadSettings와 동일

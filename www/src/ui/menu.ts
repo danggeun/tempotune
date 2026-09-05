@@ -1,10 +1,7 @@
 /** 풀스크린 메뉴 + 설정 페이지 열기/닫기 */
 import { q, qs, on, reflow } from './dom.ts'
 
-export function toggleMenu(): void {
-  const overlay = q('menu-overlay')
-  if (overlay.classList.toggle('open')) q('ref-panel').classList.remove('open')
-}
+export function toggleMenu(): void { q('menu-overlay').classList.toggle('open') }
 /** 편집기에서 돌아올 때: 트랜지션 없이 즉시 열린 상태로 (v1 closeEditor) */
 export function showMenuInstant(): void {
   const el = q('menu-overlay'); el.style.transition = 'none'; el.classList.add('open'); reflow(el); el.style.transition = ''

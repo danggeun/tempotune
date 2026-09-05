@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<!-- user-scalable=no: 튜너를 보면서 두 손가락이 닿아 확대되는 사고를 막는다 (악기 앱의 의도된 결정). viewport-fit=cover: 엣지투엣지 safe-area 값 제공 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Go practice">
@@ -18,7 +19,7 @@
 
 <div id="mic-popup-bg">
   <div id="mic-popup">
-    <div id="mic-popup-title">마이크 접근 필요</div>
+    <div id="mic-popup-title">마이크를 켜 주세요</div>
     <div id="mic-popup-desc">소리 감지를 위해<br>마이크를 켜주세요</div>
     <button id="mic-popup-btn">마이크 켜기</button>
     <button id="mic-popup-cancel">나중에</button>
@@ -37,7 +38,7 @@
       </button>
       <span id="hdr-rec-time">0:00</span>
       <button id="rec-hdr-btn" class="compact-btn" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
-      <button id="menu-btn">≡</button>
+      <button id="menu-btn" aria-label="메뉴">≡</button>
     </div>
   </div>
 
@@ -47,9 +48,12 @@
     <div id="tuner-card">
       <div id="tuner-hdr">
         <span id="tuner-label">TUNER<span id="ai-dot"></span></span>
-        <div id="ref-row">
-          <span id="ref-lbl">A =</span>
-          <div id="ref-drum-outer"><div id="ref-drum-sel"></div><div id="ref-drum-inner"></div></div>
+        <div id="tuner-hdr-right">
+          <button id="ref-a-btn" class="compact-btn" aria-label="기준음 A 듣기">A 듣기</button>
+          <div id="ref-row">
+            <span id="ref-lbl">A =</span>
+            <div id="ref-drum-outer"><div id="ref-drum-sel"></div><div id="ref-drum-inner"></div></div>
+          </div>
         </div>
       </div>
       <div id="tuner-body">
@@ -67,10 +71,14 @@
           </div>
         </div>
         <canvas id="tuner-history"></canvas>
-        <div id="gauge-wrap">
-          <div id="gauge-center"></div>
-          <div id="gauge-zone"></div>
-          <div id="gauge-needle"></div>
+        <div id="gauge-row">
+          <span class="gauge-cue" aria-hidden="true">♭</span>
+          <div id="gauge-wrap">
+            <div id="gauge-center"></div>
+            <div id="gauge-zone"></div>
+            <div id="gauge-needle"></div>
+          </div>
+          <span class="gauge-cue" aria-hidden="true">♯</span>
         </div>
       </div>
     </div>
@@ -81,8 +89,8 @@
         <span id="metro-hdr-label">♩ 80</span>
         <div id="beat-vis"></div>
         <div id="metro-hdr-right">
-          <button id="metro-play-hdr-btn">■</button>
-          <button id="metro-collapse-btn">▼</button>
+          <button id="metro-play-hdr-btn" aria-label="메트로놈 정지">■</button>
+          <button id="metro-collapse-btn" aria-label="메트로놈 접기/펼치기">▼</button>
         </div>
       </div>
       <div id="metro-body-wrap"><div id="metro-body-clip">
@@ -94,9 +102,9 @@
           </div>
           <div id="metro-adj-col">
             <div id="metro-btn-row">
-              <button class="m-adj">−</button>
-              <button class="m-adj">+</button>
-              <button id="metro-play-btn">▶</button>
+              <button class="m-adj" aria-label="BPM 내리기">−</button>
+              <button class="m-adj" aria-label="BPM 올리기">+</button>
+              <button id="metro-play-btn" aria-label="메트로놈 재생/정지">▶</button>
             </div>
             <div id="metro-vol-row">
               <span class="m-vol-lbl">음량</span>
@@ -133,61 +141,39 @@
   </div>
 </div>
 
-<!-- 기준음 패널 -->
-<div id="ref-panel">
-  <div class="panel-hdr"><span class="panel-title">기준음</span><button class="panel-close">✕</button></div>
-  <div class="ref-oct-row">
-    <span class="ref-oct-lbl">옥타브</span>
-    <button class="ref-oct-btn">−</button>
-    <span id="ref-oct-num-ext">4</span>
-    <button class="ref-oct-btn">+</button>
-  </div>
-  <div class="ref-note-grid">
-    <button class="m-seg ref-note-btn" data-note="도">도</button>
-    <button class="m-seg ref-note-btn" data-note="레">레</button>
-    <button class="m-seg ref-note-btn" data-note="미">미</button>
-    <button class="m-seg ref-note-btn" data-note="파">파</button>
-    <button class="m-seg ref-note-btn" data-note="솔">솔</button>
-    <button class="m-seg ref-note-btn" data-note="라">라</button>
-    <button class="m-seg ref-note-btn" data-note="시">시</button>
-    <button class="m-seg ref-note-btn" data-note="도2">도↑</button>
-  </div>
-  <div class="ref-note-grid">
-    <button class="m-seg ref-note-btn" data-note="도♯">도♯</button>
-    <button class="m-seg ref-note-btn" data-note="레♯">레♯</button>
-    <button class="m-seg ref-note-btn" data-note="파♯">파♯</button>
-    <button class="m-seg ref-note-btn" data-note="솔♯">솔♯</button>
-    <button class="m-seg ref-note-btn" data-note="라♯">라♯</button>
-  </div>
-</div>
-
 <!-- 풀스크린 메뉴 -->
 <div id="menu-overlay">
   <div id="menu-panel">
     <div class="menu-top">
       <span class="menu-title-txt">메뉴</span>
       <div style="display:flex;align-items:center;gap:8px;margin-right:-6px;">
-        <button id="settings-open-btn" class="compact-btn">⚙ 설정</button>
-        <button class="menu-close-btn">✕</button>
+        <button id="settings-open-btn" class="compact-btn">설정</button>
+        <button class="menu-close-btn" aria-label="닫기">✕</button>
       </div>
     </div>
 
-    <!-- 1. 녹음 -->
+    <!-- 1. 타이머 -->
     <div class="menu-sec">
-      <div class="menu-sec-title">녹음</div>
-      <button class="menu-action" id="rec-toggle-btn">녹음 시작</button>
-      <div id="rec-list"></div>
+      <div class="menu-sec-title">타이머</div>
+      <div class="timer-grid">
+        <div class="timer-box"><div class="timer-lbl">경과 시간</div><div class="timer-val" id="timer-elapsed">00:00</div></div>
+        <div class="timer-box"><div class="timer-lbl">소리 낸 시간</div><div class="timer-val" id="timer-detected">00:00</div></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="menu-btn-sm" id="timer-toggle-btn">시작</button>
+        <button class="menu-btn-sm" id="timer-reset-btn">초기화</button>
+      </div>
     </div>
 
-    <!-- 2. 기준음 -->
+  <!-- 2. 기준음 -->
     <div class="menu-sec">
       <div class="menu-sec-title">기준음</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="ref-oct-lbl">옥타브</span>
-          <button class="ref-oct-btn">−</button>
+          <button class="ref-oct-btn" aria-label="옥타브 내리기">−</button>
           <span id="ref-oct-num-menu">4</span>
-          <button class="ref-oct-btn">+</button>
+          <button class="ref-oct-btn" aria-label="옥타브 올리기">+</button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -211,34 +197,28 @@
       </div>
     </div>
 
-    <!-- 3. 타이머 -->
+    <!-- 3. 녹음 -->
     <div class="menu-sec">
-      <div class="menu-sec-title">타이머</div>
-      <div class="timer-grid">
-        <div class="timer-box"><div class="timer-lbl">경과 시간</div><div class="timer-val" id="timer-elapsed">00:00</div></div>
-        <div class="timer-box"><div class="timer-lbl">소리 낸 시간</div><div class="timer-val" id="timer-detected">00:00</div></div>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="menu-btn-sm" id="timer-toggle-btn">시작</button>
-        <button class="menu-btn-sm" id="timer-reset-btn">초기화</button>
-      </div>
+      <div class="menu-sec-title">녹음</div>
+      <button class="menu-action" id="rec-toggle-btn">녹음 시작</button>
+      <div id="rec-list"></div>
     </div>
 
-  </div>
+    </div>
 </div>
 
 <!-- 설정 페이지 -->
 <div id="settings-page">
   <div id="settings-inner">
     <div class="settings-top">
-      <button class="settings-back" id="settings-back-btn">←</button>
+      <button class="settings-back" id="settings-back-btn" aria-label="뒤로">←</button>
       <span class="settings-title">설정</span>
     </div>
 
-    <!-- In-tune 범위 -->
+    <!-- 허용 오차 -->
     <div class="setting-row">
-      <span class="setting-lbl">In-tune 범위</span>
-      <span class="setting-desc">초록으로 표시되는 허용 범위예요 (cents)</span>
+      <span class="setting-lbl">허용 오차</span>
+      <span class="setting-desc">이 안에 들면 초록으로 표시돼요 (cents)</span>
       <div class="step-row" id="cents-steps">
         <button class="step-btn" data-v="5">±5</button>
         <button class="step-btn" data-v="10">±10</button>
@@ -270,6 +250,16 @@
       </div>
     </div>
 
+    <!-- 음이름 표기 -->
+    <div class="setting-row">
+      <span class="setting-lbl">음이름 표기</span>
+      <span class="setting-desc">선택하지 않은 쪽은 작게 함께 보여요</span>
+      <div class="step-row" id="notenames-steps">
+        <button class="step-btn on" data-v="0">도레미</button>
+        <button class="step-btn" data-v="1">C D E</button>
+      </div>
+    </div>
+
     <!-- 화면 항상 켜짐 -->
     <div class="setting-row">
       <span class="setting-lbl">화면 항상 켜짐</span>
@@ -279,6 +269,18 @@
         <button class="step-btn" data-v="0">꺼짐</button>
       </div>
     </div>
+
+    <!-- 녹음 보관 -->
+    <div class="setting-row">
+      <span class="setting-lbl">녹음 보관</span>
+      <span class="setting-desc">30일이면 오래된 녹음을 자동으로 지워요. 필요한 건 다운로드로 보관해요</span>
+      <div class="step-row" id="autodelete-steps">
+        <button class="step-btn on" data-v="1">30일</button>
+        <button class="step-btn" data-v="0">계속</button>
+      </div>
+    </div>
+
+    <div id="settings-version"></div>
 
   </div>
 </div>
@@ -292,7 +294,7 @@
   <div id="ed-inner">
     <div id="ed-top">
       <div id="ed-nav">
-        <button id="ed-back-btn">←</button>
+        <button id="ed-back-btn" aria-label="뒤로">←</button>
         <span id="ed-nav-title">편집</span>
       </div>
       <div id="ed-file-row">
@@ -320,17 +322,18 @@
           <div id="ed-pos-handle"><div id="ed-pos-hit"></div></div>
         </div>
         <div id="ed-ab-times">
-          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-a-nudge-l">‹</button><span id="ed-a-time">A —</span><button class="ed-nudge" id="ed-a-nudge-r">›</button></span>
-          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-b-nudge-l">‹</button><span id="ed-b-time">B —</span><button class="ed-nudge" id="ed-b-nudge-r">›</button></span>
+          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-a-nudge-l" aria-label="A 0.25초 앞으로">‹</button><span id="ed-a-time">A —</span><button class="ed-nudge" id="ed-a-nudge-r" aria-label="A 0.25초 뒤로">›</button></span>
+          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-b-nudge-l" aria-label="B 0.25초 앞으로">‹</button><span id="ed-b-time">B —</span><button class="ed-nudge" id="ed-b-nudge-r" aria-label="B 0.25초 뒤로">›</button></span>
         </div>
         <div id="ed-time-row">
           <span id="ed-cur">00:00</span>
+          <button id="ed-zoom-btn" class="compact-btn dim">구간 확대</button>
           <span id="ed-dur">--:--</span>
         </div>
       </div>
     </div>
     <div id="ed-transport">
-      <button id="ed-play-btn">▶</button>
+      <button id="ed-play-btn" aria-label="재생">▶</button>
       <div id="ed-speed-ctrl">
         <div id="ed-speed-hdr">
           <span id="ed-speed-lbl">재생 속도</span>

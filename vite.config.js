@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 // base: GitHub Pages 는 /go_practice/, Capacitor 빌드(build:cap)는 / (package.json scripts 참고)
 export default defineConfig(({ mode }) => ({
   root: 'www',
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   base: process.env.BASE ?? '/go_practice/',
   build: { outDir: '../dist', emptyOutDir: true, target: 'es2022' },
   server: { port: 5173, open: false },
@@ -13,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     // Capacitor 빌드(BASE=/)에서는 Google Fonts 링크를 제거 — 앱은 시스템 한글 폰트를 쓰므로 매 실행 FOUT 만 만든다
     {
       name: 'gp-cap-html',
-      transformIndexHtml(html) { return process.env.BASE === '/' ? html.replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>\n?/, '') : html },
+      transformIndexHtml(html) { return process.env.BASE === '/' ? html.replace(/<link[^>]*fonts\.googleapis\.com[^>]*>\n?/g, '') : html },
     },
     VitePWA({
       // 'prompt': 새 SW 는 앱이 유휴일 때 main.ts 가 updateSW() 를 불러야 활성화된다.

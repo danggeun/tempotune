@@ -1,16 +1,12 @@
 {
   "appId": "com.gopractice.app",
-  "appName": "Go Practice",
+  "appName": "Go practice",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
   },
-  "plugins": {
-    "SplashScreen": {
-      "launchShowDuration": 0,
-      "backgroundColor": "#f7f8fb",
-      "androidSplashResourceName": "splash",
-      "showSpinner": false
-    }
+  "android": {
+    "minWebViewVersion": 94,
+    "allowMixedContent": false
   }
 }
