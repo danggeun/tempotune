@@ -10,7 +10,8 @@ import { computePeaks } from '../core/peaks.ts'
 import { recListStore, type RecItem } from '../state/index.ts'
 import { patchRec, recFileName } from '../audio/recorder.ts'
 import { saveFile } from '../platform/index.ts'
-import { q, on } from './dom.ts'
+import { q, on, reflow, PLAY_GLYPH, PAUSE_GLYPH } from './dom.ts'
+import { displayName } from './recList.ts'
 import { toast } from './toast.ts'
 import { hideMenu, showMenuInstant } from './menu.ts'
 
@@ -33,8 +34,7 @@ export const PREROLL_SEC = 1
 /** 반복 시작점: 프리롤이면 A−1 s (0 아래로는 안 감) */
 const loopStart = () => ed.ptA === null ? 0 : (ed.loop === 2 ? Math.max(0, ed.ptA - PREROLL_SEC) : ed.ptA)
 // 편집기의 정지는 위치를 유지하는 '일시정지' — 메트로놈의 ■(진짜 정지)와 구분해 ❚❚ (UX 감사 D8). 글리프 크기는 .playing 클래스로 CSS 가 맞춘다
-const PAUSE_GLYPH = '❚❚'
-function setPlayGlyph(playing: boolean): void { const b = q('ed-play-btn'); b.textContent = playing ? PAUSE_GLYPH : '▶'; b.classList.toggle('playing', playing) }
+function setPlayGlyph(playing: boolean): void { const b = q('ed-play-btn'); b.textContent = playing ? PAUSE_GLYPH : PLAY_GLYPH; b.classList.toggle('playing', playing) }
 const SPEED_PRESETS = [1.0, 0.5, 0.7, 0.85]
 
 function setPosUI(t: number): void {
@@ -72,10 +72,11 @@ const abBtn = (id: string, active: boolean, label: string, dim = false) => {
   const btn = q(id); btn.classList.toggle('on', active); btn.classList.toggle('dim', dim)
   btn.querySelector('span')!.textContent = label
 }
-const LOOP_LABEL = ['꺼짐', '켜짐', '1s 앞'] as const
+const LOOP_LABEL = ['꺼짐', '켜짐', '1초 전부터'] as const // '앞' 은 시간축에서 양방향으로 읽힌다 (리뷰)
 const updateLoopBtn = () => abBtn('ed-loop-btn', ed.loop > 0, LOOP_LABEL[ed.loop], ed.ptA === null || ed.ptB === null)
-const updateABtn = () => abBtn('ed-a-btn', true, fmtT(ed.ptA!))
-const updateBBtn = () => abBtn('ed-b-btn', true, fmtT(ed.ptB!))
+// 설정된 뒤의 부제는 시각이 아니라 동작('해제') — 시각은 트랙 카드의 ‹ A 00:00 › 에 한 번만 (리뷰: 같은 정보 두 번)
+const updateABtn = () => abBtn('ed-a-btn', true, '해제')
+const updateBBtn = () => abBtn('ed-b-btn', true, '해제')
 const resetABtn = () => abBtn('ed-a-btn', false, '설정')
 const resetBBtn = () => abBtn('ed-b-btn', false, '설정', true)
 const resetLoopBtn = () => { ed.loop = 0; updateLoopBtn() }
@@ -137,8 +138,8 @@ async function ensurePeaks(item: RecItem): Promise<void> {
     const buf = await (await fetch(item.url)).arrayBuffer()
     const ac = new OfflineAudioContext(1, 1, 48000); const decoded = await ac.decodeAudioData(buf)
     const p = computePeaks(Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i)), 600)
-    if (ed.item !== item) return // 그 사이 다른 항목을 열었음
-    peaks = p; const next = patchRec(item, { peaks: p }); if (next) ed.item = next; requestWave()
+    if (!ed.item || ed.item.blob !== item.blob) return // 그 사이 다른 항목을 열었음 (patchRec 은 객체를 바꾸므로 blob 으로 동일성 판단)
+    peaks = p; const next = patchRec(ed.item, { peaks: p }); if (next) ed.item = next; requestWave()
   } catch { /* 디코드 실패 → 레일 유지 */ }
 }
 
@@ -147,6 +148,16 @@ function removeWindowHandlers(): void {
   window.removeEventListener('mousemove', ed.handlers.mm); window.removeEventListener('mouseup', ed.handlers.mu)
   window.removeEventListener('touchmove', ed.handlers.tm); window.removeEventListener('touchend', ed.handlers.te)
   ed.handlers = null
+}
+let dragEndedAt = 0
+/** 트랙 위 포인터다운: 플레이헤드·A·B 중 가장 가까운 것을 잡는다 (겹쳐 있을 때 위에 있는 것이 항상 이기지 않게, 리뷰 #13) */
+function pickHandle(clientX: number): EdState['dragging'] {
+  const d = dur(); if (!d) return null
+  const r = q('ed-track').getBoundingClientRect(), x = clientX - r.left
+  const cands: Array<[EdState['dragging'], number | null]> = [['pos', ed.audio?.currentTime ?? 0], ['a', ed.ptA], ['b', ed.ptB]]
+  let best: EdState['dragging'] = null, bestDist = 24
+  for (const [k, t] of cands) { if (t === null) continue; const dist = Math.abs(t / d * r.width - x); if (dist < bestDist) { bestDist = dist; best = k } }
+  return best
 }
 function initDrag(): void {
   removeWindowHandlers()
@@ -157,7 +168,7 @@ function initDrag(): void {
     else if (ed.dragging === 'a') { ed.ptA = Math.max(0, Math.min(ed.ptB !== null ? ed.ptB - 0.1 : d, t)); updateHandles(); updateABtn(); checkExportBtn() }
     else if (ed.dragging === 'b') { ed.ptB = Math.max(ed.ptA !== null ? ed.ptA + 0.1 : 0, Math.min(d, t)); updateHandles(); updateBBtn(); checkExportBtn() }
   }
-  const end = () => { const was = ed.dragging; ed.dragging = null; if (ed.audio && dur()) setPosUI(ed.audio.currentTime); if (was === 'a' || was === 'b') persistEdit() }
+  const end = () => { const was = ed.dragging; if (was) dragEndedAt = Date.now(); ed.dragging = null; if (ed.audio && dur()) setPosUI(ed.audio.currentTime); if (was === 'a' || was === 'b') persistEdit() }
   ed.handlers = { mm: e => move(e.clientX), mu: end, tm: e => { if (ed.dragging) move(e.touches[0]!.clientX) }, te: end }
   window.addEventListener('mousemove', ed.handlers.mm); window.addEventListener('mouseup', ed.handlers.mu)
   window.addEventListener('touchmove', ed.handlers.tm, { passive: true }); window.addEventListener('touchend', ed.handlers.te)
@@ -186,18 +197,19 @@ export function openEditor(item: RecItem): void {
   audio.addEventListener('loadedmetadata', restore); audio.addEventListener('durationchange', restore)
   if (audio.readyState >= 1 && dur()) { updateDur(); restore() }
   const playBtn = q<HTMLButtonElement>('ed-play-btn')
-  const ready = () => { setPlayGlyph(false); playBtn.classList.remove('dim'); playBtn.disabled = false; if (ed.readyTimeout) clearTimeout(ed.readyTimeout) }
+  const ready = () => { if (ed.audio !== audio) return; setPlayGlyph(false); playBtn.classList.remove('dim'); playBtn.disabled = false; if (ed.readyTimeout) clearTimeout(ed.readyTimeout) }
   ed.readyTimeout = setTimeout(ready, 3000)
   audio.addEventListener('canplaythrough', ready, { once: true })
   audio.addEventListener('timeupdate', onTimeUpdate)
   audio.addEventListener('play', startLoopWatch)
   audio.addEventListener('ended', () => {
+    if (ed.audio !== audio) return
     setPlayGlyph(false)
     if (ed.loop && ed.ptA !== null && ed.ptB !== null) { audio.currentTime = loopStart(); audio.play(); setPlayGlyph(true) }
   })
   audio.load()
 
-  q('editor-title-display').textContent = item.name
+  q('editor-title-display').textContent = displayName(item) // 목록과 같은 이름 (파일명 규칙은 다운로드에서만)
   q('ed-cur').textContent = '00:00'; q('ed-dur').textContent = item.dur ? fmtT(item.dur) : '--:--'
   setPlayGlyph(false); playBtn.classList.add('dim'); playBtn.disabled = true
   if (audio.readyState >= 3) { playBtn.classList.remove('dim'); playBtn.disabled = false }
@@ -210,15 +222,14 @@ export function openEditor(item: RecItem): void {
   void ensurePeaks(item)
   checkExportBtn()
   // 진입은 메뉴와 같은 .2 s 페이드(UX 감사 B5) — display 를 켠 다음 프레임에 .open 을 붙여야 전이가 걸린다. 복귀(closeEditor)는 의도대로 즉시
-  const page = q('editor-page'); page.style.display = 'flex'
-  requestAnimationFrame(() => { if (ed.item === item) page.classList.add('open') })
+  const page = q('editor-page'); page.style.display = 'flex'; reflow(page); page.classList.add('open') // 동기 reflow: rAF 는 스타일 재계산 전에 돌아 전이가 안 걸릴 수 있다 (리뷰 #2)
   initDrag()
 }
 
 export function closeEditor(): void {
   if (ed.audio) { ed.audio.pause(); ed.audio = null }
   if (loopRaf != null) { cancelAnimationFrame(loopRaf); loopRaf = null }
-  peaks = null; ed.idx = -1; ed.item = null
+  peaks = null; ed.idx = -1; ed.item = null; ed.ptA = null; ed.ptB = null; ed.loop = 0 // 닫힌 뒤 늦게 오는 ended 가 반복을 되살리지 않게
   if (ed.readyTimeout) clearTimeout(ed.readyTimeout)
   removeWindowHandlers()
   showMenuInstant()
@@ -232,11 +243,11 @@ export const editorDiag = () => ({ ptA: ed.ptA, ptB: ed.ptB, loop: ed.loop, audi
 
 function editTitle(): void {
   const current = ed.item ? ed.item.name : ''
-  const newName = prompt('파일 이름 수정', current)
+  const newName = prompt('녹음 이름', current)
   if (newName && newName.trim() && ed.item) {
     const name = newName.trim()
     const next = patchRec(ed.item, { name }); if (next) ed.item = next // IndexedDB(meta) 에도 저장
-    q('editor-title-display').textContent = name
+    q('editor-title-display').textContent = displayName(ed.item)
   }
 }
 
@@ -348,18 +359,17 @@ async function downloadWhole(): Promise<void> {
 export function mountEditor(): void {
   const track = q('ed-track')
   on(track, 'click', (e: MouseEvent) => {
-    if (ed.dragging || (e.target as HTMLElement).closest('#ed-pos-handle,#ed-a-handle,#ed-b-handle')) return
+    if (ed.dragging || Date.now() - dragEndedAt < 300) return // 드래그 직후의 click 은 시크가 아니다
     const d = dur(); if (!d) return
     const t = pctFromClient(e.clientX) * d; ed.audio!.currentTime = t; setPosUI(t)
   })
-  const start = (which: EdState['dragging']) => (e: Event) => { e.stopPropagation(); ed.dragging = which }
-  for (const [id, w] of [['ed-pos-handle', 'pos'], ['ed-a-handle', 'a'], ['ed-b-handle', 'b']] as const) {
-    on(q(id), 'mousedown', start(w)); on(q(id), 'touchstart', start(w), { passive: true })
-  }
+  on(track, 'mousedown', (e: MouseEvent) => { ed.dragging = pickHandle(e.clientX) })
+  on(track, 'touchstart', (e: TouchEvent) => { ed.dragging = pickHandle(e.touches[0]!.clientX) }, { passive: true })
   on(q('ed-back-btn'), 'click', closeEditor)
   on(q('ed-title-edit'), 'click', editTitle)
   on(q('ed-play-btn'), 'click', togglePlay)
-  on(q('ed-speed'), 'input', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value))
+  on(q('ed-speed'), 'input', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value, false)) // 드래그 중엔 저장 안 함(IndexedDB 연타 방지)
+  on(q('ed-speed'), 'change', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value))
   on(q('ed-speed-val'), 'click', cycleSpeed)
   on(q('ed-a-btn'), 'click', toggleA); on(q('ed-b-btn'), 'click', toggleB); on(q('ed-loop-btn'), 'click', toggleLoop)
   on(q('ed-bm-add-btn'), 'click', addBookmark); on(q('ed-export-btn'), 'click', exportAB)

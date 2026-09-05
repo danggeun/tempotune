@@ -1,7 +1,9 @@
 /** 메뉴의 녹음 목록 — 최신 1개 펼침 + 이전 N개 접힘, 항목별 미니 플레이어 */
 import { recListStore, type RecItem } from '../state/index.ts'
 import { fmtT } from '../core/format.ts'
-import { deleteRec, restoreDeleted, recFileName, REC_TTL } from '../audio/recorder.ts'
+import { deleteRec, restoreDeleted, recFileName } from '../audio/recorder.ts'
+import { REC_TTL, REC_WARN_DAYS } from '../core/recPolicy.ts'
+import { PAUSE_GLYPH, PLAY_GLYPH } from './dom.ts'
 import { saveFile } from '../platform/index.ts'
 import { toast } from './toast.ts'
 import { q, on } from './dom.ts'
@@ -12,6 +14,7 @@ export function displayName(item: RecItem): string {
   return m ? `${+m[2]!}/${+m[3]!} ${m[4]}:${m[5]}` : item.name
 }
 const players: Record<number, HTMLAudioElement> = {}
+function setPlayBtn(idx: number, playing: boolean): void { const b = document.getElementById('rec-pb-' + idx); if (b) { b.textContent = playing ? PAUSE_GLYPH : PLAY_GLYPH; b.classList.toggle('playing', playing) } }
 function getPlayer(idx: number): HTMLAudioElement {
   let a = players[idx]
   if (!a) {
@@ -22,7 +25,7 @@ function getPlayer(idx: number): HTMLAudioElement {
       if (tm) tm.textContent = fmtT(a!.currentTime)
     }
     a.onended = () => {
-      const btn = document.getElementById('rec-pb-' + idx); if (btn) btn.textContent = '▶'
+      setPlayBtn(idx, false)
       const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null; if (sk) sk.value = '0'
       const tm = document.getElementById('rec-time-' + idx); if (tm) tm.textContent = '0:00'
       a!.currentTime = 0
@@ -32,9 +35,9 @@ function getPlayer(idx: number): HTMLAudioElement {
   return a
 }
 function playPause(idx: number): void {
-  const a = getPlayer(idx), btn = document.getElementById('rec-pb-' + idx)
-  for (const k of Object.keys(players)) { const i = +k; if (i !== idx && !players[i]!.paused) { players[i]!.pause(); const b = document.getElementById('rec-pb-' + i); if (b) b.textContent = '▶' } }
-  if (a.paused) { a.play(); if (btn) btn.textContent = '■' } else { a.pause(); if (btn) btn.textContent = '▶' }
+  const a = getPlayer(idx)
+  for (const k of Object.keys(players)) { const i = +k; if (i !== idx && !players[i]!.paused) { players[i]!.pause(); setPlayBtn(i, false) } }
+  if (a.paused) { a.play(); setPlayBtn(idx, true) } else { a.pause(); setPlayBtn(idx, false) } // 위치를 유지하는 일시정지 → ❚❚ (편집기와 동일)
 }
 function seek(idx: number): void { const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, a = getPlayer(idx); if (sk && a.duration) a.currentTime = +sk.value }
 export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { try { a.pause() } catch { /* */ } delete players[idx] } }
@@ -44,23 +47,25 @@ export function itemMeta(item: RecItem, now = Date.now()): string {
   const parts: string[] = []
   if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
   if (item.ab) parts.push('A-B')
-  const daysLeft = Math.max(0, Math.ceil((item.ts + REC_TTL - now) / 86400000))
-  if (daysLeft <= 7) parts.push(daysLeft === 0 ? '오늘 삭제' : `${daysLeft}일 후 삭제`) // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만)
+  if (typeof item.ts === 'number') { // ts 없는 구버전 행은 보관되므로 예고 없음
+    const daysLeft = Math.max(0, Math.floor((item.ts + REC_TTL - now) / 86400000)) // floor: 24시간 미만 = '오늘'
+    // 30일 자동 삭제 예고는 마지막 7일만, 대응 수단(다운로드)과 함께 (정보는 있는 것만)
+    if (daysLeft < REC_WARN_DAYS) parts.push((daysLeft === 0 ? '오늘 삭제' : `${daysLeft}일 후 삭제`) + ' · 보관하려면 다운로드')
+  }
   return parts.join(' · ')
 }
 
 function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLElement {
-  const div = document.createElement('div'); div.className = 'rec-item'
-  const m = Math.floor(item.dur / 60), s = String(item.dur % 60).padStart(2, '0')
+  const div = document.createElement('div'); div.className = 'rec-item'; div.dataset.idx = String(idx)
   div.innerHTML = `
       <div class="rec-item-head" data-action="toggle" data-idx="${idx}">
         <div><span class="rec-item-name"></span><div class="rec-item-meta"></div></div>
-        <span class="rec-item-dur">${m}:${s}</span>
+        <span class="rec-item-dur">${fmtT(item.dur)}</span>
       </div>
       <div class="rec-item-detail${defaultOpen ? ' open' : ''}" id="rec-detail-${idx}">
         <div class="rec-player">
           <div class="rec-player-top">
-            <button class="rec-play-btn" id="rec-pb-${idx}" data-action="play" data-idx="${idx}">▶</button>
+            <button class="rec-play-btn" id="rec-pb-${idx}" data-action="play" data-idx="${idx}">${PLAY_GLYPH}</button>
             <input type="range" class="rec-seek" id="rec-seek-${idx}" value="0" min="0" step="0.01" data-action="seek" data-idx="${idx}">
             <span class="rec-time" id="rec-time-${idx}">00:00</span>
           </div>
@@ -81,7 +86,7 @@ function render(): void {
   for (const k of Object.keys(players)) { players[+k]!.pause(); delete players[+k] }
   const list = q('rec-list'); list.innerHTML = ''
   const items = recListStore.get().items
-  if (items.length === 0) return
+  if (items.length === 0) { const e = document.createElement('div'); e.id = 'rec-empty'; e.textContent = '아직 녹음이 없어요'; list.appendChild(e); return }
   list.appendChild(renderItem(items[0]!, 0, true))
   if (items.length > 1) {
     const oldWrap = document.createElement('div')
@@ -119,4 +124,8 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
   })
   on(list, 'input', (e: Event) => { const t = e.target as HTMLElement; if (t.dataset.action === 'seek') seek(+t.dataset.idx!) })
   recListStore.select(s => s.rev, render)
+  // 북마크/A-B 가 바뀌면(patchRec 은 items 배열만 교체) 메타 줄만 제자리 갱신 — 전체 재렌더는 펼침 상태와 미니 플레이어를 리셋한다
+  recListStore.select(s => s.items, items => {
+    list.querySelectorAll<HTMLElement>('.rec-item[data-idx]').forEach(el => { const it = items[+el.dataset.idx!]; const m = el.querySelector('.rec-item-meta'); if (it && m) m.textContent = itemMeta(it) })
+  })
 }

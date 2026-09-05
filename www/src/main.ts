@@ -37,7 +37,7 @@ loadSettings(); startSettingsAutosave()
 
 // ── 화면 ──
 mountTuner(); mountRefDrum(); mountMetro(); mountRefPanel(); mountMenu(); mountSettings()
-mountTimer(() => { /* 무활동 종료는 아래 inactivity watch 가 담당 */ })
+mountTimer()
 mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 
 // ── 마이크 생명주기 ──

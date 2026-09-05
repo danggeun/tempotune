@@ -32,11 +32,11 @@
       <div id="logo-sub">play more · tune better</div>
     </div>
     <div id="hdr-right">
-      <button id="hdr-mic-btn">
+      <button id="hdr-mic-btn" class="compact-btn">
         <span id="hdr-mic-dot">●</span>MIC
       </button>
       <span id="hdr-rec-time">0:00</span>
-      <button id="rec-hdr-btn" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
+      <button id="rec-hdr-btn" class="compact-btn" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
       <button id="menu-btn">≡</button>
     </div>
   </div>
@@ -99,7 +99,7 @@
               <button id="metro-play-btn">▶</button>
             </div>
             <div id="metro-vol-row">
-              <span class="m-vol-lbl">🔈</span>
+              <span class="m-vol-lbl">음량</span>
               <input type="range" id="metro-vol" min="0" max="1" step="0.05" value="0.7">
             </div>
           </div>
@@ -109,7 +109,7 @@
           <button class="m-adj-pad">+</button>
         </div>
         <div id="metro-vol-pad" style="display:none;align-items:center;gap:8px;">
-          <span class="m-vol-lbl">🔈</span>
+          <span class="m-vol-lbl">음량</span>
           <input type="range" id="metro-vol-pad-input" min="0" max="1" step="0.05" value="0.7">
         </div>
         <div id="metro-grids-wrap">
@@ -167,7 +167,7 @@
     <div class="menu-top">
       <span class="menu-title-txt">메뉴</span>
       <div style="display:flex;align-items:center;gap:8px;margin-right:-6px;">
-        <button id="settings-open-btn">⚙ 설정</button>
+        <button id="settings-open-btn" class="compact-btn">⚙ 설정</button>
         <button class="menu-close-btn">✕</button>
       </div>
     </div>
@@ -238,7 +238,7 @@
     <!-- In-tune 범위 -->
     <div class="setting-row">
       <span class="setting-lbl">In-tune 범위</span>
-      <span class="setting-desc">초록색으로 표시되는 허용 범위 (cents)</span>
+      <span class="setting-desc">초록으로 표시되는 허용 범위예요 (cents)</span>
       <div class="step-row" id="cents-steps">
         <button class="step-btn" data-v="5">±5</button>
         <button class="step-btn" data-v="10">±10</button>
@@ -251,7 +251,7 @@
     <!-- 튜너 반응 속도 -->
     <div class="setting-row">
       <span class="setting-lbl">튜너 반응 속도</span>
-      <span class="setting-desc">빠를수록 음정 변화에 즉각 반응</span>
+      <span class="setting-desc">빠를수록 음정 변화에 바로 반응해요</span>
       <div class="step-row" id="smooth-steps">
         <button class="step-btn" data-v="1">느림</button>
         <button class="step-btn on" data-v="2">보통</button>
@@ -262,7 +262,7 @@
     <!-- 마이크 감도 -->
     <div class="setting-row">
       <span class="setting-lbl">마이크 감도</span>
-      <span class="setting-desc">작은 소리도 감지하려면 높음으로</span>
+      <span class="setting-desc">작은 소리까지 잡으려면 '높음'을 선택해요</span>
       <div class="step-row" id="rms-steps">
         <button class="step-btn" data-v="1">낮음</button>
         <button class="step-btn on" data-v="2">보통</button>
@@ -273,7 +273,7 @@
     <!-- 화면 항상 켜짐 -->
     <div class="setting-row">
       <span class="setting-lbl">화면 항상 켜짐</span>
-      <span class="setting-desc">켜짐: 연습 중 화면이 꺼지지 않음</span>
+      <span class="setting-desc">연습 중 화면이 꺼지지 않아요</span>
       <div class="step-row" id="wakelock-steps">
         <button class="step-btn on" data-v="1">켜짐</button>
         <button class="step-btn" data-v="0">꺼짐</button>
@@ -296,7 +296,7 @@
         <span id="ed-nav-title">편집</span>
       </div>
       <div id="ed-file-row">
-        <span id="ed-file-lbl">파일명: </span><span id="editor-title-display"></span><span id="ed-title-edit">수정✎</span>
+        <span id="editor-title-display"></span><button id="ed-title-edit" class="compact-btn">이름 바꾸기</button>
       </div>
     </div>
     <div id="ed-track-wrap">
@@ -334,10 +334,9 @@
       <div id="ed-speed-ctrl">
         <div id="ed-speed-hdr">
           <span id="ed-speed-lbl">재생 속도</span>
-          <span id="ed-speed-val">1.0×</span>
+          <button id="ed-speed-val" class="compact-btn">1.0×</button>
         </div>
         <input type="range" id="ed-speed" min="0.5" max="1.5" step="0.05" value="1.0">
-        <div id="ed-speed-ticks"><span>0.5×</span><span>1.0×</span><span>1.5×</span></div>
       </div>
     </div>
     <div id="ed-ab-row">
@@ -348,7 +347,7 @@
     <div id="ed-bm-section">
       <div id="ed-bm-hdr">
         <span id="ed-bm-title">북마크</span>
-        <button id="ed-bm-add-btn">+ 추가</button>
+        <button id="ed-bm-add-btn" class="compact-btn">+ 추가</button>
       </div>
       <div id="ed-bookmarks">
         <span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>

@@ -6,7 +6,8 @@
  */
 export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings', META_STORE = 'meta'
 export const REC_DB_VERSION = 3
-export const REC_TTL = 30 * 24 * 60 * 60 * 1000
+import { REC_TTL } from '../core/recPolicy.ts'
+export { REC_TTL }
 
 export interface AB { a: number; b: number }
 export interface RecRow { id?: number; name: string; dur: number; blob: Blob; mime: string; ts: number }

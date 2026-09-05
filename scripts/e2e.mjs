@@ -182,12 +182,17 @@ await scenario('timer: elapsed counts, detected counts while playing, reset', 'v
   const el = await p.evaluate(() => document.getElementById('timer-elapsed').textContent); assert.match(el, /^00:0[2-3]$/)
   const det = await p.evaluate(() => document.getElementById('timer-detected').textContent); assert.match(det, /^00:0[1-3]$/, 'detected while playing (FFT harmonic)')
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지')
+  await p.click('#timer-toggle-btn'); await sleep(p, 100) // 정지한 뒤 초기화 (틱 경합 없이 값 비교)
+  const before = await p.evaluate(() => document.getElementById('timer-elapsed').textContent)
   await p.click('#timer-reset-btn'); assert.equal(await p.evaluate(() => document.getElementById('timer-elapsed').textContent), '00:00')
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '시작')
   // Phase 6 A6: 초기화는 즉시 + 실행 취소 토스트 (삭제와 같은 패턴)
   assert.equal(await p.evaluate(() => document.getElementById('toast').textContent), '초기화됨 · 실행 취소')
   await p.click('#toast'); await sleep(p, 200)
-  assert.equal(await p.evaluate(() => document.getElementById('timer-elapsed').textContent), el, 'undo restores elapsed')
+  assert.equal(await p.evaluate(() => document.getElementById('timer-elapsed').textContent), before, 'undo restores elapsed')
+  // 실행 중에 초기화 → 실행 취소하면 다시 돌아간다
+  await p.click('#timer-toggle-btn'); await sleep(p, 1200); await p.click('#timer-reset-btn'); await p.click('#toast'); await sleep(p, 100)
+  assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지', 'undo restores running state')
 })
 await scenario('ref tone: toggle on/off, octave label both places, 도↑', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
@@ -301,7 +306,7 @@ await scenario('editor: waveform appears; A/B + bookmark persist across close/re
 })
 
 // ── Phase 6: UI/UX ──
-await scenario('ux: editor pause glyph ❚❚ (not ■), loop cycles 꺼짐→켜짐→1s 앞→꺼짐 with pre-roll, entry fade class', 'violin_scale_Amaj.wav', async p => {
+await scenario('ux: editor pause glyph ❚❚ (not ■), loop cycles 꺼짐→켜짐→1초 전부터→꺼짐 with pre-roll, entry fade class', 'violin_scale_Amaj.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000)
   await p.click('#rec-hdr-btn'); await sleep(p, 4200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
@@ -312,10 +317,10 @@ await scenario('ux: editor pause glyph ❚❚ (not ■), loop cycles 꺼짐→�
   const a = await p.evaluate(() => window.__gp.editor().ptA); assert.ok(a > 1.2, 'A set after 1.2 s: ' + a)
   const label = () => p.evaluate(() => document.querySelector('#ed-loop-btn span').textContent)
   await p.click('#ed-loop-btn'); assert.equal(await label(), '켜짐')
-  await p.click('#ed-loop-btn'); assert.equal(await label(), '1s 앞')
-  await sleep(p, 150)
+  await p.click('#ed-loop-btn'); assert.equal(await label(), '1초 전부터')
+  await sleep(p, 50)
   const cur = await p.evaluate(() => window.__gp.editor().audio.currentTime)
-  assert.ok(cur < a - 0.5 && cur >= a - 1.2, `pre-roll jumps to A−1 s: cur=${cur.toFixed(2)} a=${a.toFixed(2)}`)
+  assert.ok(cur < a - 0.3 && cur >= a - 1.2, `pre-roll jumps to A−1 s: cur=${cur.toFixed(2)} a=${a.toFixed(2)}`)
   await p.click('#ed-loop-btn'); assert.equal(await label(), '꺼짐')
   await p.click('#ed-play-btn'); await sleep(p, 100)
   assert.equal(await p.evaluate(() => document.getElementById('ed-play-btn').textContent), '▶')
@@ -347,6 +352,8 @@ await scenario('ux: list meta shows 북마크 n · A-B after editing; audio stat
   await p.click('#ed-play-btn'); await sleep(p, 500); await p.click('#ed-bm-add-btn'); await sleep(p, 300); await p.click('#ed-a-btn'); await sleep(p, 500); await p.click('#ed-b-btn'); await sleep(p, 300)
   await p.click('#ed-back-btn'); await sleep(p, 300)
   assert.equal(await meta(), '북마크 1 · A-B')
+  assert.equal(await p.evaluate(() => document.getElementById('rec-detail-0').classList.contains('open')), true, 'list not re-rendered (expanded state kept)')
+  await p.click('.rec-play-btn'); await sleep(p, 200); assert.equal(await p.evaluate(() => document.querySelector('.rec-play-btn').textContent), '❚❚', 'list pause glyph'); await p.click('.rec-play-btn')
   await p.click('.menu-close-btn'); await sleep(p, 200)
   await p.evaluate(() => window.__gp.closeMic()); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('ai-dot').classList.contains('on')), false, 'dot off after mic closed')

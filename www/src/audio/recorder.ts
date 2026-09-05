@@ -2,8 +2,7 @@
  * 녹음 (MediaRecorder) + 녹음 목록 상태. v1 startRec/stopRec/deleteRec 를 옮겼다.
  */
 import { recListStore, sessionStore, type RecItem } from '../state/index.ts'
-import { dbSave, dbDelete, dbPatchMeta, dbLoadAll, REC_TTL } from '../persist/recordingsDb.ts'
-export { REC_TTL }
+import { dbSave, dbDelete, dbPatchMeta, dbLoadAll } from '../persist/recordingsDb.ts'
 import { computePeaks } from '../core/peaks.ts'
 import { A, onMic } from './engine.ts'
 
@@ -85,13 +84,13 @@ export async function restoreDeleted(item: RecItem, at: number): Promise<void> {
   const st2 = recListStore.get(); const i = st2.items.indexOf(back); if (i >= 0) { const items2 = st2.items.slice(); items2[i] = { ...back, id }; recListStore.set({ items: items2, rev: st2.rev }) }
 }
 export function renameRec(item: RecItem, name: string): RecItem | null { return patchRec(item, { name }) }
-/** 편집 상태(북마크/A-B/파형/속도)·이름을 메모리와 IndexedDB(meta) 에 반영. 새 항목 객체를 반환. rev(목록 재렌더)는 목록에 보이는 것(이름·북마크·A-B)이 바뀔 때만 올린다 */
+/** 편집 상태(북마크/A-B/파형/속도)·이름을 메모리와 IndexedDB(meta) 에 반영. 새 항목 객체를 반환 */
 export function patchRec(item: RecItem, patch: Partial<Pick<RecItem, 'name' | 'bookmarks' | 'ab' | 'peaks' | 'speed'>>): RecItem | null {
   const st = recListStore.get(); const idx = st.items.indexOf(item); if (idx < 0) return null
   const items = st.items.slice(); const next = { ...item, ...patch }; items[idx] = next
   void dbPatchMeta(item.id, patch)
-  const visible = 'name' in patch || 'bookmarks' in patch || 'ab' in patch
-  recListStore.set({ items, rev: visible ? st.rev + 1 : st.rev })
+  // rev(전체 재렌더: 펼침 상태·미니 플레이어가 리셋된다)는 이름 변경 때만. 북마크/A-B 는 items 교체만으로 목록이 메타 줄을 제자리 갱신한다 (리뷰 #5)
+  recListStore.set({ items, rev: 'name' in patch ? st.rev + 1 : st.rev })
   return next
 }
 let errorFn: ((m: string) => void) | null = null

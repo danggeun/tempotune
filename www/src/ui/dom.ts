@@ -14,3 +14,7 @@ export function on<K extends keyof HTMLElementEventMap>(el: HTMLElement | Window
 
 /** 강제 리플로우 (CSS 트랜지션의 시작값을 확정할 때) */
 export function reflow(el: HTMLElement): void { void el.offsetHeight }
+
+/** 재생 글리프 — 정지(■)는 메트로놈처럼 '처음으로' 를 뜻하므로, 위치를 유지하는 일시정지는 앱 전체에서 ❚❚ (UX 감사 D8) */
+export const PLAY_GLYPH = '▶'
+export const PAUSE_GLYPH = '❚❚'
