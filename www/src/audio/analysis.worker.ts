@@ -39,14 +39,15 @@ function onChunk(e: MessageEvent<ChunkMsg>): void {
   if (offset < minOffset) minOffset = offset
   else minOffset += 0.5 // 기준선은 천천히 따라 올라간다 (시계 드리프트)
   if (offset - minOffset > 100) { skipped++; return }
-  // 뮤트 구간: 창 [t − WINDOW/sr, t] 가 클릭 구간과 겹치면 버림
+  // 뮤트 구간: 창 [t − WINDOW/sr, t] 가 클릭 구간과 겹치면 '클릭 섞임' 으로 표시 (버리지 않는다 — 버리면 120 bpm 세분에서 튜너가 얼어붙는다, 리뷰)
   const t0 = m.t - WINDOW / sr
-  for (let i = mutes.length - 1; i >= 0; i--) { const r = mutes[i]!; if (r.until < t0 - 1) mutes.splice(i, 1); else if (t0 < r.until && m.t > r.from) return }
+  let muted = false
+  for (let i = mutes.length - 1; i >= 0; i--) { const r = mutes[i]!; if (r.until < t0 - 1) mutes.splice(i, 1); else if (t0 < r.until && m.t > r.from) muted = true }
   // 최신 WINDOW 샘플을 선형 버퍼로
   let src = (ringPos - WINDOW + ring.length) % ring.length
   for (let i = 0; i < WINDOW; i++) { win[i] = ring[src]!; src = (src + 1) % ring.length }
   const t0w = performance.now()
-  const frame = analyzer.process(win)
+  const frame = analyzer.process(win, muted)
   post({ type: 'frame', frame, t: m.t, ms: performance.now() - t0w, skipped })
   skipped = 0
 }

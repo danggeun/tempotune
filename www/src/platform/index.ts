@@ -10,9 +10,12 @@ export function initStatusBar(): void {
   if (!isNative()) return
   document.body.classList.add('capacitor')
   import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-    const dark = window.matchMedia('(prefers-color-scheme:dark)').matches
-    StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light })
-    StatusBar.setBackgroundColor({ color: dark ? '#0f0f0f' : '#f7f8fb' })
+    const mq = window.matchMedia('(prefers-color-scheme:dark)')
+    const apply = () => {
+      StatusBar.setStyle({ style: mq.matches ? Style.Dark : Style.Light }).catch(() => {})
+      StatusBar.setBackgroundColor({ color: mq.matches ? '#0f0f0f' : '#f7f8fb' }).catch(() => {}) // Android 15 엣지투엣지에서는 무시됨 (투명 상태바) — 스타일만 유효
+    }
+    apply(); mq.addEventListener('change', apply) // 실행 중 테마 전환에도 따라간다
   }).catch(() => {})
 }
 

@@ -71,6 +71,7 @@ function waitWorkerReady(w: Worker, timeoutMs: number): Promise<void> {
 }
 
 let opening = false
+let micGen = 0 // 세션 토큰: openMic 도중 closeMic 이 끼어들면(트랙 ended·무활동·워커 오류) 늦게 깨어난 await 뒤에서 옛 세션을 이어가지 않게
 export type MicResult = { ok: true } | { ok: false; error: string }
 
 export async function openMic(): Promise<MicResult> {
@@ -78,30 +79,37 @@ export async function openMic(): Promise<MicResult> {
   if (A.micStream) return { ok: true }
   if (!audioSupported()) return { ok: false, error: '이 브라우저는 실시간 분석(AudioWorklet)을 지원하지 않습니다' }
   opening = true
+  const gen = ++micGen
+  const stale = () => gen !== micGen || !A.micStream
   try {
     // 샘플레이트를 강제하지 않는다 — 기기 기본값(44.1/48 kHz)을 쓰고 분석기가 sr 을 받는다 (§B1)
-    A.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
+    if (gen !== micGen) { stream.getTracks().forEach(t => t.stop()); opening = false; return { ok: false, error: 'busy' } }
+    A.micStream = stream
     const ac = getContext()
     if (!A.captureLoaded) { await ac.audioWorklet.addModule(captureWorkletUrl); A.captureLoaded = true }
+    if (stale()) throw new Error('busy')
     A.captureNode = new AudioWorkletNode(ac, 'gp-capture', { numberOfInputs: 1, numberOfOutputs: 0, channelCount: 1 })
     const w = new Worker(new URL('./analysis.worker.ts', import.meta.url), { type: 'module' })
     A.worker = w
     const ch = new MessageChannel()
     w.postMessage({ type: 'init', sampleRate: ac.sampleRate, port: ch.port1, settings: analyzerSettings() } satisfies WorkerIn, [ch.port1])
     await waitWorkerReady(w, 3000)
+    if (stale()) throw new Error('busy')
     // 세션마다 워커를 캡처 — 종료 직전 큐에 남은 이전 세션 프레임이 새 세션에 섞이지 않게
     w.onmessage = (e: MessageEvent<WorkerOut>) => { if (A.worker === w) frameHandler?.(e.data) }
     w.onerror = () => { if (A.worker === w) { closeMic(); onFatal?.('분석 워커 오류로 마이크를 껐습니다') } }
     A.captureNode.port.postMessage({ type: 'port', port: ch.port2 }, [ch.port2])
-    A.micSource = ac.createMediaStreamSource(A.micStream); A.micSource.connect(A.captureNode)
-    // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리
-    A.micStream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream) { closeMic(); onFatal?.('마이크 연결이 끊겼습니다') } })
+    A.micSource = ac.createMediaStreamSource(stream); A.micSource.connect(A.captureNode)
+    // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리 — 자기 스트림일 때만 (이전 세션의 늦은 ended 가 새 세션을 닫지 않게)
+    stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.('마이크 연결이 끊겼습니다') } })
     tunerStore.set({ micReady: true, running: true })
     opening = false
     for (const h of hooks.afterOpen) h()
     return { ok: true }
   } catch (e) {
     opening = false
+    if (e instanceof Error && e.message === 'busy') return { ok: false, error: 'busy' } // 도중에 닫힘 — 이미 정리됐다
     teardownMic()
     return { ok: false, error: micErrorMessage(e) }
   }
@@ -120,7 +128,9 @@ const isNativeGuess = () => typeof window !== 'undefined' && !!(window as unknow
 export const isPermissionError = (msg: string): boolean => /권한|차단/.test(msg)
 
 function teardownMic(): void {
+  micGen++ // 진행 중인 openMic 이 있으면 그 세션은 무효
   A.micStream?.getTracks().forEach(t => t.stop())
+  A.captureNode?.port.postMessage({ type: 'stop' }) // 프로세서 수거 (process → false)
   A.micSource?.disconnect(); A.captureNode?.disconnect(); A.worker?.terminate()
   A.micStream = null; A.micSource = null; A.captureNode = null; A.worker = null
 }

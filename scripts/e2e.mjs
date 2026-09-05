@@ -107,7 +107,7 @@ await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots
 await scenario('metro: works without mic (permission denied) + spacebar', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
   assert.equal(await p.evaluate(() => document.getElementById('mic-popup-bg').classList.contains('show')), true, 'mic popup shown')
-  await p.click('#mic-popup-cancel')
+  await p.click('#mic-popup-cancel'); await p.evaluate(() => document.activeElement?.blur()) // 포커스된 버튼의 Space 는 버튼의 것
   await p.keyboard.press('Space'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
   await p.keyboard.press('Space'); await sleep(p, 200)
@@ -382,7 +382,7 @@ await scenario('lifecycle: context suspended externally while metronome plays �
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
 })
 await scenario('lifecycle: idle → context suspended (audio focus released); metronome start resumes it', 'silence_lowfloor.wav', async p => {
-  await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel')
+  await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel'); await p.evaluate(() => document.activeElement?.blur())
   await p.keyboard.press('Space'); await sleep(p, 500); assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running')
   await p.keyboard.press('Space'); await sleep(p, 700); assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'suspended', 'idle suspend')
   await p.keyboard.press('Space'); await sleep(p, 500); assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running')

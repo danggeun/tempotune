@@ -71,7 +71,8 @@ export function mountMetro(): void {
   qsa('[data-sd]').forEach(b => on(b, 'click', () => setSubDiv((b.dataset.sd === 'd' ? 'd' : +b.dataset.sd!) as SubDiv)))
   on(document, 'keydown', (e: KeyboardEvent) => {
     const t = e.target as HTMLElement
-    if (e.code === 'Space' && t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA') { e.preventDefault(); const r = toggleMetro(); if (!r.ok) toast(r.error) }
+    // 포커스된 버튼의 Space 는 그 버튼의 것 (설정 뒤로가기 등에서 메트로놈이 켜지지 않게)
+    if (e.code === 'Space' && t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA' && t.tagName !== 'BUTTON') { e.preventDefault(); const r = toggleMetro(); if (!r.ok) toast(r.error) }
   })
 
   // ── 상태 → 화면 ──

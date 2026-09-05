@@ -36,7 +36,8 @@ export interface Frame {
 
 export interface Analyzer {
   readonly windowSize: number
-  process(buf: Float32Array | Float64Array): Frame
+  /** @param muted 이 창에 메트로놈 클릭이 섞여 있음 — 버리지 않고 신뢰도만 낮춰 트래커 가중 중앙값에서 밀려나게 하고, 감지기는 상태를 유지한다 */
+  process(buf: Float32Array | Float64Array, muted?: boolean): Frame
   setSettings(s: Partial<AnalyzerSettings>): void
   getSettings(): AnalyzerSettings
   reset(): void
@@ -56,7 +57,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
     setSettings(patch) { Object.assign(s, patch) },
     getSettings() { return { ...s } },
     reset() { tracker.reset(); det.reset() },
-    process(buf) {
+    process(buf, muted = false) {
       let e = 0; for (let i = 0; i < N; i++) e += buf[i]! * buf[i]!
       const rms = Math.sqrt(e / N), rmsOk = rms >= s.rmsMin
       if (!rmsOk) { // 게이트 아래: 트래커/감지기에 "무효" 프레임을 알린다
@@ -71,15 +72,19 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
       if (rawHz > 0) rawHz = spec.octaveCorrect(rawHz)
       const harmonics = rawHz > 0 ? spec.harmonicCount(rawHz) : 0
       const flatness = spec.flatness()
-      const playing = det.push({ conf: y.conf, rmsOk, harmonics, flatness, cents: rawHz > 0 ? 1200 * Math.log2(rawHz / 440) : NaN })
-      const t = tracker.push(rawHz, y.conf, true, s.smoothing)
+      // 클릭이 섞인 창: 감지기는 건드리지 않고(짧은 클릭으로 연주 시간이 끊기지 않게), 트래커에는 낮은 가중치로만 준다
+      const playing = muted ? det.on : det.push({ conf: y.conf, rmsOk, harmonics, flatness, cents: rawHz > 0 ? 1200 * Math.log2(rawHz / 440) : NaN })
+      // 트래커의 음이름 격자는 A=440 기준이므로 기준음(refHz)만큼 주파수를 정규화해 넣는다 — 안 그러면 |오프셋| > 50 ¢(≈ 427 Hz 미만·453 Hz 초과, 바로크 415 포함)에서 이웃 반음으로 라벨링된다
+      const t = tracker.push(rawHz / refK(), muted ? y.conf * 0.25 : y.conf, true, s.smoothing)
       const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing }
       if (t.hz > 0) fill(f, t.hz, t.midi)
       return f
     },
   }
-  function fill(f: Frame, hz: number, midi: number): void {
-    const ref = s.refHz * Math.pow(2, (midi - 69) / 12)
-    f.hz = hz; f.midi = midi; f.cents = Math.round(1200 * Math.log2(hz / ref)); f.inTune = Math.abs(f.cents) <= s.tolCents
+  function refK(): number { return s.refHz / 440 }
+  /** hzNorm 은 440 격자로 정규화된 값. 표시 주파수는 되돌리고, cents 는 정규화 공간에서 440 격자 기준으로 계산하면 곧 refHz 기준 cents 다 */
+  function fill(f: Frame, hzNorm: number, midi: number): void {
+    const ref440 = 440 * Math.pow(2, (midi - 69) / 12)
+    f.hz = hzNorm * refK(); f.midi = midi; f.cents = Math.round(1200 * Math.log2(hzNorm / ref440)); f.inTune = Math.abs(f.cents) <= s.tolCents
   }
 }

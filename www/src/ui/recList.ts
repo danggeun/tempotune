@@ -37,10 +37,12 @@ function getPlayer(idx: number): HTMLAudioElement {
 function playPause(idx: number): void {
   const a = getPlayer(idx)
   for (const k of Object.keys(players)) { const i = +k; if (i !== idx && !players[i]!.paused) { players[i]!.pause(); setPlayBtn(i, false) } }
-  if (a.paused) { a.play(); setPlayBtn(idx, true) } else { a.pause(); setPlayBtn(idx, false) } // 위치를 유지하는 일시정지 → ❚❚ (편집기와 동일)
+  if (a.paused) { setPlayBtn(idx, true); a.play().catch(() => { setPlayBtn(idx, false); toast('재생할 수 없어요') }) } else { a.pause(); setPlayBtn(idx, false) } // 위치를 유지하는 일시정지 → ❚❚ (편집기와 동일)
 }
 function seek(idx: number): void { const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, a = getPlayer(idx); if (sk && a.duration) a.currentTime = +sk.value }
-export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { try { a.pause() } catch { /* */ } delete players[idx] } }
+/** Audio 요소를 놓을 때 src 도 비운다 — WebView 는 동시 미디어 플레이어 수에 상한이 있어 붙잡고 있으면 재생이 조용히 실패한다 (리뷰) */
+export function releaseAudio(a: HTMLAudioElement): void { try { a.pause(); a.removeAttribute('src'); a.load() } catch { /* */ } }
+export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { releaseAudio(a); delete players[idx] } }
 
 /** 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고 — 열어 보기 전에 '어느 녹음인지' 알 수 있게 (UX 감사 B4). 없으면 줄 자체가 없다 */
 export function itemMeta(item: RecItem, now = Date.now()): string {
@@ -83,7 +85,7 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
 }
 
 function render(): void {
-  for (const k of Object.keys(players)) { players[+k]!.pause(); delete players[+k] }
+  for (const k of Object.keys(players)) { releaseAudio(players[+k]!); delete players[+k] }
   const list = q('rec-list'); list.innerHTML = ''
   const items = recListStore.get().items
   if (items.length === 0) { const e = document.createElement('div'); e.id = 'rec-empty'; e.textContent = '아직 녹음이 없어요'; list.appendChild(e); return }

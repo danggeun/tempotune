@@ -67,10 +67,13 @@ export function setAudioDot(state: 'off' | 'on' | 'warn'): void {
 }
 
 /** "탭하여 시작" 안내 — 탭하면 onTap 을 호출, 성공(true) 시 원래 스타일로 복귀 */
+let tapHandler: (() => void) | null = null
 export function showTapHint(onTap: () => Promise<boolean>): void {
   const nEl = q('tuner-note'), card = q('tuner-card')
   nEl.textContent = '탭하여 시작'; nEl.className = 'empty'; nEl.style.fontSize = '28px'; nEl.style.letterSpacing = '.02em'
-  const handler = async () => { if (await onTap()) { nEl.style.fontSize = ''; nEl.style.letterSpacing = ''; card.removeEventListener('click', handler) } }
+  if (tapHandler) card.removeEventListener('click', tapHandler) // 호출마다 리스너가 쌓이지 않게 (리뷰)
+  const handler = async () => { if (await onTap()) { nEl.style.fontSize = ''; nEl.style.letterSpacing = ''; card.removeEventListener('click', handler); if (tapHandler === handler) tapHandler = null } }
+  tapHandler = handler
   card.addEventListener('click', handler)
 }
 

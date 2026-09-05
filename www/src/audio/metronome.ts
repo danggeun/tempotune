@@ -32,9 +32,9 @@ async function ensureNode(): Promise<AudioWorkletNode> {
       const outLat = (ac as AudioContext & { outputLatency?: number }).outputLatency || ac.baseLatency || 0
       const delay = Math.max(0, (m.t - ac.currentTime + outLat) * 1000)
       setTimeout(() => { if (metroStore.get().playing) metroStore.set({ lastTick: { tick: m.tick, n: ++tickN } }) }, delay)
-      // 클릭이 스피커→마이크로 누설되는 구간을 튜너 분석에서 제외. 워커는 창 [t−93 ms, t] 와의 겹침으로 판정하므로
-      // 여기서는 클릭이 실제로 마이크에 닿는 시각(t + 출력지연)부터 클릭 길이 + 입력지연 여유(120 ms)까지만 준다.
-      if (micOpen() && !m.muted) muteAnalysis(m.t - 0.02, m.t + outLat + m.dur + 0.12)
+      // 클릭이 스피커→마이크로 누설되는 구간을 워커에 알린다 (해당 창은 신뢰도를 낮춰 처리). 클릭이 마이크에 닿는 시각(t + 출력지연)부터
+      // 클릭 길이 + 입력지연 여유(60 ms)까지 — 창 겹침 93 ms 가 더해지므로 여유를 크게 주면 빠른 템포에서 모든 창이 걸린다
+      if (micOpen() && !m.muted) muteAnalysis(m.t + outLat - 0.01, m.t + outLat + m.dur + 0.06)
     }
     n.connect(ac.destination)
     n.port.postMessage({ type: 'pattern', pattern: pattern() })

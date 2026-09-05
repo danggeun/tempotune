@@ -20,30 +20,33 @@ export function parseStored(raw: string | null): Partial<Settings> {
   try { d = JSON.parse(raw) } catch { return {} }
   if (!d || typeof d !== 'object') return {}
   const out: Partial<Settings> = {}
+  // 값 범위도 검증한다 — 손상된 저장값(refHz 1000 등)이 분석기 전체를 틀리게 하지 않게 (리뷰)
+  const num = (v: unknown, lo: number, hi: number): number | null => typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : null
+  const tol = (v: unknown): number | null => (typeof v === 'number' && [5, 10, 15, 20, 25].includes(v)) ? v : null
   if ((d as StoredV2).v === 2) {
     const s = d as Partial<StoredV2>
-    if (typeof s.tolCents === 'number') out.tolCents = s.tolCents
-    if (typeof s.rmsMin === 'number') out.rmsMin = s.rmsMin
-    if (typeof s.smoothing === 'number') out.smoothing = s.smoothing
+    { const v = tol(s.tolCents); if (v !== null) out.tolCents = v }
+    if (typeof s.rmsMin === 'number' && RMS_LEVELS.some(v => Math.abs(v - s.rmsMin!) < .001)) out.rmsMin = s.rmsMin
+    if (typeof s.smoothing === 'number' && SMOOTH_LEVELS.some(v => Math.abs(v - s.smoothing!) < .001)) out.smoothing = s.smoothing
     if (typeof s.wakeLock === 'boolean') out.wakeLock = s.wakeLock
     if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)
     if (isTimeSig(s.timeSig)) out.timeSig = s.timeSig
     if (isSubDiv(s.subDiv)) out.subDiv = s.subDiv
-    if (typeof s.refHz === 'number') out.refHz = s.refHz
-    if (typeof s.metroVol === 'number') out.metroVol = s.metroVol
+    { const v = num(s.refHz, CFG.ref.min, CFG.ref.max); if (v !== null) out.refHz = Math.round(v) }
+    { const v = num(s.metroVol, 0, 1); if (v !== null) out.metroVol = v }
     return out
   }
   // v1 (main.js 시절) — 값 검증은 v1 loadSettings와 동일
   const s = d as StoredV1
-  if (s.cents) out.tolCents = s.cents
+  { const v = tol(s.cents); if (v !== null) out.tolCents = v }
   if (s.rms && RMS_LEVELS.some(v => Math.abs(v - s.rms!) < .001)) out.rmsMin = s.rms
   if (s.smooth) { const V1_SMOOTH = [.05, .10, .15]; const i = V1_SMOOTH.findIndex(v => Math.abs(v - s.smooth!) < .001); if (i >= 0) out.smoothing = SMOOTH_LEVELS[i]! }
   if (s.wakelock != null) out.wakeLock = !!s.wakelock
   if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)
   if (isTimeSig(s.timeSig)) out.timeSig = s.timeSig
   if (isSubDiv(s.subDiv)) out.subDiv = s.subDiv
-  if (s.refHz != null) out.refHz = s.refHz
-  if (s.vol != null) out.metroVol = s.vol
+  { const v = num(s.refHz, CFG.ref.min, CFG.ref.max); if (v !== null) out.refHz = Math.round(v) }
+  { const v = num(s.vol, 0, 1); if (v !== null) out.metroVol = v }
   return out
 }
 

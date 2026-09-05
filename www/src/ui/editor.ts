@@ -11,7 +11,7 @@ import { recListStore, type RecItem } from '../state/index.ts'
 import { patchRec, recFileName } from '../audio/recorder.ts'
 import { saveFile } from '../platform/index.ts'
 import { q, on, reflow, PLAY_GLYPH, PAUSE_GLYPH } from './dom.ts'
-import { displayName } from './recList.ts'
+import { displayName, releaseAudio } from './recList.ts'
 import { toast } from './toast.ts'
 import { hideMenu, showMenuInstant } from './menu.ts'
 
@@ -175,14 +175,14 @@ function initDrag(): void {
 }
 
 export function openEditor(item: RecItem): void {
-  hideMenu()
   if (!recListStore.get().items.includes(item)) return
-  if (ed.audio) { ed.audio.pause(); ed.audio = null }
+  hideMenu()
+  if (ed.audio) { releaseAudio(ed.audio); ed.audio = null }
   ed.idx = 0; ed.item = item; ed.ptA = null; ed.ptB = null; ed.loop = 0; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null
 
   const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
   ed.audio = audio
-  const updateDur = () => { q('ed-dur').textContent = fmtT(isFinite(audio.duration) && audio.duration > 0 ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0)) }
+  const updateDur = () => { if (ed.audio !== audio) return; q('ed-dur').textContent = fmtT(isFinite(audio.duration) && audio.duration > 0 ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0)) }
   // webm duration=Infinity 트릭: 끝으로 seek 하면 durationchange 로 실제 길이가 온다
   let fixing = false
   audio.addEventListener('loadedmetadata', () => { if (audio.duration === Infinity && !fixing) { fixing = true; audio.currentTime = 1e101; audio.addEventListener('durationchange', () => { if (fixing && isFinite(audio.duration)) { fixing = false; audio.currentTime = 0 } }) } })
@@ -205,7 +205,7 @@ export function openEditor(item: RecItem): void {
   audio.addEventListener('ended', () => {
     if (ed.audio !== audio) return
     setPlayGlyph(false)
-    if (ed.loop && ed.ptA !== null && ed.ptB !== null) { audio.currentTime = loopStart(); audio.play(); setPlayGlyph(true) }
+    if (ed.loop && ed.ptA !== null && ed.ptB !== null) { audio.currentTime = loopStart(); safePlay(audio) }
   })
   audio.load()
 
@@ -227,7 +227,7 @@ export function openEditor(item: RecItem): void {
 }
 
 export function closeEditor(): void {
-  if (ed.audio) { ed.audio.pause(); ed.audio = null }
+  if (ed.audio) { releaseAudio(ed.audio); ed.audio = null }
   if (loopRaf != null) { cancelAnimationFrame(loopRaf); loopRaf = null }
   peaks = null; ed.idx = -1; ed.item = null; ed.ptA = null; ed.ptB = null; ed.loop = 0 // 닫힌 뒤 늦게 오는 ended 가 반복을 되살리지 않게
   if (ed.readyTimeout) clearTimeout(ed.readyTimeout)
@@ -251,6 +251,8 @@ function editTitle(): void {
   }
 }
 
+/** play() 의 거부(AbortError·디코드 실패)를 삼키지 않는다 — 글리프가 '재생 중' 으로 남지 않게 */
+function safePlay(a: HTMLAudioElement): void { setPlayGlyph(true); a.play().catch(() => { if (ed.audio === a) { setPlayGlyph(false); toast('재생할 수 없어요') } }) }
 function togglePlay(): void {
   if (!ed.audio) return
   const a = ed.audio
@@ -303,7 +305,7 @@ function toggleLoop(): void {
   updateLoopBtn()
   if (ed.loop) {
     ed.audio!.currentTime = loopStart()
-    if (ed.audio!.paused) { ed.audio!.play(); setPlayGlyph(true) }
+    if (ed.audio!.paused) safePlay(ed.audio!)
   }
 }
 
@@ -338,7 +340,7 @@ async function exportAB(): Promise<void> {
   if (ed.ptA === null || ed.ptB === null || !ed.item) { toast('A, B 지점을 먼저 설정해주세요'); return }
   try {
     const arrayBuf = await (await fetch(ed.item.url)).arrayBuffer()
-    const tmpAC = new AudioContext(); const decoded = await tmpAC.decodeAudioData(arrayBuf); await tmpAC.close()
+    const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf) // 단일 컨텍스트 원칙: 디코드용 AudioContext 를 새로 만들지 않는다
     const sr = decoded.sampleRate, ch = decoded.numberOfChannels
     const s0 = Math.floor(ed.ptA * sr), s1 = Math.floor(ed.ptB * sr), len = s1 - s0
     if (len <= 0) { toast('구간이 너무 짧아요'); return }

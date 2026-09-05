@@ -16,16 +16,20 @@ class CaptureProcessor extends AudioWorkletProcessor {
   private out: MessagePort | null = null
   /** 워커가 반납한 버퍼 — 오디오 스레드에서 new 를 피한다 (GC 스캐빈지가 128-샘플 콜백을 넘기지 않게) */
   private free: Float32Array<ArrayBuffer>[] = []
+  /** 'stop' 을 받으면 process 가 false 를 돌려 프로세서가 수거된다 — 입력 연결이 끊겨도 true 를 계속 돌리면 마이크 세션마다 좀비 프로세서가 남는다 (리뷰) */
+  private stopped = false
   constructor() {
     super()
     this.port.onmessage = (e: MessageEvent) => {
       if (e.data && e.data.type === 'port') { this.out = e.data.port; this.out!.onmessage = ev => this.onRecycle(ev) }
+      else if (e.data && e.data.type === 'stop') { this.stopped = true; this.out?.close(); this.out = null }
     }
   }
   private onRecycle(e: MessageEvent): void {
     if (e.data && e.data.type === 'recycle' && this.free.length < 8) this.free.push(new Float32Array(e.data.buf as ArrayBuffer))
   }
   process(inputs: Float32Array[][]): boolean {
+    if (this.stopped) return false
     const ch = inputs[0]?.[0]
     if (!ch) return true
     for (let i = 0; i < ch.length; i++) {

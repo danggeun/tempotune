@@ -43,7 +43,7 @@ export function openRecDb(): Promise<IDBDatabase> {
       db = d; res(d)
     }
     r.onerror = () => rej(r.error)
-    r.onblocked = () => rej(new Error('db blocked'))
+    r.onblocked = () => console.warn('recordings db: blocked by another tab — waiting') // 요청은 살아 있어 나중에 success/error 가 온다. reject 하면 '열 수 없음' 토스트가 뜨는데 실제로는 열린다 (리뷰)
   })
 }
 const store = (name: string, mode: IDBTransactionMode) => db!.transaction(name, mode).objectStore(name)

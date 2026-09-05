@@ -14,10 +14,14 @@ export function stopTimer(): void { if (int) clearInterval(int); int = null; ses
 function startTimer(): void {
   sessionStore.set({ timerRunning: true })
   if (int) clearInterval(int)
+  // 벽시계 기준으로 센다 — 백그라운드에서 setInterval 이 늦어져도 경과 시간이 실제보다 적게 잡히지 않게. 소리 낸 시간은 틱마다 감지 상태로 가산
+  let last = Date.now(), acc = 0
   int = setInterval(() => {
     const s = sessionStore.get(); if (!s.timerRunning) return
-    const t = tunerStore.get()
-    sessionStore.set({ elapsedSec: s.elapsedSec + 1, detectedSec: s.detectedSec + (t.playing ? 1 : 0) })
+    const now = Date.now(); acc += (now - last) / 1000; last = now
+    const whole = Math.floor(acc); if (whole <= 0) return
+    acc -= whole
+    sessionStore.set({ elapsedSec: s.elapsedSec + whole, detectedSec: s.detectedSec + (tunerStore.get().playing ? whole : 0) })
   }, 1000)
 }
 export function mountTimer(): void {
