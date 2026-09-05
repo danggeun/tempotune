@@ -3,7 +3,7 @@
  * UI 관련(접힘, 버튼, 비트 표시)은 ui/metro.ts 가 metroStore 를 구독해 처리한다.
  */
 import { CFG, metroStore, sessionStore, settingsStore, type SubDiv, type TimeSig } from '../state/index.ts'
-import { A, getAC, ensureMetroAC, closeMetroAC, onMic } from './engine.ts'
+import { A, getAC, ensureMetroAC, closeMetroAC, onMic, muteAnalysis } from './engine.ts'
 
 let timer: ReturnType<typeof setTimeout> | null = null
 let nextTime = 0, tick = 0, tickN = 0
@@ -21,7 +21,7 @@ function scheduleClick(time: number, t: number): void {
   const ac = getAC(); if (!ac) return
   const dl = Math.max(0, (time - ac.currentTime) * 1000)
   setTimeout(() => { metroStore.set({ lastTick: { tick: t, n: ++tickN } }) }, dl)
-  if (sessionStore.get().recording) { setTimeout(() => { A.isClick = false }, dl + CFG.metro.muteTunerMs); return }
+  if (sessionStore.get().recording) return // 녹음 중 클릭 무음 (시각 피드백만)
   const s = settingsStore.get()
   const osc = ac.createOscillator(), gain = ac.createGain(); osc.connect(gain); gain.connect(ac.destination)
   let freq: number, vol: number
@@ -30,7 +30,8 @@ function scheduleClick(time: number, t: number): void {
   vol = Math.min(1, vol * (s.metroVol / .7)); osc.type = 'triangle'
   gain.gain.setValueAtTime(vol, time); gain.gain.exponentialRampToValueAtTime(.001, time + CFG.metro.clickDurS)
   osc.frequency.value = freq; osc.onended = () => { osc.disconnect(); gain.disconnect() }; osc.start(time); osc.stop(time + CFG.metro.clickDurS)
-  if (A.micAC) { setTimeout(() => { A.isClick = true }, dl - 15); setTimeout(() => { A.isClick = false }, dl + CFG.metro.muteTunerMs) }
+  // 클릭이 스피커→마이크로 누설되는 구간: 클릭 시작 20 ms 전부터, 클릭 + 분석 창(4096/sr) + 여유 80 ms 까지. 워커가 같은 컨텍스트 시계로 판정.
+  if (A.micAC) muteAnalysis(time - 0.02, time + CFG.metro.clickDurS + 4096 / ac.sampleRate + 0.08)
 }
 function sched(): void {
   const ac = getAC(); if (!ac) return

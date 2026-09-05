@@ -11,12 +11,19 @@ declare class AudioWorkletProcessor { readonly port: MessagePort; constructor() 
 const CHUNK = 1024
 
 class CaptureProcessor extends AudioWorkletProcessor {
-  private buf = new Float32Array(CHUNK)
+  private buf: Float32Array<ArrayBuffer> = new Float32Array(CHUNK)
   private pos = 0
   private out: MessagePort | null = null
+  /** 워커가 반납한 버퍼 — 오디오 스레드에서 new 를 피한다 (GC 스캐빈지가 128-샘플 콜백을 넘기지 않게) */
+  private free: Float32Array<ArrayBuffer>[] = []
   constructor() {
     super()
-    this.port.onmessage = (e: MessageEvent) => { if (e.data && e.data.type === 'port') this.out = e.data.port }
+    this.port.onmessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'port') { this.out = e.data.port; this.out!.onmessage = ev => this.onRecycle(ev) }
+    }
+  }
+  private onRecycle(e: MessageEvent): void {
+    if (e.data && e.data.type === 'recycle' && this.free.length < 8) this.free.push(new Float32Array(e.data.buf as ArrayBuffer))
   }
   process(inputs: Float32Array[][]): boolean {
     const ch = inputs[0]?.[0]
@@ -24,7 +31,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < ch.length; i++) {
       this.buf[this.pos++] = ch[i]!
       if (this.pos === CHUNK) {
-        const c = this.buf; this.buf = new Float32Array(CHUNK); this.pos = 0
+        const c = this.buf; this.buf = this.free.pop() ?? new Float32Array(CHUNK); this.pos = 0
         ;(this.out ?? this.port).postMessage({ type: 'chunk', chunk: c, t: currentTime + ch.length / sampleRate }, [c.buffer])
       }
     }

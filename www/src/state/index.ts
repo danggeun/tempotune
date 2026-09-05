@@ -7,7 +7,7 @@ import { createStore } from './store.ts'
 // ── 고정 상수 (사용자 설정 아님) ──
 export const CFG = {
   tuner: { histLen: 360 },
-  metro: { bpmMin: 20, bpmMax: 220, lookaheadS: .4, intervalMs: 25, clickDurS: .05, muteTunerMs: 90, swipePxPerBpm: 2 },
+  metro: { bpmMin: 20, bpmMax: 220, lookaheadS: .4, intervalMs: 25, clickDurS: .05, swipePxPerBpm: 2 },
   inactiveMs: 15 * 60 * 1000,
   ref: { min: 410, max: 466, default: 442 },
   /** 폰 레이아웃 판정 폭 (CSS 미디어쿼리와 동일하게 유지) */

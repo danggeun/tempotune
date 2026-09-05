@@ -71,12 +71,18 @@ export function showTapHint(onTap: () => Promise<boolean>): void {
 
 export function mountTuner(): void {
   new ResizeObserver(() => { gaugeW = 0 }).observe(q('gauge-wrap'))
-  // 매 분석 프레임 (frame 카운터가 바뀔 때)
+  // 매 분석 프레임(≈43 Hz): 히스토리는 프레임마다 쌓고, 그리기는 rAF 에 한 번만 (vsync 와 비동기인 워커 프레임을 코얼레싱)
+  let dirty = false, raf: number | null = null
+  const paint = () => {
+    raf = null; if (!dirty) return; dirty = false
+    const s = tunerStore.get()
+    if (s.hz === -1) { renderEmpty(); drawGauge(null); drawHistory(false); return }
+    renderNote(s.midi, s.cents, s.inTune); drawGauge(s.cents); drawHistory(s.inTune)
+  }
   tunerStore.select(s => s.frame, () => {
     const s = tunerStore.get()
-    if (s.hz === -1) { renderEmpty(); hist.push(null); hist.shift(); drawGauge(null); drawHistory(false); return }
-    renderNote(s.midi, s.cents, s.inTune)
-    hist.push(s.cents); hist.shift(); drawGauge(s.cents); drawHistory(s.inTune)
+    hist.push(s.hz === -1 ? null : s.cents); hist.shift()
+    dirty = true; if (raf == null) raf = requestAnimationFrame(paint)
   })
   // 마이크 꺼짐 → 표시 초기화 (v1 closeMic)
   tunerStore.select(s => s.micReady, ready => {
