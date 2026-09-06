@@ -30,15 +30,14 @@
   <div id="hdr">
     <div>
       <div id="logo">Go practice</div>
-      <div id="logo-sub">play more · tune better</div>
     </div>
     <div id="hdr-right">
-      <button id="hdr-mic-btn" class="compact-btn">
-        <span id="hdr-mic-dot">●</span>MIC
+      <button id="hdr-mic-btn" class="compact-btn caps">
+        <span id="hdr-mic-dot"></span>MIC
       </button>
       <span id="hdr-rec-time">0:00</span>
-      <button id="rec-hdr-btn" class="compact-btn" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
-      <button id="menu-btn" aria-label="메뉴">≡</button>
+      <button id="rec-hdr-btn" class="compact-btn caps" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
+      <button id="menu-btn" aria-label="메뉴"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
     </div>
   </div>
 
@@ -86,11 +85,11 @@
     <!-- 메트로놈 -->
     <div id="metro-card">
       <div id="metro-hdr" style="position:relative;">
-        <span id="metro-hdr-label">♩ 80</span>
+        <span id="metro-hdr-label"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><span id="metro-hdr-bpm">80</span></span>
         <div id="beat-vis"></div>
         <div id="metro-hdr-right">
           <button id="metro-play-hdr-btn" aria-label="메트로놈 정지">■</button>
-          <button id="metro-collapse-btn" aria-label="메트로놈 접기/펼치기">▼</button>
+          <button id="metro-collapse-btn" aria-label="메트로놈 접기/펼치기"><svg class="nav-glyph chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg></button>
         </div>
       </div>
       <div id="metro-body-wrap"><div id="metro-body-clip">
@@ -128,10 +127,10 @@
             <button class="m-seg" data-ts="6">6/8</button>
           </div>
           <div class="m-grid" id="sd-grid">
-            <button class="m-seg on" data-sd="1">♩</button>
-            <button class="m-seg" data-sd="2">♩♩</button>
-            <button class="m-seg" data-sd="3">♩♩♩</button>
-            <button class="m-seg" data-sd="d">♩.</button>
+            <button class="m-seg on" data-sd="1" aria-label="세분 없음"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><path class="flag" d="M10.4 1.5c0 3.5 4 4.5 3.2 9.2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
+            <button class="m-seg" data-sd="2" aria-label="2분할"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg></button>
+            <button class="m-seg" data-sd="3" aria-label="3분할"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg></button>
+            <button class="m-seg" data-sd="d" aria-label="점 세분"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><span class="note-dot"></span></button>
           </div>
         </div>
       </div>
@@ -148,7 +147,7 @@
       <span class="menu-title-txt">메뉴</span>
       <div style="display:flex;align-items:center;gap:8px;margin-right:-6px;">
         <button id="settings-open-btn" class="compact-btn">설정</button>
-        <button class="menu-close-btn" aria-label="닫기">✕</button>
+        <button class="menu-close-btn" aria-label="닫기"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
       </div>
     </div>
 
@@ -211,7 +210,7 @@
 <div id="settings-page">
   <div id="settings-inner">
     <div class="settings-top">
-      <button class="settings-back" id="settings-back-btn" aria-label="뒤로">←</button>
+      <button class="settings-back" id="settings-back-btn" aria-label="뒤로"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3M9 4l-6 6 6 6"/></svg></button>
       <span class="settings-title">설정</span>
     </div>
 
@@ -281,6 +280,7 @@
     </div>
 
     <div id="settings-version"></div>
+    <div id="settings-tagline">play more · tune better</div>
 
   </div>
 </div>
@@ -294,7 +294,7 @@
   <div id="ed-inner">
     <div id="ed-top">
       <div id="ed-nav">
-        <button id="ed-back-btn" aria-label="뒤로">←</button>
+        <button id="ed-back-btn" aria-label="뒤로"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3M9 4l-6 6 6 6"/></svg></button>
         <span id="ed-nav-title">편집</span>
       </div>
       <div id="ed-file-row">
@@ -326,9 +326,8 @@
           <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-b-nudge-l" aria-label="B 0.25초 앞으로">‹</button><span id="ed-b-time">B —</span><button class="ed-nudge" id="ed-b-nudge-r" aria-label="B 0.25초 뒤로">›</button></span>
         </div>
         <div id="ed-time-row">
-          <span id="ed-cur">00:00</span>
+          <span id="ed-times"><span id="ed-cur">00:00</span><span id="ed-dur">--:--</span></span>
           <button id="ed-zoom-btn" class="compact-btn dim">구간 확대</button>
-          <span id="ed-dur">--:--</span>
         </div>
       </div>
     </div>
@@ -343,8 +342,8 @@
       </div>
     </div>
     <div id="ed-ab-row">
-      <button id="ed-a-btn" class="ed-ab-btn">A<span>설정</span></button>
-      <button id="ed-b-btn" class="ed-ab-btn">B<span>설정</span></button>
+      <button id="ed-a-btn" class="ed-ab-btn"><b>A</b><span>설정</span></button>
+      <button id="ed-b-btn" class="ed-ab-btn"><b>B</b><span>설정</span></button>
       <button id="ed-loop-btn" class="ed-ab-btn">반복<span>꺼짐</span></button>
     </div>
     <div id="ed-bm-section">

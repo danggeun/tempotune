@@ -79,13 +79,13 @@ export function mountMetro(): void {
   })
 
   // ── 상태 → 화면 ──
-  settingsStore.select(s => s.bpm, bpm => { q('metro-bpm').textContent = String(bpm); q('metro-hdr-label').textContent = '♩ ' + bpm }, { immediate: true })
+  settingsStore.select(s => s.bpm, bpm => { q('metro-bpm').textContent = String(bpm); q('metro-hdr-bpm').textContent = String(bpm) }, { immediate: true })
   settingsStore.select(s => s.metroVol, v => { volMain.value = String(v); volPad.value = String(v) }, { immediate: true })
   settingsStore.select(s => s.timeSig, ts => {
     qsa('[data-ts]').forEach(b => b.classList.toggle('on', +b.dataset.ts! === ts))
     const is68 = ts === 6; const sd = q('sd-grid')
     sd.style.opacity = is68 ? '.3' : '1'; sd.style.pointerEvents = is68 ? 'none' : 'auto'
-    qsa('[data-sd="1"]').forEach(b => b.textContent = is68 ? '♪' : '♩')
+    q('sd-grid').classList.toggle('compound', is68) // 6/8: 세분 1 을 8분음표로 표시 (CSS 가 깃발을 보여준다)
     buildBeatVis()
   }, { immediate: true })
   settingsStore.select(s => s.subDiv, sd => { qsa('[data-sd]').forEach(b => b.classList.toggle('on', b.dataset.sd === String(sd))); buildBeatVis() }, { immediate: true })
@@ -101,9 +101,9 @@ export function mountMetro(): void {
     if (playing) buildBeatVis(); else clearDots()
     applyCollapse()
   })
-  metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').textContent = collapsed ? '▲' : '▼'; applyCollapse() })
+  metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); applyCollapse() })
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
   // 초기 상태 (v1): 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션
-  if (isPhoneLayout()) setTimeout(() => { applyCollapse(); q('metro-collapse-btn').textContent = '▲' }, 250)
+  if (isPhoneLayout()) setTimeout(() => { applyCollapse(); q('metro-collapse-btn').classList.add('collapsed') }, 250)
 }

@@ -33,7 +33,7 @@ function drawHistory(inTune: boolean): void {
   c.fillStyle = '#000'; c.fillRect(0, 0, W, H)
   if (inTune) { c.fillStyle = `rgba(${okRgb},.07)`; c.fillRect(0, 0, W, H) }
   const ppc = (W / 2) / 50, tol = settingsStore.get().tolCents, N = hist.length, rH = H / N
-  c.fillStyle = `rgba(${okRgb},.65)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H)
+  c.fillStyle = `rgba(${okRgb},.38)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H) // 띠는 '영역' 이지 신호가 아니다 — 음이름·트레이스보다 뒤로 (.65 는 시선을 먼저 가져갔다)
   c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1
   c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2, H); c.stroke()
   c.lineWidth = 3; c.lineCap = 'round' // 90 cm 에서 보이는 굵기
