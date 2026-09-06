@@ -38,7 +38,8 @@ for (let end = HOP; end <= x.length; end += HOP) {
   spec.update(win, sr)
   // 표시된 음이 스펙트럼에 실제로 있는가 (f0·2f0·3f0 중 하나라도)
   const specOk = f.hz > 0 ? spec.harmonicCount(f.hz, 3, 6) > 0 : null
-  F.push({ t: end / sr, hz: f.hz, rawHz: f.rawHz, conf: f.conf, playing: f.playing, specOk, ms })
+  const midiOut = f.midi
+  F.push({ t: end / sr, hz: f.hz, midi: midiOut, rawHz: f.rawHz, conf: f.conf, playing: f.playing, specOk, ms })
 }
 const shown = F.filter(f => f.hz > 0)
 const pct = (a, p) => { const s = [...a].sort((u, v) => u - v); return s[Math.min(s.length - 1, Math.floor(p * s.length))] }
