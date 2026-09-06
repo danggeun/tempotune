@@ -1,6 +1,6 @@
-Go practice v2.0.0 — GitHub 에 올리기 (Windows)
+Go practice v2.0.1 — GitHub 에 올리기 (Windows)
 
-이 폴더는 리포 전체(.git 포함)입니다. main 브랜치에 Phase 0~7 커밋이 전부 합쳐져 있고 v2.0.0 태그가 붙어 있습니다.
+이 폴더는 리포 전체(.git 포함)입니다. main 브랜치에 Phase 0~7 커밋이 전부 합쳐져 있고 v2.0.0·v2.0.1 태그가 붙어 있습니다.
 
 1. 이 폴더를 한글·공백 없는 경로에 둡니다. 예: C:\dev\go_practice
 2. 그 폴더에서 탐색기 주소창에  cmd  를 입력하고 Enter (그 폴더에서 터미널이 열립니다)
@@ -8,7 +8,7 @@ Go practice v2.0.0 — GitHub 에 올리기 (Windows)
 
    git push origin main --follow-tags
 
-   - 출력 끝에  "main -> main"  과  "[new tag]  v2.0.0"  이 보이면 완료
+   - 출력 끝에  "main -> main"  과  "[new tag]  v2.0.1"  이 보이면 완료
    - GitHub 로그인 창이 뜨면 "Sign in with your browser" → 브라우저에서 로그인 → 돌아오면 push 가 이어집니다
    - "Permission denied" / 403 이 나오면: 제어판 → 자격 증명 관리자 → Windows 자격 증명 → git:https://github.com 항목 삭제 → 3번 다시
    - "rejected (fetch first)" 가 나오면 GitHub 의 main 이 그 사이 바뀐 것 → 저에게 알려 주세요 (합치는 방법을 안내합니다)

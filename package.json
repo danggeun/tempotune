@@ -1,6 +1,6 @@
 {
   "name": "go-practice",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "현악기 연습 앱 — 튜너 · 메트로놈 · 기준음 · 녹음 편집 (PWA + Capacitor Android)",
   "private": true,
   "license": "MIT",
