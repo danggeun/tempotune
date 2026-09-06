@@ -31,15 +31,19 @@ const html = (size, content, transparent) => `<!doctype html><html><head><style>
 html,body{margin:0;width:${size}px;height:${size}px;background:${transparent ? 'transparent' : BG};overflow:hidden}
 #wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${size * content * 0.085}px;transform:translate(-${size * content * 0.012}px,-${size * content * 0.03}px)}
 #go{font-family:'CG';font-style:italic;font-weight:600;color:#fff;font-size:${size * content * 0.70}px;line-height:.8;letter-spacing:-.03em}
+/* C2 전용: 세리프 헤어라인이 48 px 에서 끊기지 않게 글자 전체를 광학 보정 (본문 워드마크는 손대지 않는다, 마케터 요구) */
+#go.thick{-webkit-text-stroke:${size * content * 0.008}px #fff;paint-order:stroke fill}
 /* 게이지 띠: 폭 = 'Go' 잉크 폭, 중앙 60 % 실선 + 양 끝 .38 — 밑줄이 아니라 튜너의 허용 띠 */
 #bar{position:relative;width:${size * content * 0.70}px;height:${size * content * 0.085}px}
 #bar i{position:absolute;inset:0;border-radius:${size}px;background:${OK};opacity:.38}
 #bar b{position:absolute;top:0;bottom:0;left:20%;right:20%;border-radius:${size}px;background:${OK}}
+/* 흰 바늘(중앙) — 트랙+허용 띠+바늘 = 인앱 게이지의 '맞음' 순간. 로딩바로 읽히던 것을 끊는다 (연주자 요구) */
+#bar u{position:absolute;left:50%;top:${-size * content * 0.030}px;bottom:${-size * content * 0.030}px;width:${size * content * 0.020}px;transform:translateX(-50%);border-radius:${size}px;background:#fff}
 /* C2: o 만 초록. Cormorant 이탤릭 o 의 얇은 획이 48 px 에서 1 px 밑으로 떨어져 '초록 얼룩' 이 되므로 아이콘 전용으로 획을 광학 보정 (본문 워드마크는 손대지 않는다) */
 #go .o{color:${OK};-webkit-text-stroke:${size * content * 0.014}px ${OK};paint-order:stroke fill}
 /* '라': 앱 #tuner-note 와 같은 계열(시스템 한글 Medium), 글로우는 인앱 비율(글자 크기의 .2 / .4)로 */
 #ra{font-family:'Noto Sans KR','Noto Sans CJK KR','Apple SD Gothic Neo',sans-serif;font-weight:500;color:${OK};font-size:${size * content * 0.86}px;line-height:1;text-shadow:0 0 ${size * content * 0.10}px rgba(34,197,94,1),0 0 ${size * content * 0.22}px rgba(34,197,94,.55);transform:translateY(-${size * content * 0.02}px)}
-</style></head><body><div id="wrap">${CONCEPT === 'o' ? '<div id="go">G<span class="o">o</span></div>' : CONCEPT === 'ra' ? '<div id="ra">라</div>' : '<div id="go">Go</div><div id="bar"><i></i><b></b></div>'}</div></body></html>`
+</style></head><body><div id="wrap">${CONCEPT === 'o' ? '<div id="go" class="thick">G<span class="o">o</span></div>' : CONCEPT === 'ra' ? '<div id="ra">라</div>' : '<div id="go">Go</div><div id="bar"><i></i><b></b><u></u></div>'}</div></body></html>`
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined })
 async function render(size, content, transparent) {
