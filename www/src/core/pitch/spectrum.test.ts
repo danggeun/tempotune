@@ -109,3 +109,21 @@ describe('중음 붙잡기 상태', () => {
     expect(Math.abs(1200 * Math.log2(r2 / 293.66))).toBeLessThan(60) // G3+D4 → 위 성부 D4 (A4 기억이 없으므로)
   })
 })
+
+describe('약한 기본음 단음은 중음으로 오인하지 않는다 (리뷰 회귀)', () => {
+  const SR = 48000, WN = 4096
+  function tone(f: number, fundDb: number): Float32Array {
+    const x = new Float32Array(SR), a0 = Math.pow(10, fundDb / 20)
+    for (let i = 0; i < SR; i++) { const t = i / SR; let s = a0 * Math.sin(2 * Math.PI * f * t)
+      for (let k = 2; k <= 10; k++) { if (f * k > SR / 2) break; s += (0.5 / k) * (k % 2 ? 1 : 0.7) * Math.sin(2 * Math.PI * f * k * t + k * .7) }
+      x[i] = s * 0.6 }
+    return x.subarray(SR - WN) as Float32Array
+  }
+  test.each([[65.41, 'C2 첼로'], [41.2, 'E1 베이스'], [196, 'G3 바이올린']])('%s Hz %s — 기본음 −60 dB 에서도 f0 유지', (f) => {
+    const sp = createSpectrum(WN); const w = tone(f, -60); sp.update(w, SR)
+    const y = createYinFast(WN, { threshold: 0.10, hzMin: 40, hzMax: 4200 }).process(w, SR)
+    expect(y.hz).toBeGreaterThan(0)
+    const out = sp.octaveCorrect(y.hz)
+    expect(Math.abs(1200 * Math.log2(out / f))).toBeLessThan(60)
+  })
+})

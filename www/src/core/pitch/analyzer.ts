@@ -78,7 +78,8 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
     process(buf, muted = false) {
       let e = 0; for (let i = 0; i < N; i++) e += buf[i]! * buf[i]!
       const rms = Math.sqrt(e / N), rmsOk = rms >= s.rmsMin
-      if (!rmsOk) { // 게이트 아래: 트래커/감지기에 "무효" 프레임을 알린다
+      if (!rmsOk) { // 게이트 아래: 트래커/감지기에 "무효" 프레임을 알린다. 중음 붙잡기 기억도 지운다(쉼표 뒤 첫 중음이 옛 음에 붙지 않게)
+        spec.reset()
         const t = tracker.push(-1, 0, false, s.smoothing); const playing = det.push({ conf: 0, rmsOk: false, harmonics: 0, flatness: 1 })
         const f = EMPTY(rms); f.playing = playing
         if (t.hz > 0) fill(f, t.hz, t.midi)
