@@ -17,6 +17,8 @@ export interface Spectrum {
   peakDbNear(hz: number, tolRatio?: number): number
   /** 빈 폭 (Hz) */
   readonly binHz: number
+  /** 프레임 간 상태(중음 붙잡기) 초기화 — analyzer.reset() 이 호출 */
+  reset(): void
 }
 
 export function createSpectrum(windowSize: number): Spectrum {
@@ -58,6 +60,7 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
 
   return {
     get binHz() { return binHz },
+    reset() { lastResolved = -1 },
     update(buf, s) {
       sr = s; binHz = sr / N
       for (let i = 0; i < N; i++) { re[i] = buf[i]! * win[i]!; im[i] = 0 }

@@ -90,3 +90,22 @@ describe('중음(더블스톱) 해석 — 실측 발견 B1', () => {
     }
   })
 })
+
+describe('중음 붙잡기 상태', () => {
+  test('reset() 뒤에는 직전 음의 기억이 없다', () => {
+    const SR = 48000, WN = 4096
+    const sp = createSpectrum(WN)
+    const two = (fa: number, fb: number) => {
+      const x = new Float32Array(WN)
+      for (let i = 0; i < WN; i++) for (const f of [fa, fb]) for (let k = 1; k <= 8; k++) x[i] = x[i]! + (0.4 / k) * Math.sin(2 * Math.PI * f * k * i / SR)
+      return x
+    }
+    // D4+A4 를 한 번 해석해 붙잡기 상태를 만든다
+    const w1 = two(293.66, 440); sp.update(w1, SR); const r1 = sp.octaveCorrect(146.83)
+    expect(Math.abs(1200 * Math.log2(r1 / 440))).toBeLessThan(60) // 위 성부 A4
+    // 리셋 후 같은 입력이면 첫 해석과 같아야 한다 (기억이 남아 있으면 이 assertion 이 의미를 잃으므로, 다른 쌍으로 확인)
+    sp.reset()
+    const w2 = two(196, 293.66); sp.update(w2, SR); const r2 = sp.octaveCorrect(98)
+    expect(Math.abs(1200 * Math.log2(r2 / 293.66))).toBeLessThan(60) // G3+D4 → 위 성부 D4 (A4 기억이 없으므로)
+  })
+})

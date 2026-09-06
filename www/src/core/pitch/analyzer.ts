@@ -74,7 +74,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
     windowSize: N,
     setSettings(patch) { Object.assign(s, patch) },
     getSettings() { return { ...s } },
-    reset() { tracker.reset(); det.reset() },
+    reset() { tracker.reset(); det.reset(); spec.reset() },
     process(buf, muted = false) {
       let e = 0; for (let i = 0; i < N; i++) e += buf[i]! * buf[i]!
       const rms = Math.sqrt(e / N), rmsOk = rms >= s.rmsMin
