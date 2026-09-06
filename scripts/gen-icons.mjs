@@ -49,6 +49,7 @@ const SPEC = {
   needleW: 0.026,     // 바늘 폭 — 36 px 생존 하한
   over: 0.014,        // 띠 위·아래 돌출 (닫힌 알약 실루엣을 깨서 진행바 오독 제거)
   lift: 0.012,        // 광학 리프트 — 정사각 타일에서 콘텐츠를 기하 중심에 두면 가라앉아 보인다 (한 변의 1.2 % 위로)
+  stroke: 0.0045,     // 아이콘 전용 광학 획 보정 — Cormorant 'G' 헤어라인(0.4 %)이 36–48 px 에서 끊긴다. 획 바깥으로 0.45 % 더해 최소 획 ≥ 1 %. 앱 내 워드마크는 손대지 않는다
 }
 const PAGE = `<!doctype html><html><head><style>
 @font-face{font-family:'CG';font-style:italic;font-weight:600;src:url(data:font/woff2;base64,${font}) format('woff2')}
@@ -112,9 +113,11 @@ const drawFn = (P) => {
     x.strokeText('o', cx - iw / 2 + m.actualBoundingBoxLeft + gw, oy); x.fillText('o', cx - iw / 2 + m.actualBoundingBoxLeft + gw, oy)
     return
   }
-  // bar — 최종안
-  x.fillStyle = ink
-  x.fillText('Go', cx - iw / 2 + m.actualBoundingBoxLeft, top + m.actualBoundingBoxAscent)
+  // bar — 최종안. 헤어라인 보정: 같은 색으로 얇게 stroke 한 뒤 fill (round join → 세리프 끝이 뭉치지 않는다)
+  const gx = cx - iw / 2 + m.actualBoundingBoxLeft, gy = top + m.actualBoundingBoxAscent
+  x.fillStyle = ink; x.strokeStyle = ink; x.lineJoin = 'round'; x.lineWidth = (P.stroke || 0) * S * k
+  if (x.lineWidth > 0) x.strokeText('Go', gx, gy)
+  x.fillText('Go', gx, gy)
   const bw = P.bandW * iw, bh = P.bandH * S * k, by = top + ih + P.gap * S * k
   x.fillStyle = P.mono ? ink : P.green
   x.beginPath(); x.roundRect(cx - bw / 2, by, bw, bh, bh / 2); x.fill()
