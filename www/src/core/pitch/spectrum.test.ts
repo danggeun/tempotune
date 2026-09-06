@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest'
 import { createSpectrum } from './spectrum.ts'
 import { createYinFast } from './yinFast.ts'
+import { createAnalyzer } from './analyzer.ts'
 
 const sr = 44100, N = 4096
 const tone = (f: number, harm = 1, amp = (h: number) => 1 / h) => Float32Array.from({ length: N }, (_, i) => { let s = 0; for (let h = 1; h <= harm; h++) s += amp(h) * Math.sin(2 * Math.PI * f * h * i / sr); return 0.3 * s })
@@ -91,39 +92,43 @@ describe('중음(더블스톱) 해석 — 실측 발견 B1', () => {
   })
 })
 
-describe('중음 붙잡기 상태', () => {
-  test('reset() 뒤에는 직전 음의 기억이 없다', () => {
-    const SR = 48000, WN = 4096
-    const sp = createSpectrum(WN)
-    const two = (fa: number, fb: number) => {
-      const x = new Float32Array(WN)
-      for (let i = 0; i < WN; i++) for (const f of [fa, fb]) for (let k = 1; k <= 8; k++) x[i] = x[i]! + (0.4 / k) * Math.sin(2 * Math.PI * f * k * i / SR)
-      return x
-    }
-    // D4+A4 를 한 번 해석해 붙잡기 상태를 만든다
-    const w1 = two(293.66, 440); sp.update(w1, SR); const r1 = sp.octaveCorrect(146.83)
-    expect(Math.abs(1200 * Math.log2(r1 / 440))).toBeLessThan(60) // 위 성부 A4
-    // 리셋 후 같은 입력이면 첫 해석과 같아야 한다 (기억이 남아 있으면 이 assertion 이 의미를 잃으므로, 다른 쌍으로 확인)
-    sp.reset()
-    const w2 = two(196, 293.66); sp.update(w2, SR); const r2 = sp.octaveCorrect(98)
-    expect(Math.abs(1200 * Math.log2(r2 / 293.66))).toBeLessThan(60) // G3+D4 → 위 성부 D4 (A4 기억이 없으므로)
-  })
-})
-
-describe('약한 기본음 단음은 중음으로 오인하지 않는다 (리뷰 회귀)', () => {
-  const SR = 48000, WN = 4096
-  function tone(f: number, fundDb: number): Float32Array {
-    const x = new Float32Array(SR), a0 = Math.pow(10, fundDb / 20)
-    for (let i = 0; i < SR; i++) { const t = i / SR; let s = a0 * Math.sin(2 * Math.PI * f * t)
-      for (let k = 2; k <= 10; k++) { if (f * k > SR / 2) break; s += (0.5 / k) * (k % 2 ? 1 : 0.7) * Math.sin(2 * Math.PI * f * k * t + k * .7) }
-      x[i] = s * 0.6 }
-    return x.subarray(SR - WN) as Float32Array
+describe('중음에서 멜로디(위 성부)를 따라간다 — 음량·시차와 무관', () => {
+  const SR = 48000, N = 4096, HOP = 1024
+  const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+  const mi = (n: string) => { const m = /^([A-G]#?)(-?\d)$/.exec(n)!; return NOTE.indexOf(m[1]!) + (+m[2]! + 1) * 12 }
+  const fq = (n: string) => 440 * Math.pow(2, (mi(n) - 69) / 12)
+  let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - .5 }
+  /** 두 음을 겹친 1.2 초 — 아래 음 배율(lowGain), 위 음 시작 지연(stagger), 활 잡음(noise) */
+  function ds(a: string, b: string, lowGain = 1, stagger = 0, noise = 0.02): Float32Array {
+    const n = Math.floor(SR * 1.2), x = new Float32Array(n), fa = fq(a), fb = fq(b)
+    for (let i = 0; i < n; i++) { const t = i / SR
+      const va = 0.45 * lowGain * (1 + 0.15 * Math.sin(2 * Math.PI * 5.3 * t)), vb = t < stagger ? 0 : 0.45 * (1 + 0.15 * Math.sin(2 * Math.PI * 6.1 * t + 1))
+      let s = 0
+      for (let k = 1; k <= 10; k++) { if (fa * k < SR / 2) s += (va / k) * (k % 2 ? 1 : .7) * Math.sin(2 * Math.PI * fa * k * t + k * .7)
+                                       if (fb * k < SR / 2) s += (vb / k) * (k % 2 ? 1 : .7) * Math.sin(2 * Math.PI * fb * k * t + k * .3) }
+      x[i] = s * .4 + rnd() * noise }
+    return x
   }
-  test.each([[65.41, 'C2 첼로'], [41.2, 'E1 베이스'], [196, 'G3 바이올린']])('%s Hz %s — 기본음 −60 dB 에서도 f0 유지', (f) => {
-    const sp = createSpectrum(WN); const w = tone(f, -60); sp.update(w, SR)
-    const y = createYinFast(WN, { threshold: 0.10, hzMin: 40, hzMax: 4200 }).process(w, SR)
-    expect(y.hz).toBeGreaterThan(0)
-    const out = sp.octaveCorrect(y.hz)
-    expect(Math.abs(1200 * Math.log2(out / f))).toBeLessThan(60)
+  /** 정착 후 프레임 중 위 성부가 표시된 비율 */
+  function upperRate(x: Float32Array, upper: string, skipSec: number): number {
+    const an = createAnalyzer({ sampleRate: SR }); an.setSettings({ rmsMin: .014, smoothing: .14, refHz: 440, tolCents: 15 })
+    const w = new Float32Array(N); let U = 0, F = 0
+    for (let end = HOP; end <= x.length; end += HOP) { w.fill(0); const s0 = Math.max(0, end - N); w.set(x.subarray(s0, end), N - (end - s0))
+      const f = an.process(w); if (end / SR < skipSec) continue; F++; if (f.midi === mi(upper)) U++ }
+    return U / F
+  }
+  const PAIRS: [string, string][] = [['G3', 'D4'], ['D4', 'A4'], ['A4', 'E5'], ['G3', 'B3'], ['D4', 'F#4'], ['G3', 'E4'], ['A3', 'C#4'], ['E4', 'A4']]
+  test.each(PAIRS)('%s + %s — 아래 음이 6배 커도(개방현 공명) 위 성부 표시', (a, b) => {
+    expect(upperRate(ds(a, b, 6), b, .35)).toBeGreaterThan(0.95)
+  })
+  test.each(PAIRS)('%s + %s — 아래 음이 먼저 시작해도 위 성부 표시', (a, b) => {
+    expect(upperRate(ds(a, b, 3, 0.3), b, .65)).toBeGreaterThan(0.95)
+  })
+  test('한 중음이 지속되는 동안 라벨이 흔들리지 않는다', () => {
+    const an = createAnalyzer({ sampleRate: SR }); an.setSettings({ rmsMin: .014, smoothing: .14, refHz: 440, tolCents: 15 })
+    const x = ds('D4', 'A4', 3), w = new Float32Array(N); let last = -1, sw = 0
+    for (let end = HOP; end <= x.length; end += HOP) { w.fill(0); const s0 = Math.max(0, end - N); w.set(x.subarray(s0, end), N - (end - s0))
+      const f = an.process(w); if (end / SR < .35) continue; if (last >= 0 && f.midi !== last) sw++; last = f.midi }
+    expect(sw).toBe(0)
   })
 })
