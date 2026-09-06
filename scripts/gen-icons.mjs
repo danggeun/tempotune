@@ -33,20 +33,22 @@ import { PNG } from 'pngjs'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const font = readFileSync(join(ROOT, 'www/src/fonts/cormorant-garamond-latin-600-italic.woff2')).toString('base64')
 const CONCEPT = process.argv.includes('--concept') ? process.argv[process.argv.indexOf('--concept') + 1] : 'bar'
+const OVERRIDE = process.argv.includes('--inkw') ? { inkW: +process.argv[process.argv.indexOf('--inkw') + 1] } : {}
+const OUTDIR = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : null
 
 /** 락업 비례 — 전부 캔버스 한 변(S) 대비, content = 0.72(전면 아이콘) 기준. 다른 content 는 비례 축소된다. */
 const SPEC = {
   bg: '#0d0d0e',      // 순검정(#000)은 OLED 다크 홈에서 타일 경계가 사라지고, 살짝 든 값이 초록을 계측기 색으로 보이게 한다
   ink: '#ffffff',
   green: '#22c55e',
-  inkW: 0.465,        // 'Go' 잉크 폭
-  inkTop: 0.250,      // 잉크 상단
+  inkW: 0.52,         // 'Go' 잉크 폭 — 타일의 52 %. 46 % 는 소심하고 56 % 는 원형 마스크 여백을 먹는다 (3안 비교)
+  inkTop: 0.250,      // 잉크 상단 (2패스 정렬이 최종 위치를 잡으므로 기준값일 뿐)
   bandW: 0.75,        // 띠 폭 = 잉크 폭의 75 % (글자보다 좁아야 밑줄로 안 읽힌다)
   bandH: 0.046,       // 띠 두께 ≈ Cormorant 'o' 의 굵은 획(4.3 %)
   gap: 0.038,         // 잉크 하단 ↔ 띠 상단 (활자 밑줄 거리에서 확실히 이탈)
   needleW: 0.026,     // 바늘 폭 — 36 px 생존 하한
   over: 0.014,        // 띠 위·아래 돌출 (닫힌 알약 실루엣을 깨서 진행바 오독 제거)
-  shiftX: 0.008, shiftY: 0.005, // 이탤릭 무게가 오른쪽·아래로 쏠려 광학 보정
+  lift: 0.012,        // 광학 리프트 — 정사각 타일에서 콘텐츠를 기하 중심에 두면 가라앉아 보인다 (한 변의 1.2 % 위로)
 }
 const PAGE = `<!doctype html><html><head><style>
 @font-face{font-family:'CG';font-style:italic;font-weight:600;src:url(data:font/woff2;base64,${font}) format('woff2')}
@@ -56,7 +58,29 @@ const drawFn = (P) => {
   const S = P.S, k = P.content / 0.72
   const c = document.getElementById('c'); c.width = S; c.height = S
   const x = c.getContext('2d')
+  // ── 2패스 자동 정렬 ──
+  // 1패스: 배경 없이 마크만 그려 알파 채널로 bbox 와 무게중심을 실측한다.
+  // 광학 중심 = (bbox 중심 + 무게중심)/2 — 이탤릭 'G' 쪽으로 쏠린 잉크 무게를 bbox 만으로는 못 잡는다.
+  // 2패스: 그 광학 중심이 타일 중심(세로는 lift 만큼 위)에 오도록 평행이동해 다시 그린다.
+  if (!P.__pass2) {
+    draw(x, { ...P, __pass2: true, transparent: true, dx: 0, dy: 0 })
+    const d = x.getImageData(0, 0, S, S).data
+    let x0 = S, x1 = -1, y0 = S, y1 = -1, sw = 0, sx = 0, sy = 0
+    for (let yy = 0; yy < S; yy++) for (let xx = 0; xx < S; xx++) {
+      const a = d[(yy * S + xx) * 4 + 3]; if (a < 24) continue
+      if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy
+      sw += a; sx += a * xx; sy += a * yy
+    }
+    const opx = ((x0 + x1) / 2 + sx / sw) / 2, opy = ((y0 + y1) / 2 + sy / sw) / 2
+    P = { ...P, dx: S / 2 - opx, dy: S / 2 - P.lift * S - opy }
+    x.clearRect(0, 0, S, S)
+  }
   if (!P.transparent) { x.fillStyle = P.mono ? '#000000' : P.bg; x.fillRect(0, 0, S, S) }
+  x.save(); x.translate(P.dx || 0, P.dy || 0)
+  draw(x, P)
+  x.restore()
+
+  function draw(x, P) {
   const ink = P.mono ? '#ffffff' : P.ink
   if (P.concept === 'ra') {
     const fs = 0.86 * S * k
@@ -74,7 +98,7 @@ const drawFn = (P) => {
   x.font = 'italic 600 ' + fs + 'px CG'
   m = x.measureText('Go')
   const iw = m.actualBoundingBoxRight + m.actualBoundingBoxLeft, ih = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent
-  const cx = S / 2 - P.shiftX * S * k, top = (P.inkTop - P.shiftY) * S * k
+  const cx = S / 2, top = P.inkTop * S * k
   x.textAlign = 'left'; x.textBaseline = 'alphabetic'
   if (P.concept === 'o') {
     // C2 — 세리프 헤어라인이 작은 크기에서 끊기지 않게 아이콘 전용 광학 보정(본문 워드마크는 손대지 않는다)
@@ -103,13 +127,14 @@ const drawFn = (P) => {
     x.fillStyle = ink
     x.beginPath(); x.roundRect(cx - nw / 2, by - ov, nw, bh + ov * 2, nw / 2); x.fill()
   }
+  }
 }
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined })
 async function render(size, content, opts = {}) {
   const page = await browser.newPage({ viewport: { width: size, height: size } })
   await page.setContent(PAGE); await page.evaluate(() => document.fonts.ready)
-  await page.evaluate(drawFn, { ...SPEC, S: size, content, concept: CONCEPT, transparent: false, mono: false, ...opts })
+  await page.evaluate(drawFn, { ...SPEC, ...OVERRIDE, S: size, content, concept: CONCEPT, transparent: false, mono: false, ...opts })
   const buf = await page.screenshot({ type: 'png', omitBackground: !!opts.transparent }); await page.close(); return buf
 }
 function resize(pngBuf, size) { // 정수 배 다운샘플 (박스 평균)
@@ -123,6 +148,7 @@ function resize(pngBuf, size) { // 정수 배 다운샘플 (박스 평균)
 }
 mkdirSync(join(ROOT, 'resources'), { recursive: true }); mkdirSync(join(ROOT, 'www/public/icons'), { recursive: true })
 const full = await render(1024, 0.72)
+if (OUTDIR) { writeFileSync(join(OUTDIR, `try_${(OVERRIDE.inkW ?? SPEC.inkW)}.png`), full); await browser.close(); console.log('preview written'); process.exit(0) }
 writeFileSync(join(ROOT, 'resources/icon.png'), full)
 writeFileSync(join(ROOT, 'www/public/icons/icon-512.png'), resize(full, 512))
 writeFileSync(join(ROOT, 'www/public/icons/icon-192.png'), resize(full, 192))
