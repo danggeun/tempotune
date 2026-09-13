@@ -2,13 +2,34 @@
  * 설정 영속화 (localStorage). 스키마 v2 + v1 마이그레이션.
  * 결정: v1의 7일 TTL(bpm/박자 초기화)은 근거가 없어 제거 (진행 상태 문서 결정 로그 2026-09-05).
  */
-import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
+import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, V201_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
 
 export const SETTINGS_KEY = 'gopractice_settings_v1' // 키 이름은 유지 (기존 사용자 데이터 호환)
 
 type StoredV2 = { v: 2 } & Settings
 interface StoredV1 { cents?: number; rms?: number; smooth?: number; wakelock?: boolean; bpm?: number; timeSig?: number; subDiv?: number | string; refHz?: number; vol?: number; savedAt?: number }
 
+/**
+ * 저장된 감도 값 → 현재 단계 값. **숫자가 아니라 '사용자가 고른 단계'를 옮긴다** (B8).
+ * 이전 코드는 현재 값 목록과 0.001 안에서만 맞춰 걸렀는데, 그러면 옛 값이 전부 버려져 기본값으로 리셋됐고
+ * `.015` 만 부동소수 오차(|.014 − .015| = 0.0009999…)로 통과해 **단계에 없는 값**이 들어왔다.
+ *
+ * ★ 어느 표를 볼지는 **저장 키**로 정한다. v1 의 `rms` 와 v2 의 `rmsMin` 은 값 범위가 겹치기 때문이다 —
+ *   `.005` 는 v1 의 '높음' 이면서 v2.0.2 의 '보통' 이고, `.010` 은 v1 의 '보통' 이면서 v2.0.2 의 '낮음' 이다.
+ *   키를 무시하고 값만 보면 단계가 한 칸씩 밀린다.
+ */
+function rmsStep(v: unknown, tables: ReadonlyArray<ReadonlyArray<number>>): number | null {
+  if (typeof v !== 'number' || !isFinite(v)) return null
+  for (const table of tables) {
+    const i = table.findIndex(x => Math.abs(x - v) < x * 0.05) // 그 표의 값과 5 % 안에서 일치
+    if (i >= 0) return RMS_LEVELS[i]!
+  }
+  return null
+}
+/** v2 키(`rmsMin`): 현재 값 또는 v2.0.0~2.0.1 값 */
+const V2_TABLES = [RMS_LEVELS, V201_RMS_LEVELS]
+/** v1 키(`rms`): v1 값만 */
+const V1_TABLES = [V1_RMS_LEVELS]
 function isTimeSig(v: unknown): v is TimeSig { return v === 2 || v === 3 || v === 4 || v === 6 }
 function isSubDiv(v: unknown): v is SubDiv { return v === 1 || v === 2 || v === 3 || v === 'd' }
 const clampBpm = (v: number) => Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, Math.round(v))) // v1 은 setBPM 이 클램프했다; 음수 BPM 은 스케줄러 무한루프
@@ -26,7 +47,7 @@ export function parseStored(raw: string | null): Partial<Settings> {
   if ((d as StoredV2).v === 2) {
     const s = d as Partial<StoredV2>
     { const v = tol(s.tolCents); if (v !== null) out.tolCents = v }
-    if (typeof s.rmsMin === 'number' && RMS_LEVELS.some(v => Math.abs(v - s.rmsMin!) < .001)) out.rmsMin = s.rmsMin
+      { const v = rmsStep(s.rmsMin, V2_TABLES); if (v !== null) out.rmsMin = v }
     if (typeof s.smoothing === 'number' && SMOOTH_LEVELS.some(v => Math.abs(v - s.smoothing!) < .001)) out.smoothing = s.smoothing
     if (typeof s.wakeLock === 'boolean') out.wakeLock = s.wakeLock
     if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)
@@ -45,11 +66,7 @@ export function parseStored(raw: string | null): Partial<Settings> {
   // 이전 코드는 `RMS_LEVELS.some(|v−rms| < .001)` 로 걸렀는데 v1 값은 어느 v2 단계와도 맞지 않아
   // 사실상 전부 버려졌고(기본값으로 리셋), .015 는 부동소수 오차로 통과해 **단계에 없는 값**이 그대로 들어왔다
   // (|.014 − .015| = 0.0009999… < .001). 설정 화면에서는 아무 단계도 선택돼 보이지 않는 상태가 된다.
-  if (typeof s.rms === 'number' && isFinite(s.rms)) {
-    const i = V1_RMS_LEVELS.findIndex(v => Math.abs(v - s.rms!) < .0005)
-    if (i >= 0) out.rmsMin = RMS_LEVELS[i]!
-    else { const j = RMS_LEVELS.findIndex(v => Math.abs(v - s.rms!) < .0005); if (j >= 0) out.rmsMin = RMS_LEVELS[j]! } // 2.0.x 가 v1 키로 써 놓은 경우
-  }
+  { const v = rmsStep(s.rms, V1_TABLES); if (v !== null) out.rmsMin = v }
   if (s.smooth) { const V1_SMOOTH = [.05, .10, .15]; const i = V1_SMOOTH.findIndex(v => Math.abs(v - s.smooth!) < .001); if (i >= 0) out.smoothing = SMOOTH_LEVELS[i]! }
   if (s.wakelock != null) out.wakeLock = !!s.wakelock
   if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)

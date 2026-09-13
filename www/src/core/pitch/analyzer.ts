@@ -63,6 +63,23 @@ export interface Analyzer {
  */
 const SPEC_MIN_DB = 6 // f0 피크가 잡음 바닥보다 이만큼 솟아야 '있다'. octaveCorrect 의 기준과 같은 값
 
+/**
+ * 표시 안정성 게이트 — **최근 원시 추정이 옥타브 단위로 흩어져 있으면 표시하지 않는다.**
+ *
+ * 왜 (B16): 중음이 빠르게 이어지는 패시지에서 YIN 은 두 음의 최대공약수(가상 기본음)와 실제 음 사이를
+ * 프레임마다 오간다. 실측(사용자 바이올린 「레전드」 6분 51초, 19,289 프레임): 바이올린이 **낼 수 없는 음**이
+ * 표시 프레임의 5.1 %, 나쁜 30초 구간에서는 20.5 %. 음이름이 **초당 9~11회** 바뀌어 읽을 수가 없다.
+ * 신뢰도로는 못 거른다 — 그 프레임들의 신뢰도 중앙값이 **0.932** 다(B2 가 지적한 그대로).
+ *
+ * 거를 수 있는 특징은 따로 있다: **값이 프레임마다 옥타브씩 튄다.** 한 음을 실제로 켜고 있으면 절대 그러지 않고,
+ * 빠른 스케일도 반음~온음 단위로 움직일 뿐이다. 그래서 '최근 몇 프레임의 원시 추정이 한 옥타브 넘게 벌어져 있으면
+ * 이 순간은 무엇을 보여줄지 모르는 상태' 로 보고 표시를 비운다. 연주자는 그 구간에서 튜너를 읽지 않는다 —
+ * 틀린 이름을 바쁘게 띄우는 것보다 조용한 편이 낫다.
+ *
+ * ★ 감지기(연주 시간)에는 영향이 없다. SPEC_MIN_DB 와 같은 자리에서 **표시용 신뢰도만** 깎는다.
+ */
+const RAW_RING = 4, RAW_SPREAD_MAX = 1.9
+
 export function createAnalyzer(p: AnalyzerParams): Analyzer {
   const N = p.windowSize ?? 4096, sr = p.sampleRate
   const yin = createYinFast(N, { threshold: p.yinThreshold ?? 0.10, hzMin: p.hzMin ?? 40, hzMax: p.hzMax ?? 4200 })
@@ -70,18 +87,27 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
   const tracker = createTracker({ ...DEFAULT_TRACKER, ...p.tracker })
   const det = createDetector({ ...DEFAULT_DETECTOR, ...p.detector })
   const s: AnalyzerSettings = { rmsMin: .014, smoothing: .14, refHz: 442, tolCents: 15 }
+  const rawRing: number[] = []
+  /** 최근 원시 추정이 옥타브 안에 모여 있는가 */
+  function rawStable(hz: number): boolean {
+    if (hz > 0) { rawRing.push(hz); if (rawRing.length > RAW_RING) rawRing.shift() }
+    if (rawRing.length < RAW_RING) return true // 아직 판단할 근거가 없으면 막지 않는다
+    let lo = Infinity, hi = 0
+    for (const v of rawRing) { if (v < lo) lo = v; if (v > hi) hi = v }
+    return hi / lo <= RAW_SPREAD_MAX
+  }
   const EMPTY = (rms: number): Frame => ({ rawHz: -1, conf: 0, rms, harmonics: 0, flatness: 1, hz: -1, midi: -1, cents: 0, inTune: false, playing: det.on, held: 0 })
 
   return {
     windowSize: N,
     setSettings(patch) { Object.assign(s, patch) },
     getSettings() { return { ...s } },
-    reset() { tracker.reset(); det.reset(); spec.reset() },
+    reset() { tracker.reset(); det.reset(); spec.reset(); rawRing.length = 0 },
     process(buf, muted = false) {
       let e = 0; for (let i = 0; i < N; i++) e += buf[i]! * buf[i]!
       const rms = Math.sqrt(e / N), rmsOk = rms >= s.rmsMin
       if (!rmsOk) { // 게이트 아래: 트래커/감지기에 "무효" 프레임을 알린다. 중음 붙잡기 기억도 지운다(쉼표 뒤 첫 중음이 옛 음에 붙지 않게)
-        spec.reset()
+        spec.reset(); rawRing.length = 0
         const t = tracker.push(-1, 0, false, s.smoothing); const playing = det.push({ conf: 0, rmsOk: false, harmonics: 0, flatness: 1 })
         const f = EMPTY(rms); f.playing = playing
         if (t.hz > 0) { fill(f, t.hz, t.midi); f.held = t.held }
@@ -97,7 +123,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
       const playing = muted ? det.on : det.push({ conf: y.conf, rmsOk, harmonics, flatness, cents: rawHz > 0 ? 1200 * Math.log2(rawHz / 440) : NaN })
       // 표시용 신뢰도: 스펙트럼 정합성 실패면 0 (트래커의 confMin 게이트에서 걸러진다). 위 감지기 줄은 건드리지 않는다.
       const specOk = rawHz > 0 && spec.harmonicCount(rawHz, 1, SPEC_MIN_DB) > 0
-      const dispConf = specOk ? y.conf : 0
+      const dispConf = specOk && rawStable(rawHz) ? y.conf : 0
       // 트래커의 음이름 격자는 A=440 기준이므로 기준음(refHz)만큼 주파수를 정규화해 넣는다 — 안 그러면 |오프셋| > 50 ¢(≈ 427 Hz 미만·453 Hz 초과, 바로크 415 포함)에서 이웃 반음으로 라벨링된다
       const t = tracker.push(rawHz / refK(), muted ? dispConf * 0.25 : dispConf, true, s.smoothing)
       const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing, held: t.held }
