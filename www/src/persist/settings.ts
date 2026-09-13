@@ -2,7 +2,7 @@
  * 설정 영속화 (localStorage). 스키마 v2 + v1 마이그레이션.
  * 결정: v1의 7일 TTL(bpm/박자 초기화)은 근거가 없어 제거 (진행 상태 문서 결정 로그 2026-09-05).
  */
-import { settingsStore, RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
+import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
 
 export const SETTINGS_KEY = 'gopractice_settings_v1' // 키 이름은 유지 (기존 사용자 데이터 호환)
 
@@ -41,7 +41,15 @@ export function parseStored(raw: string | null): Partial<Settings> {
   // v1 (main.js 시절) — 값 검증은 v1 loadSettings와 동일
   const s = d as StoredV1
   { const v = tol(s.cents); if (v !== null) out.tolCents = v }
-  if (s.rms && RMS_LEVELS.some(v => Math.abs(v - s.rms!) < .001)) out.rmsMin = s.rms
+  // 감도는 v1 값(.015/.010/.005)을 **단계 인덱스로** 옮긴다 (B8 부수 결함).
+  // 이전 코드는 `RMS_LEVELS.some(|v−rms| < .001)` 로 걸렀는데 v1 값은 어느 v2 단계와도 맞지 않아
+  // 사실상 전부 버려졌고(기본값으로 리셋), .015 는 부동소수 오차로 통과해 **단계에 없는 값**이 그대로 들어왔다
+  // (|.014 − .015| = 0.0009999… < .001). 설정 화면에서는 아무 단계도 선택돼 보이지 않는 상태가 된다.
+  if (typeof s.rms === 'number' && isFinite(s.rms)) {
+    const i = V1_RMS_LEVELS.findIndex(v => Math.abs(v - s.rms!) < .0005)
+    if (i >= 0) out.rmsMin = RMS_LEVELS[i]!
+    else { const j = RMS_LEVELS.findIndex(v => Math.abs(v - s.rms!) < .0005); if (j >= 0) out.rmsMin = RMS_LEVELS[j]! } // 2.0.x 가 v1 키로 써 놓은 경우
+  }
   if (s.smooth) { const V1_SMOOTH = [.05, .10, .15]; const i = V1_SMOOTH.findIndex(v => Math.abs(v - s.smooth!) < .001); if (i >= 0) out.smoothing = SMOOTH_LEVELS[i]! }
   if (s.wakelock != null) out.wakeLock = !!s.wakelock
   if (typeof s.bpm === 'number' && isFinite(s.bpm)) out.bpm = clampBpm(s.bpm)

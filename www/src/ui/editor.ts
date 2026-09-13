@@ -8,8 +8,9 @@ import { fmtT } from '../core/format.ts'
 import { bufToWav } from '../core/wav.ts'
 import { computePeaks } from '../core/peaks.ts'
 import { recListStore, type RecItem } from '../state/index.ts'
-import { patchRec, recFileName } from '../audio/recorder.ts'
-import { saveFile } from '../platform/index.ts'
+import { patchRec, recExt, recFileName } from '../audio/recorder.ts'
+import { saveFile, isIOS } from '../platform/index.ts'
+import { attachGain, beforePlay, afterStop } from '../audio/playback.ts'
 import { q, on, reflow, PLAY_GLYPH, PAUSE_GLYPH } from './dom.ts'
 import { displayName, releaseAudio } from './recList.ts'
 import { toast } from './toast.ts'
@@ -197,6 +198,7 @@ export function openEditor(item: RecItem): void {
   ed.idx = 0; ed.item = item; ed.ptA = null; ed.ptB = null; ed.loop = 0; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null; view = null
 
   const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
+  attachGain(audio, item.peak) // 녹음 레벨 보정 (B12c)
   ed.audio = audio
   const updateDur = () => { if (ed.audio !== audio) return; q('ed-dur').textContent = fmtT(isFinite(audio.duration) && audio.duration > 0 ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0)) }
   // webm duration=Infinity 트릭: 끝으로 seek 하면 durationchange 로 실제 길이가 온다
@@ -220,6 +222,7 @@ export function openEditor(item: RecItem): void {
   audio.addEventListener('play', startLoopWatch)
   audio.addEventListener('ended', () => {
     if (ed.audio !== audio) return
+    afterStop(audio)
     setPlayGlyph(false)
     if (ed.loop && ed.ptA !== null && ed.ptB !== null) { audio.currentTime = loopStart(); safePlay(audio) }
   })
@@ -268,16 +271,17 @@ function editTitle(): void {
 }
 
 /** play() 의 거부(AbortError·디코드 실패)를 삼키지 않는다 — 글리프가 '재생 중' 으로 남지 않게 */
-function safePlay(a: HTMLAudioElement): void { setPlayGlyph(true); a.play().catch(() => { if (ed.audio === a) { setPlayGlyph(false); toast('재생할 수 없어요') } }) }
+function safePlay(a: HTMLAudioElement): void { beforePlay(a); setPlayGlyph(true); a.play().catch(() => { if (ed.audio === a) { afterStop(a); setPlayGlyph(false); toast('재생할 수 없어요') } }) }
 function togglePlay(): void {
   if (!ed.audio) return
   const a = ed.audio
   if (a.paused) {
     if (ed.ptA !== null && a.currentTime < loopStart()) a.currentTime = loopStart()
+    beforePlay(a) // 보정 게인을 타는 경우 컨텍스트가 자고 있으면 무음이 된다 → 먼저 깨운다
     setPlayGlyph(true)
     const tryPlay = () => { if (ed.audio !== a) return /* 편집기가 닫힌 뒤 canplay 가 와도 재생하지 않음 */; const p = a.play(); if (p && p.catch) p.catch(() => { setTimeout(() => { if (ed.audio && ed.audio.paused) { const p2 = ed.audio.play(); if (p2 && p2.catch) p2.catch(() => { setPlayGlyph(false) }) } }, 50) }) }
     if (a.readyState < 2) a.addEventListener('canplay', tryPlay, { once: true }); else tryPlay()
-  } else { a.pause(); setPlayGlyph(false) }
+  } else { a.pause(); afterStop(a); setPlayGlyph(false) }
 }
 function setSpeed(v: number, persist = true): void {
   v = Math.max(0.5, Math.min(1.5, Math.round(v * 100) / 100))
@@ -369,9 +373,29 @@ async function exportAB(): Promise<void> {
     if (!r.ok) toast('저장 실패: ' + r.error)
   } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
 }
+/** 옛 webm 녹음을 아이폰에서 열 수 있게 WAV 로 변환할 상한 (디코드 메모리: 48 kHz 모노 10분 ≈ 115 MB) */
+const WAV_RESCUE_MAX_SEC = 600
+/**
+ * 다운로드. 보통은 원본을 그대로 건넨다.
+ * 예외 (B13 구제): **아이폰 + 내용이 webm** 이면 그 파일은 iOS 에서 열 수도 보낼 수도 없다 —
+ * v2.0.2 이전에 이 폰에서 녹음된 것들이다. 그때만 WAV 로 변환해 건넨다. 새 녹음은 m4a 라 이 경로를 타지 않는다.
+ */
 async function downloadWhole(): Promise<void> {
   if (!ed.item) return
-  const r = await saveFile(ed.item.blob, recFileName(ed.item)); if (!r.ok) toast('저장 실패: ' + r.error)
+  const item = ed.item
+  if (isIOS() && recExt(item) === 'webm') {
+    if (item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 변환할 수 없어요 — 컴퓨터에서 열어주세요') ; return }
+    toast('아이폰에서 열 수 있게 WAV 로 변환 중…')
+    try {
+      const arrayBuf = await (await fetch(item.url)).arrayBuffer()
+      const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf)
+      const blob = new Blob([bufToWav(decoded)], { type: 'audio/wav' })
+      const r = await saveFile(blob, 'gopractice_' + item.name + '.wav')
+      if (!r.ok) toast('저장 실패: ' + r.error)
+      return
+    } catch (e) { toast('변환 실패: ' + (e instanceof Error ? e.message : String(e))); return }
+  }
+  const r = await saveFile(item.blob, recFileName(item)); if (!r.ok) toast('저장 실패: ' + r.error)
 }
 
 export function mountEditor(): void {

@@ -36,11 +36,29 @@ let onFatal: ((msg: string) => void) | null = null
 export function onEngineFatal(fn: (msg: string) => void): void { onFatal = fn }
 
 const ACCtor = (): typeof AudioContext => (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)
+
+/**
+ * iOS 오디오 세션 힌트 (W3C Audio Session · iOS 17 Safari+). 다른 플랫폼엔 없어서 no-op.
+ *
+ * 왜 (B12a): iOS 는 마이크 트랙이 살아 있는 동안 AVAudioSession 을 play-and-record 로 두고, 그 상태에서
+ * 출력을 감쇠하거나 수화기로 돌린다 — 사용자가 "폰 볼륨 최대인데 30 % 수준" 이라고 한 증상이 메트로놈과
+ * 녹음 재생에 **동시에** 나타난 이유다. 마이크가 없을 때는 'playback' 으로 선언해 스피커 전체 음량을 받고,
+ * 마이크가 열려 있을 때는 의도를 명시(play-and-record)해 Safari 의 추론에 맡기지 않는다.
+ * 단 Safari 는 독자적으로도 카테고리를 추론하므로 이것만으로 다 해결되지는 않는다(그래서 재생 경로는
+ * A-3 의 게인, 메트로놈은 A-2 의 레벨로 따로 보강한다).
+ */
+type AudioSessionType = 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record'
+function setAudioSession(type: AudioSessionType): void {
+  const n = navigator as Navigator & { audioSession?: { type: AudioSessionType } }
+  try { if (n.audioSession) n.audioSession.type = type } catch { /* 지원하지 않거나 거부 — 무해 */ }
+}
+export const audioSessionHint = (mic: boolean): void => setAudioSession(mic ? 'play-and-record' : 'playback')
 export const audioSupported = (): boolean => typeof AudioWorkletNode !== 'undefined' && typeof Worker !== 'undefined' && !!ACCtor()
 
 /** 단일 컨텍스트. 없으면 만든다. 사용자 제스처 안에서 부르면 바로 running, 밖이면 suspended 일 수 있다. */
 export function getContext(): AudioContext {
   if (!A.ac || A.ac.state === 'closed') {
+    audioSessionHint(!!A.micStream) // 컨텍스트를 만들기 전에 의도를 선언한다 (iOS 는 첫 노드에서 카테고리를 굳힌다)
     A.ac = new (ACCtor())({ latencyHint: 'interactive' }); A.captureLoaded = false; A.sampleRate = A.ac.sampleRate
     // 전화·다른 앱의 오디오 포커스 등으로 컨텍스트가 멈추면(iOS 'interrupted', Android 'suspended') 알린다 — UI 가 "일시정지" 표시/복구
     A.ac.onstatechange = () => { for (const f of stateListeners) f(A.ac!.state as AudioContextState | 'interrupted') }
@@ -103,7 +121,8 @@ export async function openMic(): Promise<MicResult> {
     A.micSource = ac.createMediaStreamSource(stream); A.micSource.connect(A.captureNode)
     // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리 — 자기 스트림일 때만 (이전 세션의 늦은 ended 가 새 세션을 닫지 않게)
     stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.('마이크 연결이 끊겼습니다') } })
-    tunerStore.set({ micReady: true, running: true })
+    audioSessionHint(true)
+    tunerStore.set({ micReady: true, running: true, sampleRate: ac.sampleRate }) // 샘플레이트는 트레이스 창을 초 단위로 유지하는 데 쓰인다 (B11)
     opening = false
     for (const h of hooks.afterOpen) h()
     return { ok: true }
@@ -138,6 +157,7 @@ export function closeMic(): void {
   tunerStore.set({ running: false, micReady: false, playing: false })
   for (const h of hooks.beforeClose) h()
   teardownMic()
+  audioSessionHint(false) // 마이크가 없으면 재생 전용 — iOS 가 출력을 감쇠하지 않게
   for (const h of hooks.afterClose) h()
   suspendIfIdle()
 }

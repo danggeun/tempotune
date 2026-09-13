@@ -5,6 +5,7 @@ import { deleteRec, restoreDeleted, recFileName } from '../audio/recorder.ts'
 import { REC_TTL, REC_WARN_DAYS } from '../core/recPolicy.ts'
 import { PAUSE_GLYPH, PLAY_GLYPH } from './dom.ts'
 import { saveFile } from '../platform/index.ts'
+import { attachGain, beforePlay, afterStop, detachGain } from '../audio/playback.ts'
 import { toast } from './toast.ts'
 import { q, on } from './dom.ts'
 
@@ -18,13 +19,16 @@ function setPlayBtn(idx: number, playing: boolean): void { const b = document.ge
 function getPlayer(idx: number): HTMLAudioElement {
   let a = players[idx]
   if (!a) {
-    a = new Audio(recListStore.get().items[idx]!.url)
+    const item = recListStore.get().items[idx]!
+    a = new Audio(item.url)
+    attachGain(a, item.peak) // 녹음 레벨 보정 (B12c). 게인이 1 이면 요소를 건드리지 않는다
     a.ontimeupdate = () => {
       const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, tm = document.getElementById('rec-time-' + idx)
       if (sk && a!.duration) { sk.max = String(a!.duration); sk.value = String(a!.currentTime) }
       if (tm) tm.textContent = fmtT(a!.currentTime)
     }
     a.onended = () => {
+      afterStop(a!)
       setPlayBtn(idx, false)
       const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null; if (sk) sk.value = '0'
       const tm = document.getElementById('rec-time-' + idx); if (tm) tm.textContent = '0:00'
@@ -36,12 +40,12 @@ function getPlayer(idx: number): HTMLAudioElement {
 }
 function playPause(idx: number): void {
   const a = getPlayer(idx)
-  for (const k of Object.keys(players)) { const i = +k; if (i !== idx && !players[i]!.paused) { players[i]!.pause(); setPlayBtn(i, false) } }
-  if (a.paused) { setPlayBtn(idx, true); a.play().catch(() => { setPlayBtn(idx, false); toast('재생할 수 없어요') }) } else { a.pause(); setPlayBtn(idx, false) } // 위치를 유지하는 일시정지 → ❚❚ (편집기와 동일)
+  for (const k of Object.keys(players)) { const i = +k; if (i !== idx && !players[i]!.paused) { players[i]!.pause(); afterStop(players[i]!); setPlayBtn(i, false) } }
+  if (a.paused) { beforePlay(a); setPlayBtn(idx, true); a.play().catch(() => { afterStop(a); setPlayBtn(idx, false); toast('재생할 수 없어요') }) } else { a.pause(); afterStop(a); setPlayBtn(idx, false) } // 위치를 유지하는 일시정지 → ❚❚ (편집기와 동일)
 }
 function seek(idx: number): void { const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, a = getPlayer(idx); if (sk && a.duration) a.currentTime = +sk.value }
 /** Audio 요소를 놓을 때 src 도 비운다 — WebView 는 동시 미디어 플레이어 수에 상한이 있어 붙잡고 있으면 재생이 조용히 실패한다 (리뷰) */
-export function releaseAudio(a: HTMLAudioElement): void { try { a.pause(); a.removeAttribute('src'); a.load() } catch { /* */ } }
+export function releaseAudio(a: HTMLAudioElement): void { detachGain(a); try { a.pause(); a.removeAttribute('src'); a.load() } catch { /* */ } }
 export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { releaseAudio(a); delete players[idx] } }
 
 /** 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고 — 열어 보기 전에 '어느 녹음인지' 알 수 있게 (UX 감사 B4). 없으면 줄 자체가 없다 */

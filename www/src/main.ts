@@ -9,11 +9,12 @@ import { loadSettings, startSettingsAutosave, onPersistError } from './persist/s
 import { openRecDb, onDbError } from './persist/recordingsDb.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError } from './audio/engine.ts'
 import { startAnalysis, lastFrameMs } from './audio/analysis.ts'
+import { playbackActive, playbackDiag } from './audio/playback.ts'
 import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
-import { mountTuner, showTapHint, setAudioDot } from './ui/tuner.ts'
+import { mountTuner, showTapHint, setAudioDot, setHistSec, histDiag } from './ui/tuner.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { onMetroError } from './audio/metronome.ts'
@@ -50,7 +51,8 @@ const tryOpenMic = async (): Promise<boolean> => {
 }
 mountMicPopup(tryOpenMic)
 onEngineFatal(toast); onMetroError(toast); onRecorderError(toast); onPersistError(toast); onDbError(toast); onWakeLockUnsupported(toast)
-setIdleCheck(() => !metroStore.get().playing && !refToneStore.get().active)
+// 유휴 판정에 '녹음 재생 중' 을 포함한다 — 재생이 보정 게인 그래프를 타면 컨텍스트가 잠들 때 무음이 된다 (B12c)
+setIdleCheck(() => !metroStore.get().playing && !refToneStore.get().active && !playbackActive())
 startAnalysis()
 // wake lock: 튜너(마이크) 또는 메트로놈이 살아 있는 동안 — 메트로놈만 켠 채 화면이 꺼지면 WebView 가 얼어 박자가 멈춘다 (리뷰 #9)
 const wantWake = () => settingsStore.get().wakeLock && (tunerStore.get().running || metroStore.get().playing)
@@ -145,4 +147,23 @@ if (!isNative() && 'serviceWorker' in navigator) {
   backdate: (ms: number) => tunerStore.set({ lastActivityMs: Date.now() - ms }),
   editor: editorDiag,
   closeMic,
+  /**
+   * 트레이스 진단/주입 (e2e·비교 렌더 전용). 합성 프레임을 그대로 밀어넣어 캔버스를 결정적으로 그린다 —
+   * 실제 연주 없이 "음이 바뀔 때 가로줄이 그어지는가"(C1)를 픽셀로 검증할 수 있다.
+   */
+  /** 재생 보정 게인 진단 (e2e) */
+  playback: playbackDiag,
+  tuner: {
+    diag: histDiag,
+    setHistSec,
+    /** @param frames null = 무음 프레임 */
+    inject: (frames: Array<{ cents: number; midi: number } | null>) => {
+      const tol = settingsStore.get().tolCents
+      for (const f of frames) {
+        const st = tunerStore.get()
+        if (!f) tunerStore.set({ frame: st.frame + 1, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0 })
+        else tunerStore.set({ frame: st.frame + 1, hz: 440 * Math.pow(2, (f.midi - 69) / 12), midi: f.midi, cents: f.cents, inTune: Math.abs(f.cents) <= tol, conf: 0.9 })
+      }
+    },
+  },
 }

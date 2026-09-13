@@ -7,6 +7,7 @@
 import { metroStore, sessionStore, settingsStore, CFG, type SubDiv, type TimeSig } from '../state/index.ts'
 import { totalTicks as _totalTicks } from '../core/metro/sequencer.ts'
 import { getContext, micOpen, muteAnalysis, audioSupported, suspendIfIdle } from './engine.ts'
+import { softClipCurve } from '../core/softclip.ts'
 import metroWorkletUrl from './metro.worklet.ts?worker&url'
 
 let node: AudioWorkletNode | null = null
@@ -36,7 +37,11 @@ async function ensureNode(): Promise<AudioWorkletNode> {
       // 클릭 길이 + 입력지연 여유(60 ms)까지 — 창 겹침 93 ms 가 더해지므로 여유를 크게 주면 빠른 템포에서 모든 창이 걸린다
       if (micOpen() && !m.muted) muteAnalysis(m.t + outLat - 0.01, m.t + outLat + m.dur + 0.06)
     }
-    n.connect(ac.destination)
+    // 소프트 리미터를 한 단 둔다 (A-2). 클릭을 키우면 세분음 꼬리와 다음 박이 겹치는 순간, 그리고 어택
+    // 트랜지언트에서 합이 1.0 을 넘을 수 있다 — 하드 클리핑은 폰 스피커에서 유난히 거칠게 들린다.
+    // 무릎(0.7) 아래는 완전한 항등 함수라 평소 음색은 그대로다.
+    const shaper = ac.createWaveShaper(); shaper.curve = softClipCurve(); shaper.oversample = '2x'
+    n.connect(shaper); shaper.connect(ac.destination)
     n.port.postMessage({ type: 'pattern', pattern: pattern() })
     node = n; nodeCtx = ac
     return n

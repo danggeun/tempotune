@@ -33,7 +33,31 @@ export function tickIntervalS(p: Pick<Pattern, 'bpm' | 'timeSig' | 'subDiv'>, ti
 }
 
 const FREQ = { accent: 1800, beat: 1100, sub: 750 } as const
-const VOL = { accent: .75, beat: .42, sub: .18 } as const
+/**
+ * 클릭 피크 (슬라이더 최대에서의 값). 음악적 위계는 v1 그대로 유지한다 — 0 / −4.4 / −10.5 dB.
+ * (v1 은 슬라이더 최대에서 `min(1, VOL×1.43)` 이라 강박이 1.0 에 **클립**되고 0.60 / 0.257 이었다.
+ *  즉 피크 천장은 이미 다 쓰고 있었다 → 코드로 얻을 수 있는 것은 피크가 아니라 **에너지와 스펙트럼**이다.)
+ */
+const VOL = { accent: 1.0, beat: .60, sub: .30 } as const
+/**
+ * 감쇠 바닥(피크 대비). v1 은 절대 0.001 이라 시간상수가 τ = 50 ms / ln(vol/0.001) ≈ **8.3 ms** —
+ * 피크만 스치고 사라져서 폰 스피커에서 유난히 작게 들렸다. 상대 2 % 로 바꾸면 τ = 50 / ln(50) = **12.8 ms**,
+ * 피크를 한 톨도 올리지 않고 클릭 에너지가 **+1.9 dB**. 세기별로 τ 가 달라지던 것도 같이 없어진다.
+ */
+const CLICK_FLOOR = 0.02
+/** 꼬리를 0 으로 매끄럽게 — 2 % 에서 뚝 끊으면 그 자체가 작은 '툭' 소리가 된다 */
+const CLICK_FADE_S = 0.003
+/**
+ * 어택에 얹는 짧은 고역 트랜지언트.
+ * 왜: 폰 스피커는 저역을 거의 못 내고 1~3 kHz 이상에서 효율이 가장 높다. 750 Hz 세분음이 특히 불리했다.
+ * 1.5 ms 동안 1차 차분(= 6 dB/oct 고역 강조) 잡음을 더하면 피크를 크게 올리지 않고도 '딱' 하는 존재감이 생긴다.
+ * 난수는 **결정적 LCG** 로 만든다 — 벤치마크·단위테스트가 재현 가능해야 한다.
+ *
+ * 첫 샘플은 난수가 아니라 **고정 임펄스**다. 삼각파는 위상 0.25(영점)에서 시작하므로 클릭의 첫 샘플이 0 인데,
+ * 거기에 난수를 얹으면 온셋 시각이 클릭마다 ±2 샘플 흔들려 보인다(오프라인 렌더 온셋 검출 기준). 소리로는
+ * 무시할 차이지만 "박자 정확도" 검사가 그걸 지터로 읽는다 — 어택의 첫 샘플을 고정하면 온셋이 항상 예약 샘플이다.
+ */
+const NOISE_S = 0.0015, NOISE_AMP = 0.5, ATTACK_IMPULSE = 0.6
 
 export interface Sequencer {
   /** 패턴 교체. BPM 이 바뀌면 이미 예약된 다음 클릭도 새 간격으로 다시 잡는다(마지막 클릭 기준) — 느린 템포에서 한 박을 통째로 기다리지 않게 */
@@ -58,8 +82,10 @@ export function createSequencer(sampleRate: number, initial: Pattern): Sequencer
   let nextClickSample = 0 // 다음 클릭의 절대 샘플 위치 (소수 허용 — 누적 오차 없음)
   let tick = 0
   let lastClickSample = NaN, lastTick = 0, renderPos = 0
-  const active: Array<{ startSample: number; phase: number; freq: number; vol: number }> = []
+  const active: Array<{ startSample: number; phase: number; freq: number; vol: number; seed: number; prev: number }> = []
   const clickLen = Math.round(CLICK_DUR_S * sampleRate)
+  const fadeLen = Math.max(1, Math.round(CLICK_FADE_S * sampleRate))
+  const noiseLen = Math.max(1, Math.round(NOISE_S * sampleRate))
 
   return {
     get running() { return running },
@@ -84,9 +110,11 @@ export function createSequencer(sampleRate: number, initial: Pattern): Sequencer
           const kind = tickKind(p, tick)
           const startSample = Math.round(nextClickSample)
           events.push({ tick, sample: startSample, kind })
-          const vol = Math.min(1, VOL[kind] * (p.volume / .7))
+          // 슬라이더는 0..1 을 피크 0..VOL 로 선형 매핑한다. v1 의 `min(1, VOL×(v/0.7))` 은 최대에서 강박을
+          // 클립시키면서도 세분음은 −12 dB 에 두는 어정쩡한 지점이었다 — 위계는 VOL 이 이미 갖고 있으므로 그대로 곱한다.
+          const vol = VOL[kind] * p.volume
           // phase 0.25 = 삼각파 영점에서 시작 (0 이면 +1 스텝 트랜지언트 — 거칠고 마이크 누설도 큼). vol≈0 은 렌더 생략 (0·∞ = NaN 방지)
-          if (!p.muted && vol > 0.001) active.push({ startSample, phase: 0.25, freq: FREQ[kind], vol })
+          if (!p.muted && vol > 0.001) active.push({ startSample, phase: 0.25, freq: FREQ[kind], vol, seed: (startSample * 2654435761) >>> 0, prev: 0 })
           lastClickSample = nextClickSample; lastTick = tick
           nextClickSample += tickIntervalS(p, tick) * sampleRate
           tick = (tick + 1) % totalTicks(p)
@@ -99,11 +127,20 @@ export function createSequencer(sampleRate: number, initial: Pattern): Sequencer
         for (let i = from; i < n; i++) {
           const s = blockStart + i - c.startSample
           if (s >= clickLen) { active.splice(k, 1); break }
-          // v1: setValueAtTime(vol) → exponentialRamp(.001) 를 그대로: vol · (0.001/vol)^(s/len)
-          const env = c.vol * Math.pow(0.001 / c.vol, s / clickLen)
+          // 지수 감쇠(피크 → 피크×CLICK_FLOOR) × 꼬리 페이드
+          const fade = s > clickLen - fadeLen ? (clickLen - s) / fadeLen : 1
+          const env = c.vol * Math.pow(CLICK_FLOOR, s / clickLen) * fade
           c.phase += c.freq / sampleRate; if (c.phase >= 1) c.phase -= 1
           const tri = 4 * Math.abs(c.phase - 0.5) - 1 // 삼각파 −1..1
-          out[i] = out[i]! + tri * env
+          let v = tri * env
+          if (s === 0) v += ATTACK_IMPULSE * c.vol // 결정적 어택 (온셋 시각 고정)
+          else if (s < noiseLen) { // 어택 트랜지언트 (결정적 LCG + 1차 차분 = 고역 강조)
+            c.seed = (c.seed * 1664525 + 1013904223) >>> 0
+            const wn = (c.seed / 0x100000000) * 2 - 1
+            const hp = wn - c.prev; c.prev = wn
+            v += hp * 0.5 * c.vol * NOISE_AMP * (1 - s / noiseLen)
+          }
+          out[i] = out[i]! + v
         }
       }
       return events

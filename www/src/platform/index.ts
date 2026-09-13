@@ -5,6 +5,19 @@ declare global { interface Window { Capacitor?: unknown } }
 
 export const isNative = (): boolean => typeof window !== 'undefined' && !!window.Capacitor
 
+/**
+ * iOS / iPadOS 인가. **여기서만** UA 를 본다.
+ * 왜 UA 인가: 고쳐야 하는 것이 "`<a download>` 가 조용히 실패한다" 인데 그건 기능 검출로 알 수 없다
+ * (`navigator.canShare({files})` 는 안드로이드·데스크톱에서도 true 라 구분이 안 된다). 그래서 공유 시트를
+ * **iOS 에서만** 쓴다 — 다른 플랫폼의 즉시 다운로드 동작은 그대로 둔다 (기존 기능 유지).
+ * iPadOS 13+ 는 'MacIntel' 로 위장하므로 터치 포인트로 가른다.
+ */
+export const isIOS = (): boolean => {
+  if (typeof navigator === 'undefined') return false
+  const p = navigator.platform || ''
+  return /iPad|iPhone|iPod/.test(p) || (p === 'MacIntel' && navigator.maxTouchPoints > 1) || /iPad|iPhone|iPod/.test(navigator.userAgent)
+}
+
 /** Capacitor 상태바를 앱 배경색에 맞춘다. 웹에서는 no-op. */
 export function initStatusBar(): void {
   if (!isNative()) return
@@ -65,7 +78,21 @@ const toBase64 = (b: Blob) => new Promise<string>((res, rej) => { const r = new 
 export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     if (!isNative()) {
-      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name
+      const safe = sanitizeFileName(name)
+      // iOS: 공유 시트로 건넨다 (B13). `<a download>` 는 홈 화면 PWA 에서 조용히 실패하고, 성공해도 '파일' 앱
+      // 안에만 남아 다른 앱으로 보내기가 번거롭다. 공유 시트는 파일에 저장·AirDrop·메시지·카톡이 한 번에 열린다
+      // — 안드로이드 앱 경로(Share 플러그인)와 사용자 경험도 같아진다.
+      // 제스처 만료 주의: 이 함수는 클릭 핸들러에서 await 없이 바로 호출돼야 한다(호출부가 그렇게 되어 있다).
+      if (isIOS()) {
+        const file = new File([blob], safe, { type: blob.type || 'application/octet-stream' })
+        const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
+        if (typeof navigator.share === 'function' && nav.canShare?.({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: safe }); return { ok: true } }
+          catch (e) { if (e instanceof Error && e.name === 'AbortError') return { ok: true } /* 취소는 오류가 아니다 */ }
+          // 그 밖의 거부(NotAllowedError 등)는 아래 다운로드로 폴백
+        }
+      }
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = safe
       document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 3000)
       return { ok: true }
     }

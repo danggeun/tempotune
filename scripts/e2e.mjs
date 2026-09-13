@@ -462,6 +462,115 @@ await scenario('sw update: new version is applied only when idle (prompt mode, n
   assert.equal(reg, true, 'sw registered on web')
 })
 
+// ── 트레이스·바늘 (v2.0.2 C1 / B10) ──
+// 왜 주입인가: 기존 스크린샷 12장은 트레이스가 비어 있어 이 변경을 전혀 검증하지 못한다. 합성 프레임을
+// 밀어넣으면 "음이 바뀌는 자리"를 픽셀로 특정할 수 있다.
+const TRACE_FRAMES = (flatten = false) => {
+  const f = []
+  for (let i = 0; i < 60; i++) f.push({ cents: -40, midi: 69 })          // 라4 를 −40 ¢ 로 지속
+  for (let i = 0; i < 60; i++) f.push({ cents: 45, midi: flatten ? 69 : 71 })  // 시4 +45 ¢ (flatten 이면 라4 인 척)
+  return f
+}
+/** 캔버스에서 '한 행에 이어진 흰 픽셀' 의 최대 개수 — 가로줄이 있으면 수백이 된다 */
+const maxRowRun = p => p.evaluate(() => {
+  const c = document.getElementById('tuner-history')
+  const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height).data
+  let best = 0
+  for (let y = 0; y < c.height; y++) {
+    let run = 0
+    for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4
+      const white = d[i] > 170 && d[i + 1] > 170 && d[i + 2] > 170
+      run = white ? run + 1 : 0
+      if (run > best) best = run
+    }
+  }
+  return best
+})
+await scenario('tuner trace: 음이 바뀌는 자리에 가로줄을 긋지 않는다 (C1)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  // (1) 대조군 — midi 를 고정하면 세그먼트가 절대 생략되지 않는다 = v2.0.1 의 그림. 가로줄이 나와야 한다.
+  await p.evaluate(f => window.__gp.tuner.inject(f), TRACE_FRAMES(true))
+  await sleep(p, 200)
+  const before = await maxRowRun(p)
+  assert.ok(before > 150, `대조군에 가로줄이 있어야 검사가 유효하다 (run=${before})`)
+  // (2) 실제 동작 — 음이 바뀌면 끊는다
+  await p.evaluate(() => window.__gp.tuner.setHistSec(4)) // 버퍼 초기화
+  await p.evaluate(f => window.__gp.tuner.inject(f), TRACE_FRAMES(false))
+  await sleep(p, 200)
+  const after = await maxRowRun(p)
+  assert.ok(after < 30, `전환 자리에 가로줄이 없어야 한다 (run=${after}, 대조군 ${before})`)
+})
+await scenario('tuner trace: 창 길이가 샘플레이트와 무관하게 초로 고정된다 (B11)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await sleep(p, 2000)
+  const d = await p.evaluate(() => window.__gp.tuner.diag())
+  assert.equal(d.sec, 4, 'histSec')
+  assert.ok(Math.abs(d.len * 1024 / d.sr - 4) < 0.1, `창이 4초여야 한다: ${d.len}프레임 @${d.sr} = ${(d.len * 1024 / d.sr).toFixed(2)}초`)
+  assert.ok(d.len < 360, `v2.0.1(360프레임)보다 짧아야 한다: ${d.len}`)
+})
+await scenario('gauge needle: 음이 바뀌는 프레임에만 전이를 끈다 (쓸고 가는 착시 제거)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  await p.evaluate(() => {
+    window.__gpNeedle = []
+    const n = document.getElementById('gauge-needle')
+    new MutationObserver(() => window.__gpNeedle.push(n.style.transition)).observe(n, { attributes: true, attributeFilter: ['style'] })
+  })
+  // 라4 → 시4 → 도♯5 : 라벨이 두 번 바뀐다
+  await p.evaluate(() => window.__gp.tuner.inject([{ cents: -40, midi: 69 }]))
+  await sleep(p, 120)
+  await p.evaluate(() => window.__gp.tuner.inject([{ cents: 45, midi: 71 }]))
+  await sleep(p, 120)
+  await p.evaluate(() => window.__gp.tuner.inject([{ cents: -30, midi: 73 }]))
+  await sleep(p, 200)
+  const seen = await p.evaluate(() => window.__gpNeedle)
+  assert.ok(seen.filter(v => v === 'none').length >= 2, `전환마다 전이를 꺼야 한다: ${JSON.stringify(seen)}`)
+  assert.equal(await p.evaluate(() => document.getElementById('gauge-needle').style.transition), '', '다음 프레임에 원복')
+})
+// ── 녹음 파일 이름·컨테이너 (B13) ──
+await scenario('recording: 비 iOS 는 webm 유지(안드로이드 무변경) + 확장자가 내용과 일치 (B13)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  // Chromium 의 'audio/mp4' 는 실제로 **MP4 안의 Opus** 를 낸다(start 후 mimeType 확인) — 이름만 m4a 인,
+  // 아이폰에서 못 여는 파일이 된다. 그래서 mp4 우선은 iOS 에서만 적용한다. 이 브라우저(비 iOS)는 webm 이어야 한다.
+  const probe = await p.evaluate(async () => {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const r = new MediaRecorder(st, { mimeType: 'audio/mp4' })
+    r.start(); await new Promise(res => setTimeout(res, 200)); const t = r.mimeType; r.stop()
+    st.getTracks().forEach(x => x.stop())
+    return { plainMp4Gives: t, aac: MediaRecorder.isTypeSupported('audio/mp4;codecs=mp4a.40.2') }
+  })
+  assert.ok(/opus/.test(probe.plainMp4Gives) || probe.aac, 'audio/mp4 가 AAC 가 아니면 iOS 전용 분기가 맞다: ' + probe.plainMp4Gives)
+  await p.click('#menu-btn'); await sleep(p, 400)
+  await p.click('#rec-toggle-btn'); await sleep(p, 1200); await p.click('#rec-toggle-btn'); await sleep(p, 1200)
+  // 확장자는 mimeType 문자열이 아니라 blob 앞부분(ftyp / EBML)으로 정해진다 → 이름과 내용이 항상 일치해야 한다
+  const info = await p.evaluate(async () => {
+    const a = document.querySelector('.rec-dl-link')
+    const res = await fetch(a.href); const head = new Uint8Array((await res.arrayBuffer()).slice(0, 12))
+    const isWebm = head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3
+    const isMp4 = head[4] === 0x66 && head[5] === 0x74 && head[6] === 0x79 && head[7] === 0x70
+    return { name: a.download, isWebm, isMp4 }
+  })
+  assert.ok(info.name && /\.(m4a|webm)$/.test(info.name), '파일 이름 확장자: ' + info.name)
+  if (info.isWebm) assert.match(info.name, /\.webm$/, '내용이 webm 이면 이름도 webm')
+  if (info.isMp4) assert.match(info.name, /\.m4a$/, '내용이 mp4 면 이름도 m4a')
+  assert.ok(info.isWebm || info.isMp4, '알 수 없는 컨테이너')
+  if (!probe.aac) assert.ok(info.isWebm, '비 iOS + AAC 불가 → v2.0.1 과 같은 webm 이어야 한다(안드로이드 무변경)')
+})
+
+await scenario('playback: 조용한 녹음에 보정 게인이 붙고 재생이 계속된다 (B12c)', 'violin_A4_m20.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  await p.click('#menu-btn'); await sleep(p, 400)
+  await p.click('#rec-toggle-btn'); await sleep(p, 2000); await p.click('#rec-toggle-btn'); await sleep(p, 1500)
+  await p.click('.rec-play-btn'); await sleep(p, 900)
+  const st = await p.evaluate(() => window.__gp.playback())
+  assert.equal(st.active, true, '재생 중으로 표시돼야 유휴 suspend 가 재생을 끊지 않는다')
+  assert.ok(st.gains.some(g => g > 1), `조용한 녹음에 보정 게인이 붙어야 한다: ${JSON.stringify(st.gains)}`)
+  const t1 = st.times[0]
+  await sleep(p, 700)
+  const t2 = (await p.evaluate(() => window.__gp.playback())).times[0]
+  assert.ok(t2 > t1, `재생이 진행돼야 한다 ${t1} → ${t2}`)
+  assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running', '컨텍스트가 살아 있어야 소리가 난다')
+})
+
 try { process.kill(-server.pid, 'SIGTERM') } catch { server.kill() }
 let fail = 0
 for (const [n, r] of results) { if (r !== 'ok' && !r.startsWith('NO')) fail++; console.log((r === 'ok' ? '  ok   ' : r.startsWith('NO') ? '  note ' : '  FAIL ') + n + (r === 'ok' ? '' : '  → ' + r)) }

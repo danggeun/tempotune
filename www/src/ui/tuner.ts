@@ -3,25 +3,56 @@
  * tunerStore 를 구독해 그린다. 오디오 모듈을 직접 읽지 않는다.
  */
 import { octaveOf, noteLabel } from '../core/note.ts'
+import { histLenFor } from '../core/hist.ts'
 import { CFG, settingsStore, tunerStore } from '../state/index.ts'
 import { q } from './dom.ts'
 
 let tapHandler: (() => void) | null = null
-const hist: Array<number | null> = new Array(CFG.tuner.histLen).fill(null)
+/**
+ * 트레이스 버퍼. 길이는 `histSec × 프레임률` 이라 샘플레이트가 정해지면(마이크 열림) 다시 잡는다 (B11).
+ * `histMidi` 는 같은 인덱스에 그때의 음이름(midi)을 담는다 — 라벨이 바뀐 자리를 알아야 가로줄을 안 그릴 수 있다 (C1).
+ */
+let histSec: number = CFG.tuner.histSec
+let histSr = 44100
+let hist: Array<number | null> = new Array(histLenFor(histSr, histSec, CFG.tuner.hop)).fill(null)
+let histMidi: Array<number | null> = new Array(hist.length).fill(null)
+/** 마이크가 열려 샘플레이트가 확정되면 버퍼를 그 길이로 다시 잡는다. 표시 버퍼라 내용 보존은 불필요. */
+function resizeHist(sampleRate: number): void {
+  histSr = sampleRate
+  const n = histLenFor(sampleRate, histSec, CFG.tuner.hop)
+  if (n === hist.length) return
+  hist = new Array(n).fill(null); histMidi = new Array(n).fill(null)
+}
+/** 창 길이(초) 변경 — 값 선택용 비교 렌더/e2e 에서 쓴다 (scripts/render-trace.mjs) */
+export function setHistSec(sec: number): void { histSec = sec; hist = []; resizeHist(histSr) }
+/** 테스트·진단용 */
+export const histDiag = (): { len: number; sec: number; sr: number } => ({ len: hist.length, sec: histSec, sr: histSr })
 /** 캔버스 색은 토큰에서 (style.css 의 '색은 토큰에서만' 원칙) */
 let okRgb = '34,197,94'
 function readTokens(): void { const cs = getComputedStyle(document.documentElement); okRgb = cs.getPropertyValue('--ok-rgb').trim() || okRgb }
 
 // ── 게이지 ──
 let gaugeW = 0
-function drawGauge(cents: number | null): void {
+/**
+ * 바늘. cents 는 **현재 음 기준** 이므로 라벨이 바뀌는 순간 +45 → −45 처럼 뒤집힌다(tracker 가 midi 와 dispA 를
+ * 같이 갱신). 그 자체는 정당한 정보인데, CSS `transition: left .07s` 가 그 도약을 70 ms 동안 **애니메이션**해서
+ * "바늘이 양쪽으로 쓸고 간다" 로 보였다(B10). 전환 프레임에만 전이를 끄면 착시만 사라지고 정보는 그대로다.
+ */
+let lastGaugeMidi: number | null = null
+function drawGauge(cents: number | null, midi: number | null = null): void {
   const needle = q('gauge-needle'), zone = q('gauge-zone'), wrap = q('gauge-wrap')
   if (!gaugeW) gaugeW = wrap.offsetWidth || 300
   const W = gaugeW, ppc = (W / 2) / 50, tol = settingsStore.get().tolCents
   zone.style.left = (W / 2 - tol * ppc) + 'px'; zone.style.width = (tol * 2 * ppc) + 'px'
-  if (cents === null) { needle.style.left = '50%'; needle.className = ''; return }
-  needle.style.left = (W / 2 + Math.max(-50, Math.min(50, cents)) * ppc) + 'px'
-  needle.className = Math.abs(cents) <= tol ? 'tune' : ''
+  const jumped = midi !== lastGaugeMidi
+  lastGaugeMidi = midi
+  if (jumped) { needle.style.transition = 'none'; void needle.offsetWidth } // reflow 로 '전이 없음' 을 확정시킨 뒤 위치를 옮긴다
+  if (cents === null) { needle.style.left = '50%'; needle.className = '' }
+  else {
+    needle.style.left = (W / 2 + Math.max(-50, Math.min(50, cents)) * ppc) + 'px'
+    needle.className = Math.abs(cents) <= tol ? 'tune' : ''
+  }
+  if (jumped) requestAnimationFrame(() => { needle.style.transition = '' }) // 다음 프레임부터 다시 부드럽게
 }
 
 // ── 히스토리 ──
@@ -39,6 +70,10 @@ function drawHistory(inTune: boolean): void {
   c.lineWidth = 3; c.lineCap = 'round' // 90 cm 에서 보이는 굵기
   for (let i = 0; i < N - 1; i++) {
     const v0 = hist[i], v1 = hist[i + 1]; if (v0 == null || v1 == null) continue
+    // 음이름이 바뀐 자리는 잇지 않는다 (C1). 가로축은 '현재 음 기준 cents' 라, 도(−40 ¢) → 레(+45 ¢) 는
+    // 기준이 바뀐 것뿐인데 이으면 85 ¢ 를 가로지르는 선이 그어진다 — 있지도 않았던 음정 이동을 그리는 것.
+    // Δcents 임계로 판정하면 정당한 빠른 슬라이드(부스트 점프)와 구분할 수 없어 midi 를 쓴다.
+    if (histMidi[i] !== histMidi[i + 1]) continue
     const y0 = (i + .5) * rH, y1 = (i + 1.5) * rH
     const x0 = W / 2 + Math.max(-50, Math.min(50, v0)) * ppc, x1 = W / 2 + Math.max(-50, Math.min(50, v1)) * ppc
     c.globalAlpha = .22 + (i / (N - 1)) * .78
@@ -91,12 +126,15 @@ export function mountTuner(): void {
   const paint = () => {
     raf = null; if (!dirty) return; dirty = false
     const s = tunerStore.get()
-    if (s.hz === -1) { renderEmpty(); drawGauge(null); drawHistory(false); return }
-    renderNote(s.midi, s.cents, s.inTune); drawGauge(s.cents); drawHistory(s.inTune)
+    if (s.hz === -1) { renderEmpty(); drawGauge(null, null); drawHistory(false); return }
+    renderNote(s.midi, s.cents, s.inTune); drawGauge(s.cents, s.midi); drawHistory(s.inTune)
   }
+  tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {
     const s = tunerStore.get()
-    hist.push(s.hz === -1 ? null : s.cents); hist.shift()
+    const off = s.hz === -1
+    hist.push(off ? null : s.cents); hist.shift()
+    histMidi.push(off ? null : s.midi); histMidi.shift()
     dirty = true; if (raf == null) raf = requestAnimationFrame(paint)
   })
   // 마이크 꺼짐 → 표시 초기화 (v1 closeMic)
