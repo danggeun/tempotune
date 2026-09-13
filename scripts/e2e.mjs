@@ -6,7 +6,7 @@
 import { chromium } from 'playwright'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { spawn, execSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 
@@ -569,6 +569,45 @@ await scenario('playback: 조용한 녹음에 보정 게인이 붙고 재생이 
   const t2 = (await p.evaluate(() => window.__gp.playback())).times[0]
   assert.ok(t2 > t1, `재생이 진행돼야 한다 ${t1} → ${t2}`)
   assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running', '컨텍스트가 살아 있어야 소리가 난다')
+})
+
+// 정확히 짚은 스케일은 **끊기지 않고 가운데 근처에서 이어져야 한다** (사용자 요구, 2026-09-13)
+// 데이터는 합성 추정이 아니라 `scripts/sim-scale.mjs` 가 **실제 분석기**에 스케일을 통과시켜 뽑은 프레임 열이다
+// (80 BPM · 도레미파솔라시도시라솔파미레도 · 음정 오차 ±5 ¢ · 비브라토 ±10 ¢).
+// 픽셀로 '끊김' 을 추정하지 않는다 — 트레이스는 오래된 쪽이 alpha .22 까지 흐려져 밝기 임계가 불안정하다.
+// 대신 그리기 루프가 실제로 몇 개를 끊었는지(`__gp.tuner.diag().skipped`) 직접 센다.
+const traceFixture = name => JSON.parse(readFileSync(join(ROOT, 'test-assets', 'trace', name + '.json'), 'utf8')).frames
+  .map(f => (f.cents === null ? null : { cents: f.cents, midi: f.midi }))
+await scenario('tuner trace: 정확히 짚은 스케일은 음이 바뀌어도 끊기지 않는다 (실제 분석기 출력)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  await p.evaluate(f => window.__gp.tuner.inject(f), traceFixture('scale-80bpm'))
+  await sleep(p, 250)
+  const d = await p.evaluate(() => window.__gp.tuner.diag())
+  assert.equal(d.skipped, 0, `정확히 짚은 스케일에서는 한 군데도 끊기면 안 된다 (끊김 ${d.skipped})`)
+  // 그리고 가운데 근처에 머물러야 한다 — 초록 띠(±15 ¢)를 넘어 멀리 나가는 픽셀이 거의 없어야
+  const spread = await p.evaluate(() => {
+    const c = document.getElementById('tuner-history'), g = c.getContext('2d')
+    const d = g.getImageData(0, 0, c.width, c.height).data
+    const cx = c.width / 2; let far = 0, all = 0
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+      if (Math.abs(x - cx) <= 4) continue
+      const i = (y * c.width + x) * 4
+      const r = d[i], g2 = d[i + 1], b = d[i + 2]
+      const white = r > 120 && g2 > 120 && b > 120
+      const green = g2 > 110 && g2 > r * 2.2 && g2 > b * 1.4 // in-tune 트레이스 (초록 띠 13,75,36 은 제외된다)
+      if (white || green) { all++; if (Math.abs(x - cx) / (c.width / 2) > 0.6) far++ } // 0.6 = ±30 ¢
+    }
+    return { far, all }
+  })
+  assert.ok(spread.all > 0 && spread.far / spread.all < 0.05, `±30 ¢ 밖 픽셀은 5 % 미만이어야 한다 (${spread.far}/${spread.all})`)
+})
+await scenario('tuner trace: 음정이 크게 흔들린 연주에서는 가짜 통과선을 끊는다 (규칙이 실제로 작동)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  await p.evaluate(f => window.__gp.tuner.inject(f), traceFixture('scale-80bpm-outoftune'))
+  await sleep(p, 250)
+  const d = await p.evaluate(() => window.__gp.tuner.diag())
+  // 경계 프레임을 버리고 나면 남는 '가짜 통과선' 은 많지 않다 — 규칙이 실제로 발동하는지만 본다
+  assert.ok(d.skipped >= 1, `±40 ¢ 로 흔들린 연주에서는 가짜 통과선을 끊어야 한다 (끊김 ${d.skipped})`)
 })
 
 try { process.kill(-server.pid, 'SIGTERM') } catch { server.kill() }

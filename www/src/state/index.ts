@@ -67,6 +67,8 @@ export interface TunerState {
   inTune: boolean
   /** 추정 신뢰도 0..1 (YIN 주기성) */
   conf: number
+  /** 트래커가 직전 값을 유지한 횟수 (0 = 새 측정). 트레이스는 유지 프레임을 쌓지 않는다 */
+  held: number
   /** 열린 오디오 컨텍스트의 샘플레이트. 트레이스 창을 초 단위로 유지하려면 UI 가 프레임률을 알아야 한다 (B11) */
   sampleRate: number
   /** 연주 감지 */
@@ -74,7 +76,7 @@ export interface TunerState {
   lastActivityMs: number
 }
 export const tunerStore = createStore<TunerState>({
-  micReady: false, running: false, frame: 0, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, sampleRate: 44100, playing: false, lastActivityMs: Date.now(),
+  micReady: false, running: false, frame: 0, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, held: 0, sampleRate: 44100, playing: false, lastActivityMs: Date.now(),
 })
 
 // ── 메트로놈 ──

@@ -6,7 +6,7 @@
 // 전/후 비교 방법: 같은 cents 열을 주입하면서 midi 를 **고정** 하면 세그먼트가 하나도 생략되지 않아
 //     v2.0.1 의 그림과 정확히 같아진다(가로줄 포함). midi 를 실제대로 주면 v2.0.2 의 그림이 된다.
 import { chromium } from 'playwright'
-import { mkdirSync, existsSync, writeFileSync } from 'node:fs'
+import { mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn, execSync } from 'node:child_process'
@@ -43,15 +43,44 @@ function frames({ fps = 46.875, seconds = 9, kind = 'fast' } = {}) {
 
 const exe = process.env.CHROMIUM_PATH || undefined
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${join(SIG, 'silence_lowfloor.wav')}%noloop`, '--autoplay-policy=no-user-gesture-required'] })
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'dark', permissions: ['microphone'] })
-const page = await ctx.newPage()
-await page.goto(`http://localhost:${PORT}/`)
-await page.waitForTimeout(1800)
-await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important}' })
-
-const size = await page.evaluate(() => { const c = document.getElementById('tuner-history'); return { w: c.offsetWidth, h: c.offsetHeight } })
-const diag0 = await page.evaluate(() => window.__gp.tuner.diag())
+/**
+ * 패널마다 **새 컨텍스트**를 쓴다. 같은 페이지에서 연속으로 주입하면 살아 있는 분석기 프레임과 섞여
+ * 가끔 캔버스가 비어 나온다 (렌더 하네스 문제. 실제 앱 동작과 무관).
+ */
+async function freshPage() {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'dark', permissions: ['microphone'] })
+  const page = await ctx.newPage()
+  await page.goto(`http://localhost:${PORT}/`)
+  await page.waitForTimeout(1800)
+  await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important}' })
+  return { ctx, page }
+}
+const first = await freshPage()
+const size = await first.page.evaluate(() => { const c = document.getElementById('tuner-history'); return { w: c.offsetWidth, h: c.offsetHeight } })
+const diag0 = await first.page.evaluate(() => window.__gp.tuner.diag())
 console.log(`캔버스 실측 ${size.w}×${size.h} px · 기본 창 ${diag0.sec}초 = ${diag0.len}프레임 (sr ${diag0.sr}) → ${(diag0.len / size.h).toFixed(2)} 점/px`)
+await first.ctx.close()
+
+// ── 실제 분석기가 낸 스케일 (scripts/sim-scale.mjs 출력) 전/후 ──
+// '전' 은 midi 를 고정해 주입한다 → 경계 폐기도 끊기도 일어나지 않아 v2.0.1 의 그림과 같아진다.
+const scaleRows = []
+for (const fx of ['scale-80bpm', 'scale-80bpm-outoftune']) {
+  const file = join(ROOT, 'test-assets', 'trace', fx + '.json')
+  if (!existsSync(file)) { console.log(`  (건너뜀: ${fx}.json 없음 — node scripts/sim-scale.mjs --json 으로 생성)`); continue }
+  const frames = JSON.parse(readFileSync(file, 'utf8')).frames
+  for (const [tag, map] of [['v2.0.1', f => (f.rawCents === null ? null : { cents: f.rawCents, midi: 69 })], ['v2.0.2', f => (f.cents === null ? null : { cents: f.cents, midi: f.midi })]]) {
+    const { ctx, page } = await freshPage()
+    await page.evaluate(fr => window.__gp.tuner.inject(fr), frames.map(map))
+    await page.waitForTimeout(250) // rAF 페인트 뒤에 읽어야 끊긴 자리 수가 갱신돼 있다
+    const info = await page.evaluate(() => window.__gp.tuner.diag())
+    const name = `${fx}_${tag}`
+    await page.locator('#tuner-history').screenshot({ path: join(OUT, name + '.png') })
+    scaleRows.push({ fx, tag, name, skipped: info.skipped })
+    console.log(`  ${fx.padEnd(24)} ${tag}  끊긴 자리 ${info.skipped}`)
+    await ctx.close()
+  }
+}
+const { ctx, page } = await freshPage()
 
 const rows = []
 for (const kind of ['fast', 'slow']) {
@@ -84,7 +113,9 @@ figure{margin:0}figcaption{font-size:11px;color:#aaa;margin-top:6px;text-align:c
 img{display:block;background:#000;border:1px solid #333;width:${size.w}px}</style>
 ${['fast', 'slow'].map(k => `<h2>${k === 'fast' ? '빠른 패시지 (음 유지 128 ms — 실측 중앙값)' : '느린 음 (1.4 s)'}</h2><div class=row>` +
   rows.filter(r => r.kind === k).map(r => `<figure><img src="${r.kind}_${r.label}.png"><figcaption>${r.label}<br>${r.len}프레임 · ${r.perPx} 점/px<br>${r.gaps ? '전환선 끊음' : '전환선 있음'}</figcaption></figure>`).join('') + '</div>').join('')}`
-writeFileSync(join(OUT, 'index.html'), html)
+const scaleHtml = scaleRows.length ? `<h2>실제 분석기가 낸 스케일 (도레미파솔라시도시라솔파미레도 · 80 BPM)</h2><div class=row>` +
+  scaleRows.map(r => `<figure><img src="${r.name}.png"><figcaption>${r.fx.includes('outoftune') ? '음정 ±40 ¢' : '음정 ±5 ¢ (정확)'}<br>${r.tag}<br>끊긴 자리 ${r.skipped}</figcaption></figure>`).join('') + '</div>' : ''
+writeFileSync(join(OUT, 'index.html'), scaleHtml + html)
 console.log(`\n비교 페이지: ${join(OUT, 'index.html')}`)
 await browser.close()
 try { process.kill(process.platform === 'win32' ? server.pid : -server.pid) } catch { /* */ }

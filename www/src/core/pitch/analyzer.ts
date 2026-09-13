@@ -32,6 +32,8 @@ export interface Frame {
   cents: number
   inTune: boolean
   playing: boolean
+  /** 트래커가 직전 값을 그대로 내보낸 횟수 (0 = 새로 측정한 값). 트레이스는 이 값이 쌓인 프레임을 그리지 않는다 */
+  held: number
 }
 
 export interface Analyzer {
@@ -68,7 +70,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
   const tracker = createTracker({ ...DEFAULT_TRACKER, ...p.tracker })
   const det = createDetector({ ...DEFAULT_DETECTOR, ...p.detector })
   const s: AnalyzerSettings = { rmsMin: .014, smoothing: .14, refHz: 442, tolCents: 15 }
-  const EMPTY = (rms: number): Frame => ({ rawHz: -1, conf: 0, rms, harmonics: 0, flatness: 1, hz: -1, midi: -1, cents: 0, inTune: false, playing: det.on })
+  const EMPTY = (rms: number): Frame => ({ rawHz: -1, conf: 0, rms, harmonics: 0, flatness: 1, hz: -1, midi: -1, cents: 0, inTune: false, playing: det.on, held: 0 })
 
   return {
     windowSize: N,
@@ -82,7 +84,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
         spec.reset()
         const t = tracker.push(-1, 0, false, s.smoothing); const playing = det.push({ conf: 0, rmsOk: false, harmonics: 0, flatness: 1 })
         const f = EMPTY(rms); f.playing = playing
-        if (t.hz > 0) fill(f, t.hz, t.midi)
+        if (t.hz > 0) { fill(f, t.hz, t.midi); f.held = t.held }
         return f
       }
       const y = yin.process(buf, sr)
@@ -98,7 +100,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
       const dispConf = specOk ? y.conf : 0
       // 트래커의 음이름 격자는 A=440 기준이므로 기준음(refHz)만큼 주파수를 정규화해 넣는다 — 안 그러면 |오프셋| > 50 ¢(≈ 427 Hz 미만·453 Hz 초과, 바로크 415 포함)에서 이웃 반음으로 라벨링된다
       const t = tracker.push(rawHz / refK(), muted ? dispConf * 0.25 : dispConf, true, s.smoothing)
-      const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing }
+      const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing, held: t.held }
       if (t.hz > 0) fill(f, t.hz, t.midi)
       return f
     },

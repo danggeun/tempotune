@@ -4,6 +4,7 @@
  */
 import { octaveOf, noteLabel } from '../core/note.ts'
 import { histLenFor } from '../core/hist.ts'
+import { buildSegments } from '../core/trace.ts'
 import { CFG, settingsStore, tunerStore } from '../state/index.ts'
 import { q } from './dom.ts'
 
@@ -25,8 +26,10 @@ function resizeHist(sampleRate: number): void {
 }
 /** 창 길이(초) 변경 — 값 선택용 비교 렌더/e2e 에서 쓴다 (scripts/render-trace.mjs) */
 export function setHistSec(sec: number): void { histSec = sec; hist = []; resizeHist(histSr) }
+/** 마지막 그리기에서 '음이 바뀌어 끊은' 세그먼트 수 — 픽셀 추정 없이 규칙을 직접 검사하기 위한 진단값 */
+let lastSkipped = 0
 /** 테스트·진단용 */
-export const histDiag = (): { len: number; sec: number; sr: number } => ({ len: hist.length, sec: histSec, sr: histSr })
+export const histDiag = (): { len: number; sec: number; sr: number; skipped: number } => ({ len: hist.length, sec: histSec, sr: histSr, skipped: lastSkipped })
 /** 캔버스 색은 토큰에서 (style.css 의 '색은 토큰에서만' 원칙) */
 let okRgb = '34,197,94'
 function readTokens(): void { const cs = getComputedStyle(document.documentElement); okRgb = cs.getPropertyValue('--ok-rgb').trim() || okRgb }
@@ -64,17 +67,17 @@ function drawHistory(inTune: boolean): void {
   c.fillStyle = '#000'; c.fillRect(0, 0, W, H)
   if (inTune) { c.fillStyle = `rgba(${okRgb},.07)`; c.fillRect(0, 0, W, H) }
   const ppc = (W / 2) / 50, tol = settingsStore.get().tolCents, N = hist.length, rH = H / N
+  lastSkipped = 0
   c.fillStyle = `rgba(${okRgb},.38)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H) // 띠는 '영역' 이지 신호가 아니다 — 음이름·트레이스보다 뒤로 (.65 는 시선을 먼저 가져갔다)
   c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1
   c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2, H); c.stroke()
   c.lineWidth = 3; c.lineCap = 'round' // 90 cm 에서 보이는 굵기
-  for (let i = 0; i < N - 1; i++) {
-    const v0 = hist[i], v1 = hist[i + 1]; if (v0 == null || v1 == null) continue
-    // 음이름이 바뀐 자리는 잇지 않는다 (C1). 가로축은 '현재 음 기준 cents' 라, 도(−40 ¢) → 레(+45 ¢) 는
-    // 기준이 바뀐 것뿐인데 이으면 85 ¢ 를 가로지르는 선이 그어진다 — 있지도 않았던 음정 이동을 그리는 것.
-    // Δcents 임계로 판정하면 정당한 빠른 슬라이드(부스트 점프)와 구분할 수 없어 midi 를 쓴다.
-    if (histMidi[i] !== histMidi[i + 1]) continue
-    const y0 = (i + .5) * rH, y1 = (i + 1.5) * rH
+  // 무엇을 잇고 무엇을 버릴지는 core/trace.ts 가 정한다 (경계에 걸친 프레임 폐기 + 가짜 통과선 끊기)
+  const { segs, breaks } = buildSegments(hist, histMidi)
+  lastSkipped = breaks
+  for (const [i, j] of segs) {
+    const v0 = hist[i]!, v1 = hist[j]!
+    const y0 = (i + .5) * rH, y1 = (j + .5) * rH
     const x0 = W / 2 + Math.max(-50, Math.min(50, v0)) * ppc, x1 = W / 2 + Math.max(-50, Math.min(50, v1)) * ppc
     c.globalAlpha = .22 + (i / (N - 1)) * .78
     c.strokeStyle = Math.abs(v0) <= tol ? `rgb(${okRgb})` : '#ffffff'
@@ -132,7 +135,10 @@ export function mountTuner(): void {
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {
     const s = tunerStore.get()
-    const off = s.hz === -1
+    // 유지(held) 프레임은 트레이스에 쌓지 않는다. 유지는 **측정이 아니라 마지막 값의 복사**다 —
+    // 그대로 쌓으면 소리가 끝난 뒤에도 마지막 값이 releaseFrames 만큼(≈140 ms) 가로줄로 남는다.
+    // 바늘·음이름은 계속 유지된다(활 바꿈에 깜빡이지 않게) — 트레이스만 "측정이 없었다" 로 비운다.
+    const off = s.hz === -1 || s.held >= 1
     hist.push(off ? null : s.cents); hist.shift()
     histMidi.push(off ? null : s.midi); histMidi.shift()
     dirty = true; if (raf == null) raf = requestAnimationFrame(paint)

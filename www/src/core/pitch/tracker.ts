@@ -20,10 +20,17 @@ export interface TrackerParams {
   /** 유효 프레임이 끊긴 뒤 표시를 유지하는 프레임 수 */
   releaseFrames: number
 }
+/** cents 는 '가장 가까운 음에서 얼마나 벗어났나' 이므로 정의상 이 값을 넘을 수 없다 (B14 표시 일관성 가드) */
+const HALF_SEMITONE = 50
 export const DEFAULT_TRACKER: TrackerParams = { confMin: 0.5, confInstant: 0.85, medianLen: 3, switchCents: 65, switchFrames: 2, releaseFrames: 6 }
 
-export interface TrackOut { hz: number; midi: number; a: number }
-const NONE: TrackOut = { hz: -1, midi: -1, a: NaN }
+/**
+ * @property held 유효 프레임이 끊겨 **직전 값을 그대로 다시 내보낸 횟수** (0 = 방금 측정한 값).
+ *   바늘·음이름은 이 유지 덕분에 활 바꿈에 깜빡이지 않는다. 다만 **트레이스에 계속 쌓으면** 소리가 끝난 뒤에도
+ *   마지막 값이 releaseFrames 만큼(≈140 ms) 가로줄로 남는다 — 연주가 아니라 유지 상태이므로 화면이 구분해야 한다.
+ */
+export interface TrackOut { hz: number; midi: number; a: number; held: number }
+const NONE: TrackOut = { hz: -1, midi: -1, a: NaN, held: 0 }
 
 export interface Tracker {
   /** @param hz 원시 추정 (-1 없음) @param conf 0..1 @param valid RMS 게이트 등 외부 조건 @param alpha 평활 계수 */
@@ -43,7 +50,7 @@ export function createTracker(p: TrackerParams = DEFAULT_TRACKER): Tracker {
     return candA[idx[idx.length - 1]!]!
   }
   function reset(): void { candA.length = 0; candW.length = 0; midi = -1; dispA = NaN; outside = 0; miss = 0; validRun = 0; errSign = 0; sameSignRun = 0; last = NONE }
-  const out = (): TrackOut => { last = { hz: 440 * Math.pow(2, dispA / 1200), midi, a: dispA }; return last }
+  const out = (): TrackOut => { last = { hz: 440 * Math.pow(2, dispA / 1200), midi, a: dispA, held: 0 }; return last }
 
   return {
     reset,
@@ -53,7 +60,7 @@ export function createTracker(p: TrackerParams = DEFAULT_TRACKER): Tracker {
         validRun = 0
         if (midi === -1) return NONE
         if (++miss > p.releaseFrames) { reset(); return NONE }
-        return last // 짧은 끊김은 마지막 표시 유지
+        return { ...last, held: miss } // 짧은 끊김은 마지막 표시 유지 (몇 번째 유지인지 알려준다)
       }
       miss = 0; validRun++
       const a = 1200 * Math.log2(hz / 440)
@@ -77,6 +84,12 @@ export function createTracker(p: TrackerParams = DEFAULT_TRACKER): Tracker {
       else {
         if (++outside >= p.switchFrames) { midi = Math.round(med / 100) + 69; dispA = med; outside = 0 }
       }
+      // 표시 일관성 보장 (B14). cents 는 정의상 `dispA − 라벨 중심` 이므로 **반음 절반(±50 ¢) 안**이어야 한다.
+      // 그런데 위 두 절차의 속도가 다르다: 적응 부스트는 dispA 를 한 프레임에 새 음까지 끌어다 놓을 수 있는 반면,
+      // 라벨은 switchFrames 만큼 연속 확인을 기다린다. 그 어긋난 한두 프레임 동안 화면에는 **두 음의 간격**
+      // (실측 100~190 ¢)이 찍혔다 — 정확히 연주한 스케일에서도 음이 바뀔 때마다 바늘이 끝까지 튀는 원인.
+      // 값과 라벨이 반음 넘게 벌어지면 라벨이 틀린 것이므로 즉시 맞춘다. ±50 ¢ 안에서는 히스테리시스가 그대로 지배한다.
+      if (Math.abs(dispA - (midi - 69) * 100) > HALF_SEMITONE) { midi = Math.round(dispA / 100) + 69; outside = 0 }
       return out()
     },
   }

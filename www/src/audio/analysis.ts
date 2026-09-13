@@ -16,8 +16,8 @@ function onFrame(m: WorkerOut): void {
   const st = tunerStore.get(); if (!st.running) return
   lastMs = m.ms; msHist.push(m.ms); if (msHist.length > 430) msHist.shift()
   const f = m.frame
-  if (f.hz === -1) tunerStore.set({ frame: st.frame + 1, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, playing: f.playing })
-  else tunerStore.set({ frame: st.frame + 1, hz: f.hz, midi: f.midi, cents: f.cents, inTune: f.inTune, conf: f.conf, playing: f.playing, lastActivityMs: Date.now() })
+  if (f.hz === -1) tunerStore.set({ frame: st.frame + 1, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, held: 0, playing: f.playing })
+  else tunerStore.set({ frame: st.frame + 1, hz: f.hz, midi: f.midi, cents: f.cents, inTune: f.inTune, conf: f.conf, held: f.held, playing: f.playing, lastActivityMs: Date.now() })
 }
 
 export function startAnalysis(): void { onWorkerMessage(onFrame) } // 워커 종료는 engine.closeMic 이 한다
