@@ -6,6 +6,7 @@ import { createYinFast } from './yinFast.ts'
 import { createSpectrum } from './spectrum.ts'
 import { createTracker, DEFAULT_TRACKER, type TrackerParams } from './tracker.ts'
 import { createDetector, DEFAULT_DETECTOR, type DetectorParams } from '../playing/detector.ts'
+import { createDual, DEFAULT_DUAL, type DualParams } from './dual.ts'
 
 export interface AnalyzerParams {
   sampleRate: number
@@ -15,6 +16,7 @@ export interface AnalyzerParams {
   yinThreshold?: number
   tracker?: Partial<TrackerParams>
   detector?: Partial<DetectorParams>
+  dual?: Partial<DualParams>
 }
 /** 런타임에 바뀌는 사용자 설정 */
 export interface AnalyzerSettings { rmsMin: number; smoothing: number; refHz: number; tolCents: number }
@@ -34,6 +36,11 @@ export interface Frame {
   playing: boolean
   /** 트래커가 직전 값을 그대로 내보낸 횟수 (0 = 새로 측정한 값). 트레이스는 이 값이 쌓인 프레임을 그리지 않는다 */
   held: number
+  /** 중음일 때 **화면에 안 나오는 쪽(아래 성부)** 의 Hz, 중음이 아니면 -1 (B17). core/pitch/dual.ts 참고 */
+  dualHz: number
+  /** 그 음의 음이름(midi)과 기준음 기준 cents. dualHz 가 -1 이면 각각 -1 / 0 */
+  dualMidi: number
+  dualCents: number
 }
 
 export interface Analyzer {
@@ -86,6 +93,7 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
   const spec = createSpectrum(N)
   const tracker = createTracker({ ...DEFAULT_TRACKER, ...p.tracker })
   const det = createDetector({ ...DEFAULT_DETECTOR, ...p.detector })
+  const dual = createDual({ ...DEFAULT_DUAL, ...p.dual })
   const s: AnalyzerSettings = { rmsMin: .014, smoothing: .14, refHz: 442, tolCents: 15 }
   const rawRing: number[] = []
   /** 최근 원시 추정이 옥타브 안에 모여 있는가 */
@@ -96,18 +104,18 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
     for (const v of rawRing) { if (v < lo) lo = v; if (v > hi) hi = v }
     return hi / lo <= RAW_SPREAD_MAX
   }
-  const EMPTY = (rms: number): Frame => ({ rawHz: -1, conf: 0, rms, harmonics: 0, flatness: 1, hz: -1, midi: -1, cents: 0, inTune: false, playing: det.on, held: 0 })
+  const EMPTY = (rms: number): Frame => ({ rawHz: -1, conf: 0, rms, harmonics: 0, flatness: 1, hz: -1, midi: -1, cents: 0, inTune: false, playing: det.on, held: 0, dualHz: -1, dualMidi: -1, dualCents: 0 })
 
   return {
     windowSize: N,
     setSettings(patch) { Object.assign(s, patch) },
     getSettings() { return { ...s } },
-    reset() { tracker.reset(); det.reset(); spec.reset(); rawRing.length = 0 },
+    reset() { tracker.reset(); det.reset(); spec.reset(); dual.reset(); rawRing.length = 0 },
     process(buf, muted = false) {
       let e = 0; for (let i = 0; i < N; i++) e += buf[i]! * buf[i]!
       const rms = Math.sqrt(e / N), rmsOk = rms >= s.rmsMin
       if (!rmsOk) { // 게이트 아래: 트래커/감지기에 "무효" 프레임을 알린다. 중음 붙잡기 기억도 지운다(쉼표 뒤 첫 중음이 옛 음에 붙지 않게)
-        spec.reset(); rawRing.length = 0
+        spec.reset(); dual.reset(); rawRing.length = 0
         const t = tracker.push(-1, 0, false, s.smoothing); const playing = det.push({ conf: 0, rmsOk: false, harmonics: 0, flatness: 1 })
         const f = EMPTY(rms); f.playing = playing
         if (t.hz > 0) { fill(f, t.hz, t.midi); f.held = t.held }
@@ -124,10 +132,18 @@ export function createAnalyzer(p: AnalyzerParams): Analyzer {
       // 표시용 신뢰도: 스펙트럼 정합성 실패면 0 (트래커의 confMin 게이트에서 걸러진다). 위 감지기 줄은 건드리지 않는다.
       const specOk = rawHz > 0 && spec.harmonicCount(rawHz, 1, SPEC_MIN_DB) > 0
       const dispConf = specOk && rawStable(rawHz) ? y.conf : 0
+      // 중음 판정: 표시가 유효한 프레임에서만 본다 (음이름이 안 뜨는데 둘째 음만 뜨면 앞뒤가 안 맞는다).
+      // 스펙트럼이 이미 계산해 둔 두 성부를 읽는 것뿐 — 위 줄들의 음높이·감지기 입력에는 영향이 없다.
+      const v = dispConf > 0 ? spec.voices() : { lo: -1, up: -1 }
+      const dualHz = dual.push(v.lo > 0 && v.up > 0 ? { lo: v.lo, up: v.up, dbLo: spec.peakDbNear(v.lo), dbUp: spec.peakDbNear(v.up) } : null)
       // 트래커의 음이름 격자는 A=440 기준이므로 기준음(refHz)만큼 주파수를 정규화해 넣는다 — 안 그러면 |오프셋| > 50 ¢(≈ 427 Hz 미만·453 Hz 초과, 바로크 415 포함)에서 이웃 반음으로 라벨링된다
       const t = tracker.push(rawHz / refK(), muted ? dispConf * 0.25 : dispConf, true, s.smoothing)
-      const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing, held: t.held }
+      const f: Frame = { rawHz, conf: y.conf, rms, harmonics, flatness, hz: -1, midi: -1, cents: 0, inTune: false, playing, held: t.held, dualHz, dualMidi: -1, dualCents: 0 }
       if (t.hz > 0) fill(f, t.hz, t.midi)
+      // 둘째 성부는 트래커를 타지 않는다(히스테리시스 대상이 아님) — 가장 가까운 음으로 바로 읽는다
+      if (dualHz > 0 && t.hz > 0) { const norm = dualHz / refK(); const m = Math.round(69 + 12 * Math.log2(norm / 440))
+        f.dualMidi = m; f.dualCents = Math.round(1200 * Math.log2(norm / (440 * Math.pow(2, (m - 69) / 12)))) }
+      else f.dualHz = -1 // 표시가 없으면 둘째 음도 없다
       return f
     },
   }

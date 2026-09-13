@@ -15,7 +15,7 @@ www/src/
   persist/     localStorage 설정(v2, v1 마이그레이션), IndexedDB 녹음(v3)
   platform/    웹 / Capacitor 분기 (상태바, wake lock, 전체화면, 파일 저장, 뒤로가기)
   core/        순수 알고리즘. 브라우저 API 금지, 전부 단위 테스트:
-               pitch/(fft, yinFast, spectrum, tracker, analyzer) · playing/detector · metro/sequencer
+               pitch/(fft, yinFast, spectrum, tracker, dual, analyzer) · playing/detector · metro/sequencer
                note(도레미/CDE), wav, peaks, format, recPolicy(보관 정책)
 ```
 

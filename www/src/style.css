@@ -128,7 +128,7 @@ button{font-family:inherit;color:inherit;}
 
 #tuner-body{flex:1;min-height:0;padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px;}
 #tuner-note-row{display:flex;align-items:center;justify-content:center;min-height:120px;position:relative;}
-#tuner-note-center-wrap{display:flex;flex-direction:column;align-items:center;}
+#tuner-note-center-wrap{display:flex;flex-direction:column;align-items:center;position:relative;}
 #tuner-note-main{position:relative;display:inline-block;}
 #tuner-note{font-family:'DM Mono',monospace;font-size:min(var(--fs-d3),26vw);font-weight:var(--fw-md);line-height:1;letter-spacing:-.02em;color:#fff;display:block;transition:color var(--t-fast);}
 #tuner-note.tune{color:var(--ok);text-shadow:0 0 20px rgba(var(--ok-rgb),1),0 0 40px rgba(var(--ok-rgb),.7),0 0 80px rgba(var(--ok-rgb),.4);}
@@ -137,6 +137,11 @@ button{font-family:inherit;color:inherit;}
 #tuner-acc{position:absolute;top:4px;left:calc(100% + 2px);font-family:'DM Mono',monospace;font-size:var(--fs-d1);font-weight:var(--fw-md);color:#fff;white-space:nowrap;transition:color var(--t-fast);}
 #tuner-acc.tune{color:var(--ok);}
 #tuner-oct{position:absolute;bottom:4px;left:calc(100% + 12px);font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--tuner-text-2);white-space:nowrap;}
+/* 중음 둘째 성부 — 큰 음이름 바로 아래. 비어 있으면 자리도 차지하지 않게 절대 배치(음이름이 밀려 올라가지 않는다).
+   색 규칙은 트레이스와 같다: 초록 = 그 음도 맞음, 흰색 = 그 음은 벗어남. */
+#tuner-dual{position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:var(--fs-sm);color:var(--tuner-text-1);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;}
+#tuner-dual.on{opacity:1;}
+#tuner-dual.tune{color:var(--ok);}
 #tuner-right{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;padding:2px 0;}
 #tuner-enharmonic{font-family:'DM Mono',monospace;font-size:var(--fs-base);color:var(--tuner-text-3);white-space:nowrap;}
 #tuner-cents{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);font-weight:var(--fw-md);text-align:right;}

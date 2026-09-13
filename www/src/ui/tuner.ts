@@ -86,6 +86,28 @@ function drawHistory(inTune: boolean): void {
   c.globalAlpha = 1; c.restore()
 }
 
+// ── 중음(더블스톱) 둘째 성부 ──
+/**
+ * 화면은 위 성부(멜로디)를 보여준다. 중음일 때 **아래 성부**를 이 줄에 같이 적는다 (B17).
+ * 왜: 아래 음을 28 ¢ 틀리게 짚어도 화면은 위 음만 보고 0 ¢ · 초록으로 "완벽" 이라고 말했다(실측) —
+ * 중음 연습에서 틀린 현을 맞다고 보증하던 문제. 어느 쪽이 틀렸는지는 이 줄이 답한다.
+ * 최소 표시 시간: 강하게 울리는 개방현이 116 ms 문턱을 스쳐 지나가도 글자가 번쩍이지 않게 한다.
+ * 화면 문구는 '겹음'(교본 표기)이 아니라 **'더블스톱'** — 흘끗 보는 줄이라 정확한 용어보다 즉시 알아보는 말이 낫다.
+ */
+const DUAL_MIN_MS = 400
+let dualUntil = 0, dualMidi = -1, dualCents = 0
+function renderDual(midi: number, cents: number): boolean {
+  const el = q('tuner-dual'), now = performance.now()
+  if (midi >= 0) { dualMidi = midi; dualCents = cents; dualUntil = now + DUAL_MIN_MS }
+  if (dualMidi < 0 || now >= dualUntil) { if (el.className) { el.className = ''; el.textContent = '' } dualMidi = -1; return true }
+  const ok = Math.abs(dualCents) <= settingsStore.get().tolCents
+  const { name } = noteLabel(dualMidi, settingsStore.get().noteNames)
+  el.textContent = `더블스톱 · ${name}${octaveOf(dualMidi)} ${dualCents > 0 ? '+' : ''}${dualCents} ¢`
+  el.className = ok ? 'on tune' : 'on'
+  return ok
+}
+function clearDual(): void { dualUntil = 0; dualMidi = -1; const el = q('tuner-dual'); el.className = ''; el.textContent = '' }
+
 // ── 음 표시 ──
 function renderEmpty(): void {
   const nEl = q('tuner-note')
@@ -93,16 +115,22 @@ function renderEmpty(): void {
   const off = !tunerStore.get().micReady && !tapHandler
   nEl.textContent = off ? 'MIC 를 켜면 시작해요' : '--'; nEl.className = off ? 'empty hint' : 'empty'
   q('tuner-oct').textContent = ''; q('tuner-cents').textContent = ''; q('tuner-enharmonic').textContent = ''; q('tuner-acc').textContent = ''
+  clearDual()
   q('tuner-card').classList.remove('in-tune')
 }
-function renderNote(midi: number, cents: number, inTune: boolean): void {
+/**
+ * @param inTune 화면 음(위 성부)이 허용 범위 안인가 — 음이름·♯ 색
+ * @param allInTune 지금 울리는 **모든 성부**가 안인가 — 카드 전체 초록 글로우. 중음에서 아래 음이 틀렸는데
+ *   카드가 "완벽" 으로 빛나는 것을 막는다. 단음이면 두 값이 같다.
+ */
+function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boolean): void {
   const { name, secondary } = noteLabel(midi, settingsStore.get().noteNames)
   const base = name.replace('♯', ''), acc = name.includes('♯') ? '♯' : ''
   const nEl = q('tuner-note'); nEl.textContent = base; nEl.className = inTune ? 'tune' : ''
   const accEl = q('tuner-acc'); accEl.textContent = acc; accEl.classList.toggle('tune', inTune)
   q('tuner-oct').textContent = String(octaveOf(midi))
   q('tuner-enharmonic').textContent = secondary
-  q('tuner-card').classList.toggle('in-tune', inTune)
+  q('tuner-card').classList.toggle('in-tune', allInTune)
   q('tuner-cents').textContent = (cents > 0 ? '+' : '') + cents + ' ¢'
 }
 
@@ -130,7 +158,8 @@ export function mountTuner(): void {
     raf = null; if (!dirty) return; dirty = false
     const s = tunerStore.get()
     if (s.hz === -1) { renderEmpty(); drawGauge(null, null); drawHistory(false); return }
-    renderNote(s.midi, s.cents, s.inTune); drawGauge(s.cents, s.midi); drawHistory(s.inTune)
+    const dualOk = renderDual(s.dualMidi, s.dualCents)
+    renderNote(s.midi, s.cents, s.inTune, s.inTune && dualOk); drawGauge(s.cents, s.midi); drawHistory(s.inTune && dualOk)
   }
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {

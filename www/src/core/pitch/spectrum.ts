@@ -15,6 +15,11 @@ export interface Spectrum {
   octaveCorrect(f0: number): number
   /** 특정 주파수 근처(±tol 비율)의 최대 크기(dB) */
   peakDbNear(hz: number, tolRatio?: number): number
+  /**
+   * 직전 octaveCorrect 가 **두 배음렬을 봤을 때** 그 두 기본음 (lo = 아래, up = 위, 없으면 -1).
+   * octaveCorrect 의 판단을 그대로 읽는 것뿐이고 반환 음높이에는 영향이 없다 (B17 중음 표시용).
+   */
+  voices(): { lo: number; up: number }
   /** 빈 폭 (Hz) */
   readonly binHz: number
   /** 프레임 간 상태(위 성부 유지) 초기화 — analyzer.reset() 과 침묵에서 호출 */
@@ -27,6 +32,7 @@ export function createSpectrum(windowSize: number): Spectrum {
   const re = new Float64Array(N), im = new Float64Array(N)
   const db = new Float64Array(H), lin = new Float64Array(H)
   let sr = 44100, binHz = sr / N, floorDb = -120, maxDb = -120
+  let pairLo = -1, pairUp = -1 // 직전 프레임에서 본 두 성부 (없으면 -1). 표시 경로만 읽는다
   let lastUpper = -1 // 마지막으로 확정한 위 성부(Hz). 검출은 엄격, 해제는 느슨하게 — 프레임마다 검출이 빠져 아래 음으로 떨어지는 흔들림 방지
 // 위 성부 탐색 비율 (위/아래), 오름차순. 정수(옥타브)는 배음과 구분 불가라 제외. 단2도(16/15)는 f0 피크 스커트와 겹쳐 제외.
 const UPPER_RATIOS = [9 / 8, 6 / 5, 5 / 4, 4 / 3, 7 / 5, 3 / 2, 8 / 5, 5 / 3, 9 / 5]
@@ -79,9 +85,13 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
     return (bin + d) * binHz
   }
 
+  /** 두 성부 기록 (B17). **기본음 자리만 포물선 보간**한다 — settle() 은 상위 배음으로 정밀도를 얻지만
+   *  중음에서는 두 음의 배음이 겹쳐(4도: 아래×4 = 위×3) 다른 음의 배음을 집어 크게 틀린다(실측 −23 ¢). */
+  function setPair(lo: number, up: number): void { pairLo = refine(lo); pairUp = refine(up) }
+
   return {
     get binHz() { return binHz },
-    reset() { lastUpper = -1 },
+    reset() { lastUpper = -1; pairLo = -1; pairUp = -1 },
     update(buf, s) {
       sr = s; binHz = sr / N
       for (let i = 0; i < N; i++) { re[i] = buf[i]! * win[i]!; im[i] = 0 }
@@ -103,6 +113,7 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
       return Math.exp(logSum / n) / (sum / n)
     },
     octaveCorrect(f0) {
+      pairLo = -1; pairUp = -1 // 이 프레임의 판단으로 다시 채운다
       const p0 = peakNear(f0, 0.03).db
       // 한 옥타브 위로 틀린 경우: 진짜 기본음 f0/2 와 그 홀수 배음 3f0/2 가 f0 피크에 견줄 만큼(−15/−20 dB 이내) 존재한다.
       // 레벨 조건이 없으면 공명하는 개방현(−20 dB 아래)만으로 옥타브가 떨어진다 (리뷰 지적).
@@ -150,10 +161,10 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
           }
           if (score > bestScore) { bestScore = score; bestF = f }
         }
-        if (bestF > 0) { lastUpper = settle(bestF); return lastUpper }
+        if (bestF > 0) { lastUpper = settle(bestF); setPair(f0, bestF); return lastUpper }
         // 검출 실패. 직전에 확정한 위 성부가 아직 **약하게라도** 있으면(6 dB 문턱만) 유지한다 — 비브라토·활 바꿈으로
         // 한두 프레임 UPPER_DB 아래로 내려가도 화면이 아래 음으로 떨어지지 않게. 완전히 사라지면 해제.
-        if (lastUpper > f0 * 1.04 && lastUpper < f0 * 1.96 && present(lastUpper, 6)) return settle(lastUpper)
+        if (lastUpper > f0 * 1.04 && lastUpper < f0 * 1.96 && present(lastUpper, 6)) { setPair(f0, lastUpper); return settle(lastUpper) }
         lastUpper = -1
         return f0
       }
@@ -177,8 +188,10 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
       // 현악 중음에서 멜로디는 거의 항상 위쪽이고, 공명하는 개방현이 섞였을 때도 연주자가 보고 싶은 것은 위 음이다.
       // m=1 경로도 같은 정책이므로 YIN 이 어느 쪽을 잡든 출력이 같다 — 그래서 별도의 '붙잡기' 상태가 필요 없다.
       lastUpper = settle(f0 * other)
+      setPair(f0 * m, f0 * other)
       return lastUpper
     },
     peakDbNear(hz, tolRatio = 0.03) { return peakNear(hz, tolRatio).db },
+    voices() { return { lo: pairLo, up: pairUp } },
   }
 }

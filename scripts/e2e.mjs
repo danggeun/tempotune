@@ -526,6 +526,46 @@ await scenario('gauge needle: 음이 바뀌는 프레임에만 전이를 끈다 
   assert.ok(seen.filter(v => v === 'none').length >= 2, `전환마다 전이를 꺼야 한다: ${JSON.stringify(seen)}`)
   assert.equal(await p.evaluate(() => document.getElementById('gauge-needle').style.transition), '', '다음 프레임에 원복')
 })
+// ── 중음(더블스톱) 표시 (B17) ──
+await scenario('더블스톱: 아래 성부를 같이 알려주고, 그 음이 틀리면 카드가 "완벽" 으로 빛나지 않는다 (B17)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500)
+  // 마이크를 닫아 실시간 무음 프레임이 주입한 상태를 덮어쓰지 않게 한다 (무음 프레임은 hz=-1 → 표시 초기화)
+  await p.evaluate(() => window.__gp.closeMic()); await sleep(p, 300)
+  const read = () => p.evaluate(() => ({
+    dual: document.getElementById('tuner-dual').textContent,
+    dualCls: document.getElementById('tuner-dual').className,
+    note: document.getElementById('tuner-note').className,
+    card: document.getElementById('tuner-card').className,
+  }))
+  // (1) 단음 — 중음 줄은 비어 있고, 맞으면 카드가 빛난다 (기존 동작 보존)
+  await p.evaluate(() => window.__gp.tuner.inject([{ cents: 2, midi: 73 }]))
+  await sleep(p, 150)
+  let r = await read()
+  assert.equal(r.dual, '', '단음에는 중음 줄이 없어야 한다: ' + r.dual)
+  assert.ok(/in-tune/.test(r.card), '단음이 맞으면 카드가 빛난다: ' + r.card)
+  // (2) 중음 — 아래 성부가 −28 ¢. 화면 음(위 성부)은 그대로 초록인데 카드 전체 글로우는 빠진다
+  await p.evaluate(() => window.__gp.tuner.inject(Array(8).fill({ cents: 2, midi: 73, dualMidi: 69, dualCents: -28 })))
+  await sleep(p, 150)
+  r = await read()
+  assert.ok(/더블스톱/.test(r.dual) && /-28/.test(r.dual), '둘째 음과 그 오차를 적어야 한다: ' + r.dual)
+  assert.ok(/on/.test(r.dualCls) && !/tune/.test(r.dualCls), '틀린 둘째 음은 초록이 아니다: ' + r.dualCls)
+  assert.equal(r.note, 'tune', '화면 음(위 성부)은 여전히 맞다고 표시: ' + r.note)
+  assert.ok(!/in-tune/.test(r.card), '아래 음이 틀렸으면 카드 전체는 빛나지 않는다: ' + r.card)
+  // (3) 둘 다 맞는 중음 — 카드가 다시 빛난다
+  await p.evaluate(() => window.__gp.tuner.inject(Array(8).fill({ cents: 2, midi: 73, dualMidi: 69, dualCents: -3 })))
+  await sleep(p, 150)
+  r = await read()
+  assert.ok(/tune/.test(r.dualCls), '맞는 둘째 음은 초록: ' + r.dualCls)
+  assert.ok(/in-tune/.test(r.card), '두 성부가 모두 맞으면 카드가 빛난다: ' + r.card)
+  // (4) 중음이 끝나면 줄이 사라진다 (최소 표시 시간 400 ms 뒤)
+  await p.evaluate(() => window.__gp.tuner.inject([{ cents: 2, midi: 73 }]))
+  await sleep(p, 500)
+  await p.evaluate(() => window.__gp.tuner.inject([{ cents: 2, midi: 73 }]))
+  await sleep(p, 100)
+  r = await read()
+  assert.equal(r.dual, '', '중음이 끝나면 줄이 사라진다: ' + r.dual)
+  assert.ok(/in-tune/.test(r.card), '단음으로 돌아오면 카드 글로우도 돌아온다: ' + r.card)
+})
 // ── 녹음 파일 이름·컨테이너 (B13) ──
 await scenario('recording: 비 iOS 는 webm 유지(안드로이드 무변경) + 확장자가 내용과 일치 (B13)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
