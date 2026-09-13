@@ -4,14 +4,16 @@
    이 파일의 값은 토큰에서만 온다. 컴포넌트 규칙에 색/크기 리터럴을 새로 쓰지 않는다.
    ══════════════════════════════════════════════════════════════ */
 :root{
-  /* 면 — 라이트: 순백이 아닌 쿨 그레이 바탕, 거의 흰 카드 (v1 이 5번 다듬어 정한 값 유지) */
-  --bg:#f7f8fb;--surface:#fafbfd;--surface-2:#eff1f4;
+  /* 면 — **다크 고정** (v2.0.2). 앱의 정체성(세리프 워드마크·검정 튜너 카드·초록)이 전부 어두운 쪽이고,
+     실사용이 연습실·밤·거리 두고 보는 화면이라 흰 프레임이 검정 카드와 따로 놀았다. 시스템 설정을 따르지 않는다. */
+  color-scheme:dark;
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface-2:#262626;
   /* 경계 — 하나의 헤어라인. 강조는 색으로, 굵기로 하지 않는다 */
-  --line:#d4d7dc;--line-strong:#b9bec6;
+  --line:#343434;--line-strong:#4a4a4a;
   /* 글자 3단계 — text-3 는 '읽으라고 둔 보조문' 까지 AA(4.5:1) 를 넘긴다. 순수 장식은 --deco */
-  --text:#111111;--text-2:#555555;--text-3:#6b7280;--deco:#9aa0a8;
-  /* 액센트 — 빨강 하나. 라이트는 AA 를 넘기도록 반 톤 깊게 (#e53030 4.2:1 → #d12a2a 5.0:1), 다크는 반 톤 밝게 (#ec4646: 면 위 4.6:1, 흰 아이콘 3.8:1) */
-  --accent:#d12a2a;--accent-rgb:209,42,42;--accent-soft:rgba(209,42,42,.09);
+  --text:#f0f0f0;--text-2:#9a9a9a;--text-3:#7c7c7c;--deco:#5a5a5a;
+  /* 액센트 — 빨강 하나. 어두운 면 위에서 4.6:1 이 되도록 반 톤 밝게 */
+  --accent:#ec4646;--accent-rgb:236,70,70;--accent-soft:rgba(236,70,70,.13);
   /* 상태 — 맞음(초록)은 튜너 안에서만. 앰버는 두 곳: 주의 점(--warn) 과 북마크 표식(--mark) — 같은 색, 다른 이름 (뜻이 섞이지 않게) */
   --ok:#22c55e;--ok-rgb:34,197,94;--warn:#f59e0b;--mark:#f59e0b;--mark-rgb:245,158,11;
   /* 튜너 카드 전용 (라이트/다크 무관하게 항상 검정 무대) */
@@ -30,21 +32,13 @@
   /* 크기 — 조작 높이 5종(28/36/44/48/56), 히트 영역은 44 이상. 내비 아이콘 20 */
   --h-chip:28px;--h-compact:36px;--h-seg:44px;--h-control:48px;--h-tall:56px;--icon-nav:20px;
   --fs-btn:var(--fs-base);--fs-btn-sm:var(--fs-md);
-  /* 북마크 글자색 — 라이트에서 앰버 #f59e0b 는 2.1:1 이라 글자로는 진하게, 표식(--mark)은 그대로 */
-  --mark-text:#b45309;
+  /* 북마크 글자색 — 어두운 면 위에서는 앰버 그대로가 가장 읽힌다 */
+  --mark-text:#f59e0b;
   /* 오버레이 페이지 상단 여백 — 메뉴/설정/편집기 제목이 같은 높이에 오게 */
   --page-top:calc(env(safe-area-inset-top,0px) + 12px);
   /* 모션 */
   --t-fast:.08s;--t-std:.2s;--t-slow:.55s;--ease:cubic-bezier(.4,0,.2,1);
 }
-@media(prefers-color-scheme:dark){:root{
-  --bg:#0f0f0f;--surface:#1a1a1a;--surface-2:#262626;
-  --line:#343434;--line-strong:#4a4a4a;
-  --text:#f0f0f0;--text-2:#9a9a9a;--text-3:#7c7c7c;--deco:#5a5a5a;
-  --accent:#ec4646;--accent-rgb:236,70,70;--accent-soft:rgba(236,70,70,.13);
-  --mark-text:#f59e0b;
-}}
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;}
 button{font-family:inherit;color:inherit;}
@@ -98,8 +92,7 @@ button{font-family:inherit;color:inherit;}
    튜너 — 검정 무대. 색은 '맞음' 에만.
 ══════════════════════════════════ */
 #tuner-card{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--tuner-bg);border:1px solid var(--tuner-line);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow var(--t-std);} /* 헤어라인: 다크 배경(#0f0f0f)에서 카드 윤곽이 남게 */
-#tuner-card.in-tune{box-shadow:0 0 0 2px var(--ok),0 0 10px rgba(var(--ok-rgb),.2);}
-@media(prefers-color-scheme:dark){#tuner-card.in-tune{box-shadow:0 0 0 2px var(--ok),0 0 28px rgba(var(--ok-rgb),.45);}}
+#tuner-card.in-tune{box-shadow:0 0 0 2px var(--ok),0 0 28px rgba(var(--ok-rgb),.45);}
 #tuner-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--tuner-line);transition:border-color .06s;}
 @keyframes tunerbeat{0%{border-color:var(--accent)}50%{border-color:var(--accent)}100%{border-color:var(--tuner-line)}}
 @keyframes tunerbeatweak{0%{border-color:rgba(var(--accent-rgb),.6)}100%{border-color:var(--tuner-line)}}
@@ -267,9 +260,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .step-btn.on{background:var(--accent-soft);color:var(--accent);}
 #cents-steps .step-btn,#notenames-steps .step-btn[data-v="1"]{font-family:'DM Mono',monospace;} /* 모노는 숫자·음이름에만 */
 
-/* ── 토스트 — 라이트는 검정 필(대비), 다크는 떠 있는 면(배경에 묻히지 않게) ── */
-#toast{position:fixed;bottom:var(--s6);left:50%;transform:translateX(-50%) translateY(10px);background:#111;color:#fff;border:1px solid transparent;border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:nowrap;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.18);}
-@media(prefers-color-scheme:dark){#toast{background:var(--surface-2);color:var(--text);border-color:var(--line-strong);box-shadow:0 6px 24px rgba(0,0,0,.5);}}
+/* ── 토스트 — 떠 있는 면 (배경에 묻히지 않게) ── */
+#toast{position:fixed;bottom:var(--s6);left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:nowrap;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.5);}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 #toast.show.actionable{pointer-events:auto;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
 

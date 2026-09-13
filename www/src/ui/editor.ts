@@ -130,9 +130,8 @@ function drawWave(): void {
   const accentRgb = cs.getPropertyValue('--accent-rgb').trim() || '209,42,42'
   const d = dur(), pos = ed.audio && d ? frac(ed.audio.currentTime) : 0
   const mid = H / 2, amp = (H / 2) * 0.92
-  const dark = matchMedia('(prefers-color-scheme:dark)').matches
-  // A-B 구간 틴트 (파형 뒤) — 다크에서는 더 진하게 (리뷰: .12 는 다크에서 안 보임)
-  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = `rgba(${accentRgb},${dark ? .22 : .12})`; c.fillRect(frac(ed.ptA) * W, 0, (frac(ed.ptB) - frac(ed.ptA)) * W, H) }
+  // A-B 구간 틴트 (파형 뒤) — 어두운 면에서 .12 는 안 보여서 .22 (리뷰)
+  if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = `rgba(${accentRgb},.22)`; c.fillRect(frac(ed.ptA) * W, 0, (frac(ed.ptB) - frac(ed.ptA)) * W, H) }
   // 2 px 컬럼으로 리샘플(600 bin 을 340 px 에 그리면 겹쳐서 덩어리가 된다), pow(.6) 으로 조용한 부분도 보이게. 확대 창이면 그 구간의 bin 만
   const { t0, t1 } = viewRange(), n = peaks.length, b0 = d ? Math.floor(t0 / d * n) : 0, b1 = d ? Math.max(b0 + 1, Math.ceil(t1 / d * n)) : n, nb = b1 - b0
   const colW = 2, cols = Math.floor(W / colW)

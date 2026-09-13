@@ -150,7 +150,7 @@ export function showTapHint(onTap: () => Promise<boolean>): void {
 }
 
 export function mountTuner(): void {
-  readTokens(); matchMedia('(prefers-color-scheme:dark)').addEventListener('change', readTokens)
+  readTokens() // 앱은 다크 고정 — 시스템 테마 변화를 따라갈 일이 없다
   new ResizeObserver(() => { gaugeW = 0 }).observe(q('gauge-wrap'))
   // 매 분석 프레임(≈43 Hz): 히스토리는 프레임마다 쌓고, 그리기는 rAF 에 한 번만 (vsync 와 비동기인 워커 프레임을 코얼레싱)
   let dirty = false, raf: number | null = null

@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'Go practice', short_name: 'Go practice', description: '현악기 연습 — 튜너 · 메트로놈 · 녹음 편집',
-        display: 'standalone', orientation: 'portrait', background_color: '#f7f8fb', theme_color: '#f7f8fb', lang: 'ko',
+        display: 'standalone', orientation: 'portrait', background_color: '#0f0f0f', theme_color: '#0f0f0f', lang: 'ko',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
