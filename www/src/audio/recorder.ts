@@ -104,10 +104,16 @@ function stopPeakCapture(): void { if (peakTimer) clearInterval(peakTimer); peak
 
 /** 항목 식별은 인덱스가 아니라 항목 자체(녹음 중 prepend 로 인덱스가 밀려도 안전) */
 export const indexOf = (item: RecItem): number => recListStore.get().items.indexOf(item)
-export function deleteRec(item: RecItem): void {
-  const st = recListStore.get(); if (!st.items.includes(item)) return
-  URL.revokeObjectURL(item.url); dbDelete(item.id)
-  recListStore.set({ items: st.items.filter(i => i !== item), rev: st.rev + 1 })
+/**
+ * DB 삭제가 성공한 뒤에만 목록에서 뺀다 (D5). 낙관적으로 먼저 빼면 삭제가 실패했을 때
+ * 사용자는 지운 줄 알지만 다음 실행에서 되살아난다. id 가 없는 항목(저장 실패한 세션 항목)은 목록에서만 뺀다.
+ */
+export async function deleteRec(item: RecItem): Promise<boolean> {
+  if (!recListStore.get().items.includes(item)) return false
+  if (item.id != null && !(await dbDelete(item.id))) return false
+  URL.revokeObjectURL(item.url)
+  const st = recListStore.get(); recListStore.set({ items: st.items.filter(i => i !== item), rev: st.rev + 1 })
+  return true
 }
 /** 삭제 취소용: 항목을 원래 자리에 되돌리고 DB 에 다시 저장 */
 export async function restoreDeleted(item: RecItem, at: number): Promise<void> {
