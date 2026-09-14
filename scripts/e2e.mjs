@@ -504,6 +504,15 @@ await scenario('lifecycle: inactivity watch closes the mic without the practice 
   assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), false, 'mic closed by inactivity watch')
   assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn').style.display), 'flex')
 })
+await scenario('lifecycle: 오래 켜둔 뒤 마이크를 다시 켜도 즉시 꺼지지 않는다 (D3)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1500); assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true)
+  await p.evaluate(() => { window.__gp.backdate(20 * 60 * 1000); window.__gp.closeMic() })
+  await sleep(p, 300)
+  await p.click('#hdr-mic-btn'); await sleep(p, 1200)
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true, 'mic opened')
+  await sleep(p, 35000) // 감시 주기 30 s 를 한 번 넘긴다
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true, '켠 시각 기준이라 바로 꺼지지 않는다 (v2.0.3 에서는 꺼졌다)')
+})
 await scenario('sw update: new version is applied only when idle (prompt mode, no stale-chunk window)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   const reg = await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!r })
