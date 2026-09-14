@@ -264,9 +264,10 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #cents-steps .step-btn,#notenames-steps .step-btn[data-v="1"]{font-family:'DM Mono',monospace;} /* 모노는 숫자·음이름에만 */
 
 /* ── 토스트 — 떠 있는 면 (배경에 묻히지 않게) ── */
-#toast{position:fixed;bottom:var(--s6);left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:nowrap;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.5);}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-#toast.show.actionable{pointer-events:auto;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+#toast-host{position:fixed;bottom:var(--s6);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:200;pointer-events:none;max-width:calc(100vw - 32px);}
+.toast{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .22s,transform .22s;white-space:normal;word-break:keep-all;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.5);}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.show.actionable{pointer-events:auto;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
 
 /* ══════════════════════════════════
    편집 페이지 — 근거리·두 손. 정보 밀도 OK.
