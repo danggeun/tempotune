@@ -6,15 +6,17 @@ import { tunerStore } from '../state/index.ts'
 import { onWorkerMessage } from './engine.ts'
 import type { WorkerOut } from './messages.ts'
 
-let lastMs = 0
+let lastMs = 0, lastCalib = 0
 const msHist: number[] = []
+/** 메트로놈 클릭 도착 보정값(ms) — 실기기 진단용 (M1). 합의 전 0 */
+export const metroCalibMs = (): number => Math.round(lastCalib * 1000)
 /** 최근 ~10 s 워커 처리 시간의 p95 (ms) — 진단용 */
 export const lastFrameMs = (): number => { if (!msHist.length) return lastMs; const s = [...msHist].sort((a, b) => a - b); return s[Math.floor(s.length * 0.95)]! }
 
 function onFrame(m: WorkerOut): void {
   if (m.type !== 'frame') return
   const st = tunerStore.get(); if (!st.running) return
-  lastMs = m.ms; msHist.push(m.ms); if (msHist.length > 430) msHist.shift()
+  lastMs = m.ms; lastCalib = m.calib; msHist.push(m.ms); if (msHist.length > 430) msHist.shift()
   const f = m.frame
   if (f.hz === -1) tunerStore.set({ frame: st.frame + 1, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, held: 0, dualMidi: -1, dualCents: 0, playing: f.playing })
   else tunerStore.set({ frame: st.frame + 1, hz: f.hz, midi: f.midi, cents: f.cents, inTune: f.inTune, conf: f.conf, held: f.held, dualMidi: f.dualMidi, dualCents: f.dualCents, playing: f.playing, lastActivityMs: Date.now() })

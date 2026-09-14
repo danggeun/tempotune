@@ -14,10 +14,11 @@ export type WorkerIn =
   | { type: 'settings'; settings: Partial<AnalyzerSettings> }
   /** 링버퍼 리셋 + afterT(초) 이전에 캡처된 청크는 버림 (백그라운드 복귀 시 밀린 청크 폭주 방지) */
   | { type: 'reset'; afterT: number }
-  /** 이 구간(초, AudioContext 시계)에 걸치는 프레임은 버림 — 메트로놈 클릭이 마이크로 누설되는 구간 */
-  | { type: 'mute'; from: number; until: number }
+  /** 이 구간(초, AudioContext 시계)에 걸치는 프레임은 신뢰도를 낮춤 — 메트로놈 클릭이 마이크로 누설되는 구간.
+   *  at = 클릭이 마이크에 닿을 것으로 예상한 시각(예약 + 출력 지연). 워커는 실제 도착 시각을 재서 구간을 그만큼 민다 (M1) */
+  | { type: 'mute'; from: number; until: number; at: number }
 
 /** 워커 → 메인 */
 export type WorkerOut =
-  | { type: 'frame'; frame: Frame; /** 창 끝 시각(초) */ t: number; /** 처리 시간 ms */ ms: number; /** 직전에 백프레셔로 건너뛴 프레임 수 */ skipped: number }
+  | { type: 'frame'; frame: Frame; /** 창 끝 시각(초) */ t: number; /** 처리 시간 ms */ ms: number; /** 직전에 백프레셔로 건너뛴 프레임 수 */ skipped: number; /** 클릭 도착 보정(초, M1). 합의 전 0 */ calib: number }
   | { type: 'ready' }
