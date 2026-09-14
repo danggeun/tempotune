@@ -56,9 +56,14 @@ export async function dbSave(row: RecRow, meta: Omit<RecMeta, 'id'>): Promise<nu
   await req(store(META_STORE, 'readwrite').put({ id, ...meta })).catch(() => { metaError?.('편집 정보를 저장하지 못했어요') })
   return id
 }
-export function dbDelete(id: number | null | undefined): void {
-  if (!db || id == null) return
-  store(REC_STORE, 'readwrite').delete(id); store(META_STORE, 'readwrite').delete(id)
+/** 두 스토어에서 지우고 **결과를 기다린다** — 실패를 모른 채 목록에서만 지우면 다음 로드에서 되살아난다 (D5) */
+export async function dbDelete(id: number | null | undefined): Promise<boolean> {
+  if (!db || id == null) return false
+  try {
+    await req(store(REC_STORE, 'readwrite').delete(id))
+    await req(store(META_STORE, 'readwrite').delete(id))
+    return true
+  } catch { return false }
 }
 /** 편집 상태/이름만 갱신 — blob 은 건드리지 않는다 */
 export async function dbPatchMeta(id: number | null | undefined, patch: Partial<Omit<RecMeta, 'id'>>): Promise<void> {
@@ -75,7 +80,7 @@ export async function dbLoadAll(): Promise<RecFull[]> {
   const metas = new Map(((await req(store(META_STORE, 'readonly').getAll())) as RecMeta[]).map(m => [m.id, m]))
   const now = Date.now(), keep: RecFull[] = []
   for (const r of rows.sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
-    if (settingsStore.get().autoDelete && typeof r.ts === 'number' && now - r.ts > REC_TTL) { dbDelete(r.id); continue } // ts 없는 구버전 행은 보관. 설정 '계속' 이면 지우지 않음
+    if (settingsStore.get().autoDelete && typeof r.ts === 'number' && now - r.ts > REC_TTL) { void dbDelete(r.id); continue } // ts 없는 구버전 행은 보관. 설정 '계속' 이면 지우지 않음
     const m = metas.get(r.id!)
     keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks, speed: m?.speed, ext: m?.ext, peak: m?.peak })
   }

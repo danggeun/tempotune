@@ -121,8 +121,11 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
       case 'edit': if (item) openEditor(item); break
       case 'delete': { // 확인 대신 실행 취소 (텍스트 버튼 언어, 5 s 토스트)
         if (!item) break
-        beforeDelete(item); stopPlayer(idx); deleteRec(item)
-        toast('삭제됨 · 실행 취소', 5000, () => { void restoreDeleted(item, idx) })
+        beforeDelete(item); stopPlayer(idx)
+        void deleteRec(item).then(ok => {
+          if (ok) toast('삭제됨 · 실행 취소', 5000, () => { void restoreDeleted(item, idx) })
+          else toast('삭제하지 못했어요')
+        })
         break
       }
       case 'download': { e.preventDefault(); if (item) saveFile(item.blob, recFileName(item)).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }); break }
