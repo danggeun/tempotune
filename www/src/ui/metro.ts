@@ -63,6 +63,24 @@ function applyCollapse(): void {
   if (effective) clearDots()
 }
 
+/**
+ * 폭에 따라 달라지는 것들을 한 곳에 모은다 (C8). 전에는 재생을 시작하는 순간에만 판정해서,
+ * 폰에서 재생 중에 화면을 돌리면 헤더 재생 버튼이 넓은 화면에도 남고 자동 접힘이 풀리지 않았다.
+ */
+function syncLayout(): void {
+  const playing = metroStore.get().playing
+  if (isPhoneLayout()) {
+    q('metro-play-hdr-btn').style.display = playing ? 'flex' : 'none'
+    if (playing && !metroStore.get().collapsed) { autoCollapsed = true; metroStore.set({ collapsed: true }) } // 시작 시 자동 접힘 (연습 중엔 튜너만). 접기 버튼은 남아 재생 중에도 펼칠 수 있다
+    else if (!playing && autoCollapsed) { autoCollapsed = false; metroStore.set({ collapsed: false }) }
+  } else {
+    // 넓은 화면에서는 본체가 다 보이므로 헤더 재생 버튼이 필요 없고, 자동으로 접었던 것도 펴 준다
+    q('metro-play-hdr-btn').style.display = 'none'
+    if (autoCollapsed) { autoCollapsed = false; metroStore.set({ collapsed: false }) }
+  }
+  applyCollapse()
+}
+
 export function mountMetro(): void {
   attachDrag(q('metro-bpm-wrap')); attachDrag(q('metro-hdr-label'))
   on(q('metro-play-hdr-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
@@ -98,14 +116,13 @@ export function mountMetro(): void {
   metroStore.select(s => s.playing, playing => {
     const btn = q('metro-play-btn')
     btn.textContent = playing ? '■' : '▶'
-    if (isPhoneLayout()) {
-      q('metro-play-hdr-btn').style.display = playing ? 'flex' : 'none'
-      if (playing && !metroStore.get().collapsed) { autoCollapsed = true; metroStore.set({ collapsed: true }) } // 시작 시 자동 접힘 (연습 중엔 튜너만). 접기 버튼은 남아 재생 중에도 펼칠 수 있다
-      else if (!playing && autoCollapsed) { autoCollapsed = false; metroStore.set({ collapsed: false }) }
-    }
+    syncLayout()
     if (playing) buildBeatVis(); else clearDots()
     applyCollapse()
   })
+  // 폭이 바뀌면(회전·태블릿 분할·데스크톱 창) 다시 맞춘다 (C8). 150 ms 디바운스 — 회전 중에는 resize 가 연달아 온다
+  let resizeT: ReturnType<typeof setTimeout> | null = null
+  on(window, 'resize', () => { if (resizeT) clearTimeout(resizeT); resizeT = setTimeout(syncLayout, 150) })
   metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); applyCollapse() })
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
