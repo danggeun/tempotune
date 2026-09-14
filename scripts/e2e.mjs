@@ -172,6 +172,14 @@ await scenario('rec: start/stop → list item, persists reload, rename persists 
   await p.reload(); await sleep(p, 1200); assert.equal((await names()).length, 1, 'restored from IndexedDB')
   await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('editor-page').style.display), 'flex')
+  p.once('dialog', d => d.accept('가'.repeat(60))) // C6: 60자 입력 → 40자로 잘린다
+  await p.click('#ed-title-edit'); await sleep(p, 300)
+  assert.equal(await p.evaluate(() => document.getElementById('editor-title-display').textContent.length), 40, '이름 40자 상한')
+  // C6: 40자 이름은 카드를 넓히거나 여러 줄로 흐르지 않고 한 줄 말줄임으로 잘린다
+  const nm = await p.evaluate(() => { const n = document.querySelector('#rec-list .rec-item-name'), it = n.closest('.rec-item'); return { clipped: n.scrollWidth > n.clientWidth, h: n.offsetHeight, over: it.scrollWidth > it.clientWidth } })
+  assert.equal(nm.clipped, true, '한 줄 말줄임 (여러 줄로 흐르지 않는다)')
+  assert.equal(nm.over, false, '카드 가로 넘침 없음')
+  assert.ok(nm.h < 30, '한 줄 높이: ' + nm.h)
   p.once('dialog', d => d.accept('연습곡A'))
   await p.click('#ed-title-edit'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('editor-title-display').textContent), '연습곡A')

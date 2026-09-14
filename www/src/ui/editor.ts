@@ -259,11 +259,14 @@ export const isEditorOpen = (): boolean => ed.item !== null
 /** 진단 훅(e2e): 편집 상태 읽기 전용 */
 export const editorDiag = () => ({ ptA: ed.ptA, ptB: ed.ptB, loop: ed.loop, audio: ed.audio })
 
+/** 녹음 이름의 최대 길이 (C6) */
+export const NAME_MAX = 40
 function editTitle(): void {
   const current = ed.item ? ed.item.name : ''
   const newName = prompt('녹음 이름', current)
   if (newName && newName.trim() && ed.item) {
-    const name = newName.trim()
+    // 40자 상한 (C6): 파일명·목록 카드가 감당할 수 있는 길이. 넘치면 잘라 저장한다
+    const name = newName.trim().slice(0, NAME_MAX)
     const next = patchRec(ed.item, { name }); if (next) ed.item = next // IndexedDB(meta) 에도 저장
     q('editor-title-display').textContent = displayName(ed.item)
   }
