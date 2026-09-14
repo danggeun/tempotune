@@ -53,22 +53,24 @@ export function itemMeta(item: RecItem, now = Date.now()): string {
   const parts: string[] = []
   if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
   if (item.ab) parts.push('A-B')
-  if (item.keep) parts.push('보관') // 사용자가 표시한 사실은 설정과 무관하게 보여 준다 (F2)
+  const autoDelete = settingsStore.get().autoDelete
+  // '삭제 방지' 는 자동 삭제가 켜져 있을 때만 뜻이 있다 — 꺼져 있으면 버튼도 표시도 숨긴다 (플래그는 남아 다시 켜면 되살아난다). (F2)
+  if (item.keep && autoDelete) parts.push('삭제 방지')
   // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만). 판정은 persist 와 같은 함수를 쓴다
-  const d = warnDaysLeft(item.ts, item.keep, settingsStore.get().autoDelete, now)
-  if (d !== null) parts.push((d === 0 ? '오늘 삭제' : `${d}일 후 삭제`) + ' · 보관을 누르면 남아요')
+  const d = warnDaysLeft(item.ts, item.keep, autoDelete, now)
+  if (d !== null) parts.push((d === 0 ? '오늘 삭제' : `${d}일 후 삭제`) + ' · 삭제 방지를 누르면 남아요')
   return parts.join(' · ')
 }
 
-/** 보관 토글 (F2). 보관을 풀 때 이미 삭제 기한이 지났다면 다음 실행에서 조용히 사라지므로 미리 알린다 */
+/** 삭제 방지 토글 (F2). 풀 때 이미 삭제 기한이 지났다면 다음 실행에서 조용히 사라지므로 미리 알린다 */
 function toggleKeep(item: RecItem): void {
   const next = !item.keep
   const applied = patchRec(item, { keep: next })
   if (!applied) return
-  if (next) { toast('보관했어요 — 자동 삭제되지 않아요'); return }
+  if (next) { toast('이 녹음은 자동 삭제되지 않아요'); return }
   if (expires(applied.ts, false, settingsStore.get().autoDelete, Date.now())) {
-    toast('보관 해제 — 이미 기한이 지나 다음 실행에서 삭제됩니다 · 되돌리기', 5000, () => { patchRec(applied, { keep: true }) })
-  } else toast('보관을 해제했어요')
+    toast('삭제 방지를 풀었어요 — 이미 기한이 지나 다음 실행에서 삭제됩니다 · 되돌리기', 5000, () => { patchRec(applied, { keep: true }) })
+  } else toast('삭제 방지를 풀었어요')
 }
 
 function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLElement {
@@ -87,7 +89,7 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
           </div>
           <div class="rec-item-btns">
             <button class="rec-item-btn" data-action="edit" data-idx="${idx}">편집</button>
-            <button class="rec-item-btn keep${item.keep ? ' on' : ''}" data-action="keep" data-idx="${idx}">보관</button>
+            ${settingsStore.get().autoDelete ? `<button class="rec-item-btn keep${item.keep ? ' on' : ''}" data-action="keep" data-idx="${idx}">삭제 방지</button>` : ''}
             <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}">다운로드</a>
             <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">삭제</button>
           </div>
