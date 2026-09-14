@@ -15,3 +15,13 @@ export function computePeaks(channels: Float32Array[], bins = 600): Float32Array
   if (max > 0) for (let b = 0; b < bins; b++) out[b] = out[b]! / max
   return out
 }
+
+/**
+ * 원시 피크의 최대값 (0..1 로 클램프). 재생 보정용 — computePeaks 의 정규화가 지운 절대 레벨을 남긴다 (B12c).
+ * 루프로 계산한다: `Math.max(...arr)` 는 60분 녹음(72,000개)에서 인자 개수 한계로 던질 수 있다. 순수.
+ */
+export function peakOf(arr: ArrayLike<number>): number {
+  let m = 0
+  for (let i = 0; i < arr.length; i++) { const v = arr[i]!; if (v > m) m = v }
+  return Math.min(1, m)
+}
