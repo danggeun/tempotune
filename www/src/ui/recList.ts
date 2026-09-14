@@ -1,8 +1,8 @@
 /** 메뉴의 녹음 목록 — 최신 1개 펼침 + 이전 N개 접힘, 항목별 미니 플레이어 */
 import { recListStore, settingsStore, type RecItem } from '../state/index.ts'
 import { fmtT } from '../core/format.ts'
-import { deleteRec, restoreDeleted, recFileName } from '../audio/recorder.ts'
-import { REC_TTL, REC_WARN_DAYS } from '../core/recPolicy.ts'
+import { deleteRec, restoreDeleted, recFileName, patchRec } from '../audio/recorder.ts'
+import { expires, warnDaysLeft } from '../core/recPolicy.ts'
 import { PAUSE_GLYPH, PLAY_GLYPH } from './dom.ts'
 import { saveFile } from '../platform/index.ts'
 import { attachGain, beforePlay, afterStop, detachGain } from '../audio/playback.ts'
@@ -53,12 +53,22 @@ export function itemMeta(item: RecItem, now = Date.now()): string {
   const parts: string[] = []
   if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
   if (item.ab) parts.push('A-B')
-  if (settingsStore.get().autoDelete && typeof item.ts === 'number') { // ts 없는 구버전 행은 보관되므로 예고 없음
-    const daysLeft = Math.max(0, Math.floor((item.ts + REC_TTL - now) / 86400000)) // floor: 24시간 미만 = '오늘'
-    // 30일 자동 삭제 예고는 마지막 7일만, 대응 수단(다운로드)과 함께 (정보는 있는 것만)
-    if (daysLeft < REC_WARN_DAYS) parts.push((daysLeft === 0 ? '오늘 삭제' : `${daysLeft}일 후 삭제`) + ' · 보관하려면 다운로드')
-  }
+  if (item.keep) parts.push('보관') // 사용자가 표시한 사실은 설정과 무관하게 보여 준다 (F2)
+  // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만). 판정은 persist 와 같은 함수를 쓴다
+  const d = warnDaysLeft(item.ts, item.keep, settingsStore.get().autoDelete, now)
+  if (d !== null) parts.push((d === 0 ? '오늘 삭제' : `${d}일 후 삭제`) + ' · 보관을 누르면 남아요')
   return parts.join(' · ')
+}
+
+/** 보관 토글 (F2). 보관을 풀 때 이미 삭제 기한이 지났다면 다음 실행에서 조용히 사라지므로 미리 알린다 */
+function toggleKeep(item: RecItem): void {
+  const next = !item.keep
+  const applied = patchRec(item, { keep: next })
+  if (!applied) return
+  if (next) { toast('보관했어요 — 자동 삭제되지 않아요'); return }
+  if (expires(applied.ts, false, settingsStore.get().autoDelete, Date.now())) {
+    toast('보관 해제 — 이미 기한이 지나 다음 실행에서 삭제됩니다 · 되돌리기', 5000, () => { patchRec(applied, { keep: true }) })
+  } else toast('보관을 해제했어요')
 }
 
 function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLElement {
@@ -77,6 +87,7 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
           </div>
           <div class="rec-item-btns">
             <button class="rec-item-btn" data-action="edit" data-idx="${idx}">편집</button>
+            <button class="rec-item-btn keep${item.keep ? ' on' : ''}" data-action="keep" data-idx="${idx}">보관</button>
             <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}">다운로드</a>
             <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">삭제</button>
           </div>
@@ -119,6 +130,7 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
       case 'toggle': document.getElementById('rec-detail-' + idx)?.classList.toggle('open'); break
       case 'play': playPause(idx); break
       case 'edit': if (item) openEditor(item); break
+      case 'keep': if (item) toggleKeep(item); break
       case 'delete': { // 확인 대신 실행 취소 (텍스트 버튼 언어, 5 s 토스트)
         if (!item) break
         beforeDelete(item); stopPlayer(idx)
@@ -136,6 +148,10 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
   settingsStore.select(s => s.autoDelete, () => { const st = recListStore.get(); recListStore.set({ rev: st.rev + 1 }) }) // 보관 설정이 바뀌면 예고문 갱신
   // 북마크/A-B 가 바뀌면(patchRec 은 items 배열만 교체) 메타 줄만 제자리 갱신 — 전체 재렌더는 펼침 상태와 미니 플레이어를 리셋한다
   recListStore.select(s => s.items, items => {
-    list.querySelectorAll<HTMLElement>('.rec-item[data-idx]').forEach(el => { const it = items[+el.dataset.idx!]; const m = el.querySelector('.rec-item-meta'); if (it && m) m.textContent = itemMeta(it) })
+    list.querySelectorAll<HTMLElement>('.rec-item[data-idx]').forEach(el => {
+      const it = items[+el.dataset.idx!]; if (!it) return
+      const m = el.querySelector('.rec-item-meta'); if (m) m.textContent = itemMeta(it)
+      el.querySelector('.rec-item-btn.keep')?.classList.toggle('on', !!it.keep)
+    })
   })
 }

@@ -6,15 +6,15 @@
  */
 export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings', META_STORE = 'meta'
 export const REC_DB_VERSION = 3
-import { REC_TTL } from '../core/recPolicy.ts'
+import { REC_TTL, expires } from '../core/recPolicy.ts'
 import { settingsStore } from '../state/index.ts'
 export { REC_TTL }
 
 export interface AB { a: number; b: number }
 export interface RecRow { id?: number; name: string; dur: number; blob: Blob; mime: string; ts: number }
 /** ext·peak 은 v2.0.2 에서 추가 (B13 확장자 오판 / B12c 재생 게인). 옛 행에는 없으므로 전부 optional — 스키마 버전은 올리지 않는다 */
-export interface RecMeta { id: number; name?: string; bookmarks: number[]; ab: AB | null; peaks?: Float32Array; speed?: number; ext?: 'm4a' | 'webm'; peak?: number }
-export interface RecFull extends RecRow { bookmarks: number[]; ab: AB | null; peaks?: Float32Array; speed?: number; ext?: 'm4a' | 'webm'; peak?: number }
+export interface RecMeta { id: number; name?: string; bookmarks: number[]; ab: AB | null; peaks?: Float32Array; speed?: number; ext?: 'm4a' | 'webm'; peak?: number; keep?: boolean }
+export interface RecFull extends RecRow { bookmarks: number[]; ab: AB | null; peaks?: Float32Array; speed?: number; ext?: 'm4a' | 'webm'; peak?: number; keep?: boolean }
 
 let db: IDBDatabase | null = null
 let metaError: ((m: string) => void) | null = null
@@ -79,10 +79,12 @@ export async function dbLoadAll(): Promise<RecFull[]> {
   const rows = (await req(store(REC_STORE, 'readonly').getAll())) as RecRow[]
   const metas = new Map(((await req(store(META_STORE, 'readonly').getAll())) as RecMeta[]).map(m => [m.id, m]))
   const now = Date.now(), keep: RecFull[] = []
+  const autoDelete = settingsStore.get().autoDelete
   for (const r of rows.sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
-    if (settingsStore.get().autoDelete && typeof r.ts === 'number' && now - r.ts > REC_TTL) { void dbDelete(r.id); continue } // ts 없는 구버전 행은 보관. 설정 '계속' 이면 지우지 않음
     const m = metas.get(r.id!)
-    keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks, speed: m?.speed, ext: m?.ext, peak: m?.peak })
+    // 삭제 판정은 core/recPolicy 의 expires 하나로 — 목록의 예고문(itemMeta)도 같은 함수를 본다
+    if (expires(r.ts, m?.keep, autoDelete, now)) { void dbDelete(r.id); continue }
+    keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks, speed: m?.speed, ext: m?.ext, peak: m?.peak, keep: m?.keep })
   }
   return keep
 }

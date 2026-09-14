@@ -121,11 +121,11 @@ export async function restoreDeleted(item: RecItem, at: number): Promise<void> {
   const back: RecItem = { ...item, url: URL.createObjectURL(item.blob) }
   items.splice(Math.min(at, items.length), 0, back)
   recListStore.set({ items, rev: st.rev + 1 })
-  const id = await dbSave({ name: back.name, dur: back.dur, blob: back.blob, mime: back.mime, ts: back.ts }, { bookmarks: back.bookmarks, ab: back.ab, peaks: back.peaks, ext: back.ext, peak: back.peak }).catch(() => null)
+  const id = await dbSave({ name: back.name, dur: back.dur, blob: back.blob, mime: back.mime, ts: back.ts }, { bookmarks: back.bookmarks, ab: back.ab, peaks: back.peaks, ext: back.ext, peak: back.peak, keep: back.keep }).catch(() => null)
   const st2 = recListStore.get(); const i = st2.items.indexOf(back); if (i >= 0) { const items2 = st2.items.slice(); items2[i] = { ...back, id }; recListStore.set({ items: items2, rev: st2.rev }) }
 }
 /** 편집 상태(북마크/A-B/파형/속도)·이름을 메모리와 IndexedDB(meta) 에 반영. 새 항목 객체를 반환 */
-export function patchRec(item: RecItem, patch: Partial<Pick<RecItem, 'name' | 'bookmarks' | 'ab' | 'peaks' | 'speed'>>): RecItem | null {
+export function patchRec(item: RecItem, patch: Partial<Pick<RecItem, 'name' | 'bookmarks' | 'ab' | 'peaks' | 'speed' | 'keep'>>): RecItem | null {
   const st = recListStore.get(); const idx = st.items.indexOf(item); if (idx < 0) return null
   const items = st.items.slice(); const next = { ...item, ...patch }; items[idx] = next
   void dbPatchMeta(item.id, patch)
@@ -139,7 +139,7 @@ export function onRecorderError(fn: (m: string) => void): void { errorFn = fn }
 export async function restoreRecordings(): Promise<void> {
   const rows = await dbLoadAll().catch(() => [])
   if (!rows.length) return
-  const items: RecItem[] = rows.map(r => ({ id: r.id ?? null, url: URL.createObjectURL(r.blob), name: r.name, dur: r.dur, blob: r.blob, mime: r.mime, ext: r.ext, peak: r.peak, ts: r.ts, bookmarks: r.bookmarks, ab: r.ab, peaks: r.peaks, speed: r.speed }))
+  const items: RecItem[] = rows.map(r => ({ id: r.id ?? null, url: URL.createObjectURL(r.blob), name: r.name, dur: r.dur, blob: r.blob, mime: r.mime, ext: r.ext, peak: r.peak, ts: r.ts, bookmarks: r.bookmarks, ab: r.ab, peaks: r.peaks, speed: r.speed, keep: r.keep }))
   const st = recListStore.get(); recListStore.set({ items: [...st.items, ...items], rev: st.rev + 1 })
 }
 
