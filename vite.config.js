@@ -13,11 +13,6 @@ export default defineConfig(({ mode }) => ({
   worker: { format: 'es' },
   test: { include: ['src/**/*.test.ts', '../scripts/**/*.test.mjs'] },
   plugins: [
-    // Capacitor 빌드(BASE=/)에서는 Google Fonts 링크를 제거 — 앱은 시스템 한글 폰트를 쓰므로 매 실행 FOUT 만 만든다
-    {
-      name: 'gp-cap-html',
-      transformIndexHtml(html) { return process.env.BASE === '/' ? html.replace(/<link[^>]*fonts\.googleapis\.com[^>]*>\n?/g, '') : html },
-    },
     VitePWA({
       // 'prompt': 새 SW 는 앱이 유휴일 때 main.ts 가 updateSW() 를 불러야 활성화된다.
       // autoUpdate 는 실행 중인 페이지의 지연 청크(워클릿/워커)를 캐시에서 지워 첫 실행에 오디오가 죽는다 (리뷰 #1)
