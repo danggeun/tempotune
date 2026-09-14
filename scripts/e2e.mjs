@@ -187,6 +187,21 @@ await scenario('rec: start/stop → list item, persists reload, rename persists 
   await p.reload(); await sleep(p, 1200); assert.equal((await names()).length, 1, 'restored item persisted')
   await p.click('#menu-btn'); await p.click('[data-action="delete"][data-idx="0"]'); await sleep(p, 5600); assert.equal((await names()).length, 0)
 })
+await scenario('rec: 연속 삭제 두 건 → 실행 취소 토스트가 각각 살아 있다 (D2)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  const names = () => p.evaluate(() => Array.from(document.querySelectorAll('#rec-list .rec-item-name')).map(e => e.textContent))
+  for (let i = 0; i < 2; i++) { await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800) }
+  assert.equal((await names()).length, 2)
+  await p.click('#menu-btn')
+  await p.click('[data-action="delete"][data-idx="0"]'); await sleep(p, 200)
+  await p.click('[data-action="delete"][data-idx="0"]'); await sleep(p, 200)
+  assert.equal((await names()).length, 0)
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#toast-host .toast.show.actionable').length), 2, '실행 취소 토스트 2개가 동시에 떠 있다')
+  await p.click('#toast'); await sleep(p, 400) // 가장 최근 = 두 번째 삭제
+  assert.equal((await names()).length, 1, '두 번째 실행 취소')
+  await p.click('#toast'); await sleep(p, 400) // 남아 있던 첫 번째 토스트
+  assert.equal((await names()).length, 2, '첫 번째 실행 취소도 살아 있다 (v2.0.3 에서는 덮여 사라졌다)')
+})
 await scenario('editor: A/B/loop/bookmark flows', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 2200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
