@@ -2,6 +2,7 @@
   "appId": "com.gopractice.app",
   "appName": "Go practice",
   "webDir": "dist",
+  "backgroundColor": "#0f0f0f",
   "server": {
     "androidScheme": "https"
   },

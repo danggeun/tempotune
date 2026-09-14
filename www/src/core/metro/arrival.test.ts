@@ -96,3 +96,11 @@ describe('M1: 메트로놈 클릭 도착 시각 자가 보정 (앱과 같은 흐
     expect(r[r.length - 1]!.off).toBe(0)
   })
 })
+
+describe('pending 상한 (R8)', () => {
+  test('update 가 오지 않아도 64개를 넘지 않는다', () => {
+    const a = createArrival()
+    for (let i = 0; i < 100; i++) a.expect(i * 0.75)
+    expect(a.pendingCount()).toBe(64)
+  })
+})
