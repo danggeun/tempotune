@@ -34,11 +34,16 @@ export interface ArrivalParams {
  */
 export const DEFAULT_ARRIVAL: ArrivalParams = { searchBefore: 0.05, searchAfter: 0.30, minProminence: 6, ring: 6, minAgree: 3, agreeTol: 0.03, clampMin: -0.03, clampMax: 0.30, keepSec: 2 }
 
+/** 기다리는 클릭 예정 시각의 상한 — 실제로는 몇 개면 충분하다. 넘치면 가장 오래된 것부터 버린다 (R8) */
+const MAX_PENDING = 64
+
 export interface Arrival {
   /** 블록 하나의 차분 에너지 (t = 블록 끝 시각, 오디오 시계 초) */
   pushEnergy(t: number, e: number): void
   /** 클릭이 마이크에 닿을 것으로 **예상한** 시각 (예약 + 출력 지연) */
   expect(at: number): void
+  /** 진단/테스트: 아직 평가되지 않은 예상 시각의 개수 */
+  pendingCount(): number
   /** 시각이 now 까지 왔다 — 탐색 창이 다 지난 예상 시각들을 평가한다 */
   update(now: number): void
   /** 적용할 보정(초). 합의가 없으면 0 */
@@ -80,7 +85,8 @@ export function createArrival(p: ArrivalParams = DEFAULT_ARRIVAL): Arrival {
       const cut = t - p.keepSec; let k = 0; while (k < T.length && T[k]! < cut) k++
       if (k) { T.splice(0, k); E.splice(0, k) }
     },
-    expect(at) { pending.push(at) },
+    expect(at) { pending.push(at); if (pending.length > MAX_PENDING) pending.shift() }, // 오디오가 멈춰 update 가 안 오면 무한히 쌓인다 (R8)
+    pendingCount: () => pending.length,
     update(now) {
       for (let i = pending.length - 1; i >= 0; i--) {
         const at = pending[i]!

@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => ({
       workbox: { globPatterns: ['**/*.{js,css,html,woff2,png,webmanifest}'], navigateFallback: null, cleanupOutdatedCaches: true },
       includeAssets: ['icons/*.png'],
       manifest: {
+        // id 를 못 박아 둔다 — 없으면 start_url 이 곧 identity 라 base 가 바뀌면 '다른 앱' 이 되어 재설치된다
+        id: process.env.BASE ?? '/go_practice/',
         name: 'Go practice', short_name: 'Go practice', description: '현악기 연습 — 튜너 · 메트로놈 · 녹음 편집',
         display: 'standalone', orientation: 'portrait', background_color: '#0f0f0f', theme_color: '#0f0f0f', lang: 'ko',
         icons: [

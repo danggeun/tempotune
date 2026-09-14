@@ -41,10 +41,11 @@ let wakeLock: WakeLockSentinel | null = null
 let wakeWarned = false, wakeWarn: ((m: string) => void) | null = null
 export function onWakeLockUnsupported(fn: (m: string) => void): void { wakeWarn = fn }
 export async function acquireWakeLock(): Promise<void> {
+  if (wakeLock && !wakeLock.released) return // 이미 쥐고 있으면 다시 요청하지 않는다 — 앞의 센티널을 놓지 못해 새는 것을 막는다 (R7)
   if (!('wakeLock' in navigator)) { if (!wakeWarned) { wakeWarned = true; wakeWarn?.('이 브라우저는 화면 켜짐 유지를 지원하지 않아요') } return }
   try { wakeLock = await navigator.wakeLock.request('screen') } catch { /* 배터리 절약 모드·백그라운드 — 다음 visible 에서 재시도 */ }
 }
-export function releaseWakeLock(): void { wakeLock?.release(); wakeLock = null }
+export function releaseWakeLock(): void { wakeLock?.release().catch(() => {}); wakeLock = null } // 이미 해제된 센티널이면 reject — 잡지 않으면 unhandled rejection (R7)
 
 // ── 전체화면 (웹 전용) ──
 export function toggleFullscreen(onUnsupported: () => void): void {
