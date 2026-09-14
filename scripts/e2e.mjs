@@ -210,6 +210,24 @@ await scenario('rec: 연속 삭제 두 건 → 실행 취소 토스트가 각각
   await p.click('#toast'); await sleep(p, 400) // 남아 있던 첫 번째 토스트
   assert.equal((await names()).length, 2, '첫 번째 실행 취소도 살아 있다 (v2.0.3 에서는 덮여 사라졌다)')
 })
+await scenario('rec: 개별 보관 — 토글·유지·메타 표시 (F2)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await sleep(p, 400)
+  const on = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-btn.keep').classList.contains('on'))
+  const meta = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-meta').textContent)
+  assert.equal(await on(), false, '처음엔 보관 아님')
+  await p.click('[data-action="keep"][data-idx="0"]'); await sleep(p, 300)
+  assert.equal(await on(), true, '보관 켜짐')
+  assert.match(await meta(), /보관/, '메타 줄에 보관 표시')
+  if (process.env.GP_SHOT) { await sleep(p, 3000); await p.screenshot({ path: process.env.GP_SHOT }) } // 토스트가 사라진 뒤 버튼 줄을 눈으로 확인
+  await p.reload(); await sleep(p, 1500); await p.click('#menu-btn'); await sleep(p, 400)
+  assert.equal(await on(), true, '리로드 후에도 보관 유지 (meta 에 저장)')
+  await p.click('[data-action="keep"][data-idx="0"]'); await sleep(p, 300)
+  assert.equal(await on(), false, '다시 누르면 해제')
+  assert.equal(await meta(), '', '해제하면 표시도 사라진다')
+})
+
 await scenario('editor: A/B/loop/bookmark flows', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 2200); await p.click('#rec-hdr-btn'); await sleep(p, 800)

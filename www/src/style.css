@@ -242,6 +242,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .rec-player{display:flex;flex-direction:column;gap:7px;}
 .rec-player-top{display:flex;align-items:center;gap:8px;}
 .rec-item-btns{display:flex;gap:6px;}
+.rec-item-btn.keep.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);} /* 켜짐 표시는 앱 공통 언어(A-B·확대와 동일) — F2 */
 .rec-old{display:none;flex-direction:column;gap:8px;margin-top:8px;}
 .rec-old.open{display:flex;}
 .rec-more{width:100%;height:var(--h-seg);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text-2);font-size:var(--fs-btn-sm);font-weight:var(--fw-md);cursor:pointer;text-align:center;margin-top:2px;}

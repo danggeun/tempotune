@@ -146,6 +146,8 @@ export interface RecItem {
   peaks?: Float32Array
   /** 마지막 재생 속도 (편집기, 녹음별 기억) */
   speed?: number
+  /** 개별 보관 — 자동 삭제에서 면제 (F2). 옛 행에는 없다 = 보관 아님 */
+  keep?: boolean
 }
 export interface RecListState { items: RecItem[]; rev: number }
 export const recListStore = createStore<RecListState>({ items: [], rev: 0 })
