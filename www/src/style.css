@@ -228,7 +228,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #rec-empty{font-size:var(--fs-md);color:var(--text-3);padding:2px 0 0 2px;}
 .rec-item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s3) var(--s4);}
 .rec-item-head{display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;gap:10px;}
-.rec-item-name{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);}
+.rec-item-head > div{min-width:0;} /* 긴 이름이 카드를 넓히지 않게 (flex 기본 min-width:auto 해제) — C6 */
+.rec-item-name{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rec-item-meta{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);margin-top:3px;letter-spacing:.02em;}
 .rec-item-meta:empty{display:none;}
 .rec-item-dur{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text-2);}
@@ -294,7 +295,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #ed-zoom-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 #ed-cur{font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--text);font-weight:var(--fw-md);letter-spacing:.02em;}
 #ed-dur{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text-2);}
-#ed-track{position:relative;height:56px;cursor:pointer;margin-bottom:4px;}
+#ed-track{position:relative;height:56px;cursor:pointer;margin-bottom:4px;touch-action:none;} /* 스크럽 조작면 — 드래그가 세로 스크롤로 새지 않게 (C7) */
 #ed-wave{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;}
 #ed-track-rail{position:absolute;top:50%;left:0;right:0;height:5px;background:var(--line);border-radius:3px;transform:translateY(-50%);}
 #ed-progress{position:absolute;top:50%;left:0;width:0%;height:5px;background:var(--text-2);border-radius:3px;transform:translateY(-50%);pointer-events:none;}
