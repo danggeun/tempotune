@@ -50,6 +50,6 @@ export function toast(msg: string, ms = 2500, action?: () => void): void {
   host.appendChild(el)
   slots.push(slot); markLatest()
   // 시작값(opacity 0)을 확정한 뒤 .show 로 페이드인
-  requestAnimationFrame(() => el.classList.add('show'))
+  requestAnimationFrame(() => { if (slots.includes(slot)) el.classList.add('show') }) // 그 사이 drop 됐으면 되살리지 않는다
   while (slots.length > MAX_TOASTS) drop(slots[evictIndex(slots.map(s => s.actionable))]!)
 }
