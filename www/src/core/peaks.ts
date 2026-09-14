@@ -4,7 +4,9 @@ export function computePeaks(channels: Float32Array[], bins = 600): Float32Array
   const len = channels[0]?.length ?? 0; if (!len) return out
   const per = len / bins
   for (let b = 0; b < bins; b++) {
-    const s0 = Math.floor(b * per), s1 = Math.min(len, Math.floor((b + 1) * per)) || s0 + 1
+    // 빈마다 최소 1샘플: per<1 (샘플수 < bins) 이면 s0===s1 이 되어 빈 구간이 0 으로 남는다.
+    const s0 = Math.min(len - 1, Math.floor(b * per))
+    const s1 = Math.max(s0 + 1, Math.min(len, Math.floor((b + 1) * per)))
     let m = 0
     for (const ch of channels) for (let i = s0; i < s1; i++) { const v = Math.abs(ch[i]!); if (v > m) m = v }
     out[b] = m
