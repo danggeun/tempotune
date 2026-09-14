@@ -152,6 +152,9 @@ if (!isNative() && 'serviceWorker' in navigator) {
   const idle = () => !tunerStore.get().running && !metroStore.get().playing && !sessionStore.get().recording && !isEditorOpen()
   const updateSW = registerSW({
     onNeedRefresh() { const tryApply = () => { if (idle()) void updateSW(true); else setTimeout(tryApply, 60 * 1000) }; tryApply() },
+    // 브라우저는 SW 갱신을 '탐색할 때' 만 확인한다 — 튜너를 켜두고 며칠 쓰는 사용법(PWA 를 홈 화면에 둔 경우)에서는
+    // 탐색이 일어나지 않아 새 버전이 영영 안 온다. 1시간마다 직접 확인한다. 적용은 여전히 유휴일 때만(위 onNeedRefresh). (R5)
+    onRegisteredSW(_url, reg) { if (reg) setInterval(() => { void reg.update().catch(() => {}) }, 60 * 60 * 1000) },
   })
 }
 
