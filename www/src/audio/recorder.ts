@@ -3,7 +3,7 @@
  */
 import { recListStore, sessionStore, type RecItem } from '../state/index.ts'
 import { dbSave, dbDelete, dbPatchMeta, dbLoadAll } from '../persist/recordingsDb.ts'
-import { computePeaks } from '../core/peaks.ts'
+import { computePeaks, peakOf } from '../core/peaks.ts'
 import { containerOf, extFromMime, type RecContainer } from '../core/container.ts'
 import { isIOS } from '../platform/index.ts'
 import { A, onMic } from './engine.ts'
@@ -46,15 +46,25 @@ export function startRec(): RecResult {
   const parts: Blob[] = []
   rec.ondataavailable = e => { if (e.data.size > 0) parts.push(e.data) }
   rec.onerror = () => { errorFn?.('녹음 중 오류가 나서 저장했어요'); if (recorder === rec) stopRec() }
+  // 저장 경로의 어떤 단계가 실패해도 **녹음 자체는 잃지 않는다**: 파형·피크·확장자는 부가 정보라
+  // 없어도 재생·편집·다운로드가 된다(편집기는 peaks 가 없으면 오디오에서 계산). blob 을 못 만들 때만 포기한다. (D4)
   rec.onstop = async () => {
-    const blob = new Blob(parts, { type: rec.mimeType || 'audio/mp4' }); parts.length = 0 // 60분 녹음 ≈ 115 MB 가 두 벌 남지 않게
+    let blob: Blob
+    try { blob = new Blob(parts, { type: rec.mimeType || 'audio/mp4' }) }
+    catch { parts.length = 0; errorFn?.('녹음을 저장하지 못했어요'); return }
+    parts.length = 0 // 60분 녹음 ≈ 115 MB 가 두 벌 남지 않게
     const n = new Date(t0)
     const name = `${n.getFullYear()}${String(n.getMonth() + 1).padStart(2, '0')}${String(n.getDate()).padStart(2, '0')}_${String(n.getHours()).padStart(2, '0')}${String(n.getMinutes()).padStart(2, '0')}`
     // 파형용 peaks 는 최대값으로 정규화되므로(core/peaks.ts) 절대 레벨이 사라진다 → 재생 보정용 원시 피크를 따로 남긴다 (B12c)
-    const peak = myPeaks.length ? Math.min(1, Math.max(...myPeaks)) : undefined
-    const peaks = myPeaks.length ? computePeaks([Float32Array.from(myPeaks)], 600) : undefined
+    let peak: number | undefined, peaks: Float32Array | undefined
+    try {
+      peak = myPeaks.length ? peakOf(myPeaks) : undefined
+      peaks = myPeaks.length ? computePeaks([Float32Array.from(myPeaks)], 600) : undefined
+    } catch { peak = undefined; peaks = undefined; errorFn?.('녹음은 저장했지만 파형을 만들지 못했어요') }
     // 확장자는 mimeType 문자열이 아니라 파일 앞부분 바이트로 정한다 — 빈 mimeType·예상 밖 값에도 내용과 맞는 이름이 붙게
-    const ext = containerOf(new Uint8Array(await blob.slice(0, 16).arrayBuffer().catch(() => new ArrayBuffer(0))), rec.mimeType)
+    let ext: RecContainer
+    try { ext = containerOf(new Uint8Array(await blob.slice(0, 16).arrayBuffer().catch(() => new ArrayBuffer(0))), rec.mimeType) }
+    catch { ext = extFromMime(rec.mimeType) }
     const item: RecItem = { id: null, url: URL.createObjectURL(blob), name, dur: Math.round((Date.now() - t0) / 1000), blob, mime: rec.mimeType, ext, peak, ts: t0, bookmarks: [], ab: null, peaks }
     item.id = await dbSave({ name: item.name, dur: item.dur, blob: item.blob, mime: item.mime, ts: item.ts }, { bookmarks: [], ab: null, peaks, ext, peak }).catch(() => null)
     if (item.id == null) errorFn?.('녹음을 저장하지 못했어요 — 이번 세션에만 남아 있어요') // 용량 부족·프라이빗 모드 등: 조용한 실패 금지
