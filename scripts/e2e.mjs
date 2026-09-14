@@ -37,7 +37,7 @@ async function scenario(name, wav, fn, ctxOpts = {}) {
   page.on('pageerror', e => errors.push(String(e)))
   page.on('console', m => { if (m.type() === 'error' && !/tfhub|tensorflow|fonts.googleapis|ERR_|Failed to load resource/.test(m.text())) errors.push(m.text()) })
   try { await fn(page, ctx); assert.deepEqual(errors, [], 'console/page errors'); results.push([name, 'ok']) }
-  catch (e) { results.push([name, 'FAIL: ' + (e.message || e).toString().split('\n')[0]]) }
+  catch (e) { results.push([name, 'FAIL: ' + (e.message || e).toString().split('\n').slice(0, 3).join(' / ')]) }
   await browser.close()
 }
 const tunerText = p => p.evaluate(() => ({ note: document.getElementById('tuner-note').textContent, acc: document.getElementById('tuner-acc').textContent, oct: document.getElementById('tuner-oct').textContent, cents: document.getElementById('tuner-cents').textContent, inTune: document.getElementById('tuner-card').classList.contains('in-tune') }))
@@ -424,12 +424,42 @@ await scenario('offline: service worker precaches everything; reload with networ
 await scenario('lifecycle: context suspended externally while metronome plays → auto-resume on visible', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600); await p.click('#metro-play-btn'); await sleep(p, 800)
   assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running')
-  await p.evaluate(async () => { await window.__gp.ac().suspend() })
-  assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'suspended')
+  // 외부 suspend 직후의 'suspended' 는 단언하지 않는다 — 앱이 statechange 에서 **즉시** 되살리므로(main.ts onContextState)
+  // 그 순간을 잡는 검사는 경합이다(v2.0.2 에서 '가끔 실패' 로 기록됐던 원인). 검사할 것은 "결국 running 으로 돌아오는가" 다.
+  const before = await p.evaluate(async () => { const ac = window.__gp.ac(); const p0 = ac.suspend(); const s = ac.state; await p0; return s })
+  assert.ok(before === 'suspended' || before === 'running', 'suspend 호출은 됐다: ' + before)
   await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
   await sleep(p, 600)
   assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running', 'resumed')
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
+})
+// ── P1: 숨김 시 마이크 해제 (v2.0.3) ──
+const setVisibility = (p, state) => p.evaluate(st => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => st }); document.dispatchEvent(new Event('visibilitychange')) }, state)
+await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고, 돌아오면 다시 연다 — 타이머·메트로놈은 계속 (P1)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await p.click('.menu-close-btn'); await sleep(p, 300)
+  await p.click('#metro-collapse-btn'); await sleep(p, 500); await p.click('#metro-play-btn'); await sleep(p, 500)
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true, '시작: 마이크 열림')
+  // 숨김 → 마이크는 놓고, 타이머는 그대로 돌고, 메트로놈도 그대로
+  await setVisibility(p, 'hidden'); await sleep(p, 400)
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), false, '숨김: 마이크를 놓아야 다른 앱이 쓸 수 있다')
+  assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지', '숨김: 타이머는 멈추지 않는다 (연습이 끝난 게 아니다)')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■', '숨김: 메트로놈은 계속')
+  assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running', '메트로놈이 돌고 있으니 컨텍스트는 살아 있다')
+  // 복귀 → 권한 창 없이 다시 열리고 음이 다시 뜬다
+  await setVisibility(p, 'visible')
+  await waitNote(p, t => t.note === '라', 5000)
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true, '복귀: 마이크 다시 열림')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-note').textContent !== '탭하여 시작'), true, '복귀: 탭 안내 없이 바로')
+})
+await scenario('lifecycle: 웹에서 녹음 중이면 숨겨져도 마이크를 놓지 않는다 (녹음이 끊기면 안 된다) (P1)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#menu-btn'); await sleep(p, 300); await p.click('#rec-toggle-btn'); await sleep(p, 600)
+  await setVisibility(p, 'hidden'); await sleep(p, 400)
+  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true, '녹음 중: 마이크 유지')
+  await setVisibility(p, 'visible'); await sleep(p, 300)
+  await p.click('#rec-toggle-btn'); await sleep(p, 800)
+  assert.equal(await p.evaluate(() => document.querySelectorAll('.rec-item').length), 1, '녹음이 저장됐다')
 })
 await scenario('lifecycle: idle → context suspended (audio focus released); metronome start resumes it', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel'); await p.evaluate(() => document.activeElement?.blur())

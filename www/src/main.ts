@@ -58,7 +58,10 @@ startAnalysis()
 const wantWake = () => settingsStore.get().wakeLock && (tunerStore.get().running || metroStore.get().playing)
 const syncWake = () => { if (wantWake()) acquireWakeLock(); else releaseWakeLock() }
 onMic('afterOpen', syncWake)
-onMic('afterClose', () => { stopTimer(); syncWake(); stopInactivityWatch() })
+// 타이머는 사용자가 직접 켜고 끄는 것이라 마이크가 닫힐 때 같이 멈춘다(무활동·수동 종료). 단 **화면 숨김으로 잠시 놓는 것**(P1)은
+// 연습이 끝난 게 아니므로 타이머를 건드리지 않는다 — 악보 앱을 잠깐 보고 돌아와도 경과 시간이 이어진다
+let releasingForHide = false
+onMic('afterClose', () => { if (!releasingForHide) stopTimer(); syncWake(); stopInactivityWatch() })
 metroStore.select(s => s.playing, syncWake)
 // 15분 무활동 자동 종료 — 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시 (리뷰 #3: v1/이전 구현은 타이머 안에서만 검사했다)
 let inactInt: ReturnType<typeof setInterval> | null = null
@@ -66,15 +69,26 @@ function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); in
 onMic('afterOpen', () => { stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic().then(ok => { if (ok) toast('마이크가 켜졌어요') }))
 settingsStore.select(s => s.wakeLock, syncWake)
-// ── 생명주기 매트릭스 (설계서 §B7) ──
-// 숨김: 오디오는 그대로(마이크 켜져 있으면 분석 계속, 메트로놈은 오디오 스레드). 복귀: 컨텍스트 재개 + 밀린 청크 폐기 + wake lock 재획득.
+// ── 생명주기 매트릭스 (설계서 §B7, v2.0.3 P1 개정) ──
+// 숨김: **마이크를 놓는다** — 숨겨진 동안 튜너는 볼 수 없으니 쥐고 있을 이유가 없고, 쥐고 있으면 안드로이드에서
+//       다른 앱(폰 녹음기 등)이 마이크를 못 쓰거나 묵음 스트림을 받는다(실측: 사용자 녹음 34초 중 4초만 소리, 나머지는 정확히 0).
+//       메트로놈은 오디오 스레드에서 계속(마이크와 무관). 웹에서 녹음 중이면 놓지 않는다(녹음은 마이크 스트림을 쓴다).
+// 복귀: 컨텍스트 재개 + 밀린 청크 폐기 + wake lock 재획득 + **놓았던 마이크를 다시 연다**(권한은 같은 세션이라 다시 묻지 않는다;
+//       못 열면 기존과 같은 '탭하여 시작' 안내).
+let micReleasedByHide = false
 on(document, 'visibilitychange', () => {
   if (document.visibilityState !== 'visible') {
     // Android 는 백그라운드 앱의 마이크를 무음으로 만든다(포그라운드 서비스 없이는) → 녹음이 무음 파일이 되기 전에 저장 (리뷰 #2)
     if (isNative() && sessionStore.get().recording) { stopRec(); toast('앱이 뒤로 가서 녹음을 저장했어요') }
+    if (A.micStream && !sessionStore.get().recording) {
+      micReleasedByHide = true; releasingForHide = true
+      try { closeMic() } finally { releasingForHide = false }
+    }
     return
   }
   resumeIfRunning(); syncWake()
+  // 다시 열릴 때까지 플래그를 유지한다 — 여는 도중에 또 숨겨져 'busy' 로 끝나도 다음 복귀에서 다시 시도된다
+  if (micReleasedByHide) tryOpenMic().then(ok => { if (ok) micReleasedByHide = false; else if (document.visibilityState === 'visible' && !A.micStream) showTapHint(tryOpenMic) })
 })
 // 오디오 상태 점: 마이크가 열려 있고 컨텍스트가 돌면 초록, 마이크는 열렸는데 컨텍스트가 멈춰 있으면(탭 필요·중단) 앰버, 마이크 꺼짐이면 숨김
 const syncAudioDot = () => { const t = tunerStore.get(); setAudioDot(!t.running ? 'off' : A.ac?.state === 'running' ? 'on' : 'warn') }
