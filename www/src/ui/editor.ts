@@ -409,6 +409,13 @@ export function mountEditor(): void {
   on(q('ed-back-btn'), 'click', closeEditor)
   on(q('ed-title-edit'), 'click', editTitle)
   on(q('ed-play-btn'), 'click', togglePlay)
+  // 편집기가 열려 있는 동안 Space 는 편집기 재생 (C1). 메트로놈 쪽은 isEditorOpen() 으로 비켜 준다
+  on(document, 'keydown', (e: KeyboardEvent) => {
+    if (!isEditorOpen()) return
+    const t = e.target as HTMLElement
+    if (e.code !== 'Space' || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON') return
+    e.preventDefault(); togglePlay()
+  })
   on(q('ed-speed'), 'input', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value, false)) // 드래그 중엔 저장 안 함(IndexedDB 연타 방지)
   on(q('ed-speed'), 'change', (e: Event) => setSpeed(+(e.target as HTMLInputElement).value))
   on(q('ed-speed-val'), 'click', cycleSpeed)

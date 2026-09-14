@@ -10,6 +10,13 @@ export function hideMenu(): void { q('menu-overlay').classList.remove('open') }
 export const openSettings = (): void => q('settings-page').classList.add('open')
 export const closeSettings = (): void => q('settings-page').classList.remove('open')
 
+/**
+ * 지금 화면을 덮고 있는 오버레이가 있는가 (C1). 전역 단축키(Space)의 주인은 '지금 보이는 화면' 이다 —
+ * 메뉴·설정·마이크 팝업이 떠 있는데 뒤에서 메트로놈이 켜지면 사용자는 무슨 일이 난 건지 알 수 없다.
+ */
+export const overlayOpen = (): boolean =>
+  q('menu-overlay').classList.contains('open') || q('settings-page').classList.contains('open') || q('mic-popup-bg').classList.contains('show')
+
 export function mountMenu(): void {
   on(q('menu-btn'), 'click', toggleMenu)
   on(qs('.menu-close-btn'), 'click', toggleMenu)
