@@ -66,7 +66,9 @@ metroStore.select(s => s.playing, syncWake)
 // 15분 무활동 자동 종료 — 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시 (리뷰 #3: v1/이전 구현은 타이머 안에서만 검사했다)
 let inactInt: ReturnType<typeof setInterval> | null = null
 function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); inactInt = null }
-onMic('afterOpen', () => { stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
+// 마이크를 열 때 활동 시각을 새로 잡는다 — 이걸 안 하면 "앱을 15분 넘게 켜둔 뒤 마이크를 (다시) 켠 순간" 바로 자동 종료된다.
+// P1(숨김 → 복귀 시 마이크 재개)이 이 상황을 매번 만든다. 뜻은 '마이크가 켜진 뒤 15분간 소리가 없으면' 이다.
+onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic().then(ok => { if (ok) toast('마이크가 켜졌어요') }))
 settingsStore.select(s => s.wakeLock, syncWake)
 // ── 생명주기 매트릭스 (설계서 §B7, v2.0.3 P1 개정) ──
