@@ -272,6 +272,23 @@ await scenario('keys: 닫힌 메뉴·설정은 Tab 순서에 없다 (C2)', 'viol
   assert.equal(reached, true, '열린 메뉴는 포커스를 받는다')
 })
 
+await scenario('metro: 재생 중에 화면이 넓어지면 헤더 재생 버튼이 사라진다 (C8)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1200)
+  await p.click('#metro-collapse-btn'); await sleep(p, 700) // 시작 시 자동으로 접혀 있다 → 본체 재생 버튼을 쓰려면 편다
+  const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
+  const collapsed = () => p.evaluate(() => document.getElementById('metro-collapse-btn').classList.contains('collapsed'))
+  await p.click('#metro-play-btn'); await sleep(p, 600)
+  assert.equal(await hdr(), 'flex', '폰: 재생 중 헤더 버튼')
+  assert.equal(await collapsed(), true, '폰: 재생 시작 시 자동 접힘')
+  await p.setViewportSize({ width: 900, height: 844 }); await sleep(p, 600)
+  assert.equal(await hdr(), 'none', '넓은 화면: 헤더 버튼 없음')
+  assert.equal(await collapsed(), false, '넓은 화면: 자동 접힘 해제')
+  await p.setViewportSize({ width: 390, height: 844 }); await sleep(p, 600)
+  assert.equal(await hdr(), 'flex', '다시 폰: 헤더 버튼 복귀')
+  await p.click('#metro-play-hdr-btn'); await sleep(p, 600)
+  assert.equal(await hdr(), 'none', '정지하면 헤더 버튼 사라짐')
+})
+
 // ── 타이머 / 기준음 / 메뉴 ──
 await scenario('timer: elapsed counts, detected counts while playing, reset', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
