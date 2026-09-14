@@ -156,13 +156,13 @@ if (!isNative() && 'serviceWorker' in navigator) {
   tuner: {
     diag: histDiag,
     setHistSec,
-    /** @param frames null = 무음 프레임. dualMidi/dualCents 를 주면 중음 프레임 (B17) */
-    inject: (frames: Array<{ cents: number; midi: number; dualMidi?: number; dualCents?: number } | null>) => {
+    /** @param frames null = 무음 프레임. dualMidi/dualCents 를 주면 중음 프레임 (B17). held 를 주면 유지 프레임 (T1) */
+    inject: (frames: Array<{ cents: number; midi: number; dualMidi?: number; dualCents?: number; held?: number } | null>) => {
       const tol = settingsStore.get().tolCents
       for (const f of frames) {
         const st = tunerStore.get()
         if (!f) tunerStore.set({ frame: st.frame + 1, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, dualMidi: -1, dualCents: 0 })
-        else tunerStore.set({ frame: st.frame + 1, hz: 440 * Math.pow(2, (f.midi - 69) / 12), midi: f.midi, cents: f.cents, inTune: Math.abs(f.cents) <= tol, conf: 0.9, dualMidi: f.dualMidi ?? -1, dualCents: f.dualCents ?? 0 })
+        else tunerStore.set({ frame: st.frame + 1, hz: 440 * Math.pow(2, (f.midi - 69) / 12), midi: f.midi, cents: f.cents, inTune: Math.abs(f.cents) <= tol, conf: 0.9, held: f.held ?? 0, dualMidi: f.dualMidi ?? -1, dualCents: f.dualCents ?? 0 })
       }
     },
   },

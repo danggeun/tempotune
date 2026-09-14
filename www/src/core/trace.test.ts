@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { joinSegment, buildSegments, TRACE_JOIN_MAX } from './trace.ts'
+import { joinSegment, buildSegments, TRACE_JOIN_MAX, keepInTrace, TRACE_HELD_MAX } from './trace.ts'
 
 describe('joinSegment', () => {
   test('같은 음 안에서는 아무리 크게 움직여도 잇는다 (글리산도·부스트 점프는 실제 움직임)', () => {
@@ -66,3 +66,15 @@ describe('buildSegments', () => {
   })
 })
 
+
+describe('keepInTrace — 유지 프레임 허용 폭 (v2.0.3 T1)', () => {
+  test('무음은 안 쌓는다', () => { expect(keepInTrace(-1, 0)).toBe(false) })
+  test('방금 측정한 값은 쌓는다', () => { expect(keepInTrace(440, 0)).toBe(true) })
+  test('활 바꿈 수준의 짧은 유지(≤ TRACE_HELD_MAX)는 잇는다', () => {
+    for (let h = 1; h <= TRACE_HELD_MAX; h++) expect(keepInTrace(440, h)).toBe(true)
+  })
+  test('소리가 끝난 뒤 꼬리(releaseFrames 6 까지 이어지는 유지)는 비운다', () => {
+    for (let h = TRACE_HELD_MAX + 1; h <= 6; h++) expect(keepInTrace(440, h)).toBe(false)
+  })
+  test('TRACE_HELD_MAX 는 2 — 46 ms. 스타카토 실측 69 % → 86 % 가 이 값에서 나왔다', () => { expect(TRACE_HELD_MAX).toBe(2) })
+})

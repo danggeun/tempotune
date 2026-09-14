@@ -4,7 +4,7 @@
  */
 import { octaveOf, noteLabel } from '../core/note.ts'
 import { histLenFor } from '../core/hist.ts'
-import { buildSegments } from '../core/trace.ts'
+import { buildSegments, keepInTrace } from '../core/trace.ts'
 import { CFG, settingsStore, tunerStore } from '../state/index.ts'
 import { q } from './dom.ts'
 
@@ -164,10 +164,8 @@ export function mountTuner(): void {
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {
     const s = tunerStore.get()
-    // 유지(held) 프레임은 트레이스에 쌓지 않는다. 유지는 **측정이 아니라 마지막 값의 복사**다 —
-    // 그대로 쌓으면 소리가 끝난 뒤에도 마지막 값이 releaseFrames 만큼(≈140 ms) 가로줄로 남는다.
-    // 바늘·음이름은 계속 유지된다(활 바꿈에 깜빡이지 않게) — 트레이스만 "측정이 없었다" 로 비운다.
-    const off = s.hz === -1 || s.held >= 1
+    // 무엇을 트레이스에 쌓을지는 core/trace.ts 가 정한다 (짧은 유지는 잇고, 소리가 끝난 뒤 꼬리는 비운다 — T1)
+    const off = !keepInTrace(s.hz, s.held)
     hist.push(off ? null : s.cents); hist.shift()
     histMidi.push(off ? null : s.midi); histMidi.shift()
     dirty = true; if (raf == null) raf = requestAnimationFrame(paint)
