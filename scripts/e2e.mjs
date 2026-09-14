@@ -303,6 +303,10 @@ await scenario('metro: 재생 중에 화면이 넓어지면 헤더 재생 버튼
   assert.equal(await collapsed(), false, '넓은 화면: 자동 접힘 해제')
   await p.setViewportSize({ width: 390, height: 844 }); await sleep(p, 600)
   assert.equal(await hdr(), 'flex', '다시 폰: 헤더 버튼 복귀')
+  // 폰에서 재생 중에 일부러 펼친 카드는, 높이만 바뀌는 resize(안드로이드 주소창 숨김·키보드)에 다시 접히면 안 된다
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsed(), false, '재생 중 수동 펼침')
+  await p.setViewportSize({ width: 390, height: 700 }); await sleep(p, 600)
+  assert.equal(await collapsed(), false, '높이만 바뀐 resize 에는 접히지 않는다')
   await p.click('#metro-play-hdr-btn'); await sleep(p, 600)
   assert.equal(await hdr(), 'none', '정지하면 헤더 버튼 사라짐')
 })

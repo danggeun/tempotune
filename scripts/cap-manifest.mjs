@@ -5,7 +5,7 @@
 //     (그런데 앱 설정에는 마이크 권한 항목이 아예 안 보인다 — 사용자가 고칠 수 없는 오류). cap:sync 가 매번 실행한다.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /**
@@ -66,4 +66,5 @@ export function main(log = console.log) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+// 직접 실행일 때만 (테스트가 import 할 때는 아니다). pathToFileURL: Windows 는 argv[1] 이 `C:\...` 라 `file://` 접두만으로는 절대 같지 않다
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()

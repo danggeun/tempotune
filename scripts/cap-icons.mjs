@@ -11,7 +11,7 @@
 // 웹/PWA 아이콘은 건드리지 않는다. android/ 가 없으면 조용히 끝낸다 (생성물이라 리포에 없다).
 import { readFileSync, writeFileSync, existsSync, copyFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 /** 밀도별 adaptive 전경 정식 크기(px) — 108dp 를 각 배율로 */
 export const ADAPTIVE_PX = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 }
@@ -56,4 +56,5 @@ export function applyIcons(res = RES, src = SRC, log = console.log) {
   return { copied, xml, skipped: false }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) applyIcons()
+// 직접 실행일 때만. pathToFileURL: Windows 는 argv[1] 이 `C:\...` 라 `file://` 접두만으로는 절대 같지 않다 (정적 리뷰에서 발견)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) applyIcons()

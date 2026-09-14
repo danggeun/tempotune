@@ -120,9 +120,14 @@ export function mountMetro(): void {
     if (playing) buildBeatVis(); else clearDots()
     applyCollapse()
   })
-  // 폭이 바뀌면(회전·태블릿 분할·데스크톱 창) 다시 맞춘다 (C8). 150 ms 디바운스 — 회전 중에는 resize 가 연달아 온다
-  let resizeT: ReturnType<typeof setTimeout> | null = null
-  on(window, 'resize', () => { if (resizeT) clearTimeout(resizeT); resizeT = setTimeout(syncLayout, 150) })
+  // 폭 등급(폰/넓음)이 바뀔 때만 다시 맞춘다 (C8). 150 ms 디바운스 — 회전 중에는 resize 가 연달아 온다.
+  // 등급이 같으면 아무것도 안 한다: 안드로이드는 주소창 숨김·키보드에도 resize 를 내는데, 그때마다 syncLayout 을 하면
+  // 재생 중에 사용자가 일부러 펼친 카드가 스크롤할 때마다 다시 접힌다 (정적 리뷰에서 발견)
+  let resizeT: ReturnType<typeof setTimeout> | null = null, lastPhone = isPhoneLayout()
+  on(window, 'resize', () => {
+    if (resizeT) clearTimeout(resizeT)
+    resizeT = setTimeout(() => { const phone = isPhoneLayout(); if (phone !== lastPhone) { lastPhone = phone; syncLayout() } }, 150)
+  })
   metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); applyCollapse() })
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
