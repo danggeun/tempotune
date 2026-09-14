@@ -64,8 +64,8 @@ button{font-family:inherit;color:inherit;}
 .note-dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;margin-left:3px;vertical-align:-2px;}
 
 /* ── 팝업 ── */
-#mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity var(--t-std);}
-#mic-popup-bg.show{opacity:1;pointer-events:all;}
+#mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);}
+#mic-popup-bg.show{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #mic-popup{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px 22px 18px;max-width:300px;width:90%;display:flex;flex-direction:column;gap:16px;text-align:center;}
 #mic-popup-title{font-size:var(--fs-lg);font-weight:var(--fw-b);color:var(--text);}
 #mic-popup-desc{font-size:var(--fs-base);color:var(--text-2);line-height:1.6;word-break:keep-all;}
@@ -208,8 +208,10 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .ref-note-grid .m-seg{flex:0 1 calc(12.5% - 4px);min-width:0;height:var(--h-seg);font-size:var(--fs-md);padding:0;font-family:inherit;}
 
 /* ── 풀스크린 메뉴 ── */
-#menu-overlay{position:fixed;inset:0;background:var(--bg);z-index:50;opacity:0;pointer-events:none;transition:opacity var(--t-std);overflow-y:auto;}
-#menu-overlay.open{opacity:1;pointer-events:all;}
+/* 닫혔을 때 visibility:hidden — 안 그러면 화면에 없는 메뉴의 버튼들이 Tab 순서와 스크린리더에 그대로 남는다 (C2).
+   inert 는 지원 하한(WebView 94)보다 높아 쓸 수 없어 visibility 로 뺀다. 전환은 페이드가 끝난 뒤(0s var(--t-std))로 미뤄 페이드아웃을 유지한다. */
+#menu-overlay{position:fixed;inset:0;background:var(--bg);z-index:50;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
+#menu-overlay.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #menu-panel{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s6);max-width:480px;margin:0 auto;}
 .menu-top{display:flex;justify-content:space-between;align-items:center;padding:0 0 var(--s2);}
 .menu-title-txt{font-size:var(--fs-xl);font-weight:var(--fw-b);color:var(--text);}
@@ -248,8 +250,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* ── 설정 페이지 ── */
 #settings-version{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);text-align:center;padding-top:var(--s2);}
 #settings-tagline{font-size:var(--fs-xs);color:var(--deco);text-align:center;letter-spacing:var(--ls-caps-wide);text-transform:uppercase;margin-top:-4px;} /* 태그라인은 원거리 헤더에서 여기로 (9 px 로는 아무도 못 읽는다) */
-#settings-page{position:fixed;inset:0;background:var(--bg);z-index:60;opacity:0;pointer-events:none;transition:opacity var(--t-std);overflow-y:auto;}
-#settings-page.open{opacity:1;pointer-events:all;}
+#settings-page{position:fixed;inset:0;background:var(--bg);z-index:60;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
+#settings-page.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #settings-inner{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s3);max-width:480px;margin:0 auto;}
 .settings-top{display:flex;align-items:center;gap:6px;padding-bottom:var(--s2);}
 .settings-back{width:44px;height:44px;margin-left:-12px;background:none;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
