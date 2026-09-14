@@ -26,7 +26,10 @@ const launch = wav => chromium.launch({ executablePath: exe, args: ['--use-fake-
 const URL_ = `http://localhost:${PORT}/`
 const results = []
 let browser
+/** --only <정규식> 로 시나리오 이름을 골라 돌린다 (「작업 효율 규칙」: 바뀐 것과 관련된 e2e 만) */
+const ONLY = typeof args.only === 'string' ? new RegExp(args.only) : null
 async function scenario(name, wav, fn, ctxOpts = {}) {
+  if (ONLY && !ONLY.test(name)) return
   browser = await launch(wav)
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, permissions: ['microphone'], ...ctxOpts })
   const page = await ctx.newPage()

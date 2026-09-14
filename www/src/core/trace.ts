@@ -22,6 +22,26 @@
  */
 export const TRACE_JOIN_MAX = 40
 
+/**
+ * 유지(held) 프레임을 트레이스에 얼마나 허용할 것인가 — `held ≤ TRACE_HELD_MAX` 이면 그린다.
+ * (held = 트래커가 유효 프레임이 끊겨 직전 값을 그대로 다시 내보낸 횟수. 0 = 방금 측정한 값)
+ *
+ * v2.0.2 는 0 이었다: "유지는 측정이 아니라 복사" 라는 이유로 전부 뺐다. 목적은 소리가 끝난 뒤
+ * 마지막 값이 releaseFrames(6프레임 ≈ 140 ms) 동안 가로줄로 남는 것을 없애는 것이었다.
+ * 그런데 실측(`scripts/busy-compare.mjs`)에서 **연주 중에도** 활 바꿈·순간적 약음으로 한두 프레임씩
+ * 유지가 생겨, 화면에 뜬 프레임의 20~31 % 가 선에서 빠졌다(스타카토·펜타포트 15 는 69 % 만 그려짐).
+ * 음이름·바늘은 멀쩡한데 선만 점선이 되는 원인이 이것이었다 (v2.0.3 T1).
+ */
+export const TRACE_HELD_MAX = 2
+
+/**
+ * 이 프레임을 트레이스에 쌓을 것인가. hz -1(무음)은 빈칸, 유지가 TRACE_HELD_MAX 를 넘으면 빈칸.
+ * 바늘·음이름은 이 규칙과 무관하게 계속 유지된다(활 바꿈에 깜빡이지 않게) — 트레이스만 "측정이 없었다" 로 비운다.
+ */
+export function keepInTrace(hz: number, held: number, heldMax = TRACE_HELD_MAX): boolean {
+  return hz !== -1 && held <= heldMax
+}
+
 /** i 와 i+1 을 선으로 이을 것인가. null(무음)은 호출부가 먼저 거른다. */
 export function joinSegment(c0: number, c1: number, m0: number | null, m1: number | null, joinMax = TRACE_JOIN_MAX): boolean {
   if (m0 === m1) return true
