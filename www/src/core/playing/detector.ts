@@ -1,10 +1,11 @@
 /**
  * 연주 감지기 — "악기 소리가 지속되고 있는가" (YAMNet 대체, 설계서 §B5).
  * 프레임 특징: 주기성(conf), 레벨(rms), 배음 수, 스펙트럼 평탄도. 판정은 지속 시간 기반 상태기계:
- *   OFF → ON : 조건 프레임 누적이 attackFrames(≈280 ms)에 도달. 미달 프레임은 missPenalty 만큼 감점 —
+ *   OFF → ON : 조건 프레임 누적이 attackFrames(6프레임 ≈ 140 ms @43 fps)에 도달. 미달 프레임은 missPenalty 만큼 감점 —
  *              음 전환의 1프레임 흔들림은 살아남고, 말소리의 음절 간 공백(2+프레임)은 사실상 리셋된다
  *   ON  → OFF: 조건 미달이 holdFrames(≈250 ms) 연속 (활 바꿈·현 이동·짧은 쉼표는 유지)
- * 설계서 §B5 의 attack 60 ms 는 합성 말소리에서 오검출이 나서 늘렸다 (벤치마크 speech fPlay 0% 기준).
+ * 설계서 §B5 의 attack 60 ms 를 늘린 값이다. 다만 'speech fPlay 0%' 는 **엄격 프리셋**(STRICT_DETECTOR, 현재 미사용)의 수치이고,
+ * 기본값은 음악 우선이라 speech fPlay ≈ 90 % 다 (아래 DEFAULT_DETECTOR 주석).
  * 한계: 노래·휘파람도 잡힌다. 혼자 연습 상황에서는 문제되지 않는다 (진행 상태 결정 로그).
  */
 export interface DetectorParams {
