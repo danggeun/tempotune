@@ -9,6 +9,8 @@ import { tickKind } from '../core/metro/sequencer.ts'
 import { isPhoneLayout } from '../platform/index.ts'
 import { q, qsa, on, reflow } from './dom.ts'
 import { toast } from './toast.ts'
+import { overlayOpen } from './menu.ts'
+import { isEditorOpen } from './editor.ts'
 
 let dots: HTMLElement[] = []
 function buildBeatVis(): void {
@@ -75,7 +77,10 @@ export function mountMetro(): void {
   on(document, 'keydown', (e: KeyboardEvent) => {
     const t = e.target as HTMLElement
     // 포커스된 버튼의 Space 는 그 버튼의 것 (설정 뒤로가기 등에서 메트로놈이 켜지지 않게)
-    if (e.code === 'Space' && t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA' && t.tagName !== 'BUTTON') { e.preventDefault(); const r = toggleMetro(); if (!r.ok) toast(r.error) }
+    if (e.code !== 'Space' || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON') return
+    // 메뉴·설정·팝업·편집기가 떠 있으면 Space 는 메트로놈의 것이 아니다 (C1). 편집기에서는 편집기 재생이 받는다
+    if (overlayOpen() || isEditorOpen()) return
+    e.preventDefault(); const r = toggleMetro(); if (!r.ok) toast(r.error)
   })
 
   // ── 상태 → 화면 ──

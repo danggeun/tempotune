@@ -219,6 +219,29 @@ await scenario('editor: A/B/loop/bookmark flows', 'violin_A4.wav', async p => {
   assert.equal(await p.evaluate(() => document.getElementById('ed-speed-val').textContent), '0.75×')
 })
 
+await scenario('keys: Space 의 주인은 지금 보이는 화면 (C1)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  const metroOn = () => p.evaluate(() => document.getElementById('metro-play-btn').textContent === '■')
+  const edGlyph = () => p.evaluate(() => document.getElementById('ed-play-btn').textContent)
+  // 메인 화면: 기존대로 메트로놈
+  const blur = () => p.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur() }) // 버튼에 포커스가 남아 있으면 Space 는 그 버튼의 것 (의도된 동작)
+  await blur(); await p.keyboard.press('Space'); await sleep(p, 300)
+  assert.equal(await metroOn(), true, '메인에서는 메트로놈')
+  await p.keyboard.press('Space'); await sleep(p, 300); assert.equal(await metroOn(), false)
+  // 메뉴가 열려 있으면 아무 일도 없다
+  await p.click('#menu-btn'); await sleep(p, 300)
+  await blur(); await p.keyboard.press('Space'); await sleep(p, 300)
+  assert.equal(await metroOn(), false, '메뉴 뒤에서 메트로놈이 켜지지 않는다')
+  await p.click('.menu-close-btn'); await sleep(p, 400)
+  // 편집기에서는 편집기 재생
+  await p.click('#rec-hdr-btn'); await sleep(p, 1500); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
+  await blur(); await p.keyboard.press('Space'); await sleep(p, 700)
+  assert.equal(await metroOn(), false, '편집기에서 메트로놈이 켜지지 않는다')
+  assert.equal(await edGlyph(), '❚❚', '편집기 재생이 시작된다')
+  await p.keyboard.press('Space'); await sleep(p, 400); assert.equal(await edGlyph(), '▶', '한 번 더 누르면 멈춘다')
+})
+
 // ── 타이머 / 기준음 / 메뉴 ──
 await scenario('timer: elapsed counts, detected counts while playing, reset', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
