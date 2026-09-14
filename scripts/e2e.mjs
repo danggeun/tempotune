@@ -242,6 +242,28 @@ await scenario('keys: Space 의 주인은 지금 보이는 화면 (C1)', 'violin
   await p.keyboard.press('Space'); await sleep(p, 400); assert.equal(await edGlyph(), '▶', '한 번 더 누르면 멈춘다')
 })
 
+await scenario('keys: 닫힌 메뉴·설정은 Tab 순서에 없다 (C2)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1200)
+  const inside = []
+  for (let i = 0; i < 30; i++) {
+    await p.keyboard.press('Tab')
+    inside.push(await p.evaluate(() => {
+      const a = document.activeElement
+      return !!(a && (a.closest('#menu-overlay') || a.closest('#settings-page') || a.closest('#mic-popup-bg')))
+    }))
+  }
+  assert.equal(inside.some(Boolean), false, '닫힌 오버레이 안으로 포커스가 들어가지 않는다')
+  // 열면 정상적으로 포커스가 간다 (기능이 죽지 않았다는 확인)
+  await p.click('#menu-btn'); await sleep(p, 400)
+  await p.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur() })
+  let reached = false
+  for (let i = 0; i < 30 && !reached; i++) {
+    await p.keyboard.press('Tab')
+    reached = await p.evaluate(() => !!(document.activeElement && document.activeElement.closest('#menu-overlay')))
+  }
+  assert.equal(reached, true, '열린 메뉴는 포커스를 받는다')
+})
+
 // ── 타이머 / 기준음 / 메뉴 ──
 await scenario('timer: elapsed counts, detected counts while playing, reset', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
