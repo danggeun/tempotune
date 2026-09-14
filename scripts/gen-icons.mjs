@@ -23,6 +23,12 @@
 //   resources/icon-foreground.png  1024²  투명 배경 + 마크 (adaptive 전경, 중앙 66 % 안전영역 안)
 //   resources/icon-background.png  1024²  단색 배경 (adaptive 배경)
 //   resources/icon-monochrome.png  1024²  Android 13 테마 아이콘용 — 바늘을 '구멍' 으로 (단색 틴트에서 흰 바늘은 사라지므로)
+//   resources/android/ic_launcher_foreground-{density}.png  108·162·216·324·432  adaptive 전경을 **정식 크기로 네이티브 렌더** (C2)
+//     왜: @capacitor/assets 3.0.5 는 전경을 레거시 아이콘 크기(최대 192)로만 내보내 xxxhdpi 에서 2.25배 확대돼 흐려진다
+//         (`generateAdaptiveIconForeground()` 가 `kind === 'icon'` 으로 필터 — 우리가 icon-foreground.png 를 주면 그 경로를 탄다).
+//         또 `ic_launcher.xml` 이 inset 16.7 % 를 덧씌워 두 번 줄어든다 → scripts/cap-icons.mjs 가 mipmap 을 덮고 inset 을 뺀다.
+//     content 0.48 인 이유: adaptive 108dp 중 실제로 보이는 것은 중앙 72dp(66.7 %)다. 잉크 폭 = 0.52 × 0.48/0.72 = 34.7 %(캔버스 기준)
+//         → 보이는 타일 기준 34.7/0.667 = **52 %** 로 PWA 아이콘과 같아진다.
 //   www/public/icons/icon-192.png / icon-512.png / icon-maskable-512.png   PWA
 import { chromium } from 'playwright'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -159,6 +165,12 @@ writeFileSync(join(ROOT, 'www/public/icons/icon-192.png'), resize(full, 192))
 // maskable: 원형 마스크에도 잘리지 않게 콘텐츠를 중앙 안전영역 안으로
 writeFileSync(join(ROOT, 'www/public/icons/icon-maskable-512.png'), resize(await render(1024, 0.58), 512))
 writeFileSync(join(ROOT, 'resources/icon-foreground.png'), await render(1024, 0.52, { transparent: true }))
+// adaptive 전경 — 밀도별 정식 크기로 **직접** 렌더 (다운샘플이 아니라 그 크기로 그려야 헤어라인 보정이 그 해상도에 맞는다)
+mkdirSync(join(ROOT, 'resources/android'), { recursive: true })
+export const ADAPTIVE_PX = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 }
+for (const [density, px] of Object.entries(ADAPTIVE_PX)) {
+  writeFileSync(join(ROOT, `resources/android/ic_launcher_foreground-${density}.png`), await render(px, 0.48, { transparent: true }))
+}
 writeFileSync(join(ROOT, 'resources/icon-monochrome.png'), await render(1024, 0.52, { transparent: true, mono: true }))
 const bg = new PNG({ width: 1024, height: 1024 })
 const [r, g, b] = [SPEC.bg.slice(1, 3), SPEC.bg.slice(3, 5), SPEC.bg.slice(5, 7)].map(h => parseInt(h, 16))

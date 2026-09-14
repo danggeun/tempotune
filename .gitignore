@@ -1,5 +1,6 @@
 node_modules/
-android/
+# Capacitor 프로젝트(생성물). 하위 경로의 android 폴더(resources/android = 아이콘 소스)는 추적한다
+/android/
 .claude/
 CLAUDE.md
 dist/

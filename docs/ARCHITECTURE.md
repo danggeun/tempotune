@@ -102,10 +102,13 @@ CI(`.github/workflows/ci.yml`)가 push/PR 마다 check → build(두 base) → e
 
 ```bash
 npx cap add android      # 처음 한 번. appId/appName 이 이 시점에 박힌다 (capacitor.config.json)
-npm run cap:assets       # resources/icon.png · icon-foreground.png · icon-background.png → 런처(adaptive) 아이콘
+npm run icons            # (아이콘 원본을 바꿨을 때만) resources/* + resources/android/* 재생성
+npm run cap:assets       # resources/icon*.png → 런처(adaptive) 아이콘 + scripts/cap-icons.mjs 보정(C2)
 npm run cap:sync         # 빌드(base=/) + 복사 + 플러그인 등록 + scripts/cap-manifest.mjs
 npx cap open android     # Android Studio
 ```
+
+`cap-icons.mjs` 는 `capacitor-assets` 출력을 두 군데 고친다(C2): (1) adaptive 전경을 `resources/android/` 의 **정식 크기 렌더**(108/162/216/324/432 px)로 덮는다 — 생성기가 xxxhdpi 에 192 px 만 내보내 2.25배 확대되던 것, (2) `ic_launcher.xml` 의 `inset 16.7%` 래퍼를 벗긴다 — `gen-icons.mjs` 가 이미 안전영역을 반영해 그려서 두 번 줄어들던 것. 결과: 마스크 안 글자 폭 38 % → **52 %**(PWA 와 동일). 웹/PWA 아이콘은 무변경.
 
 `cap-manifest.mjs` 는 (1) `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` / `INTERNET` 권한과 `uses-feature microphone required=false`, (2) `screenOrientation="portrait"`, (3) `build.gradle` 의 `versionName`(= package.json version) / `versionCode`(= major·10000 + minor·100 + patch) 를 보정한다. **버전을 올릴 때는 package.json 의 `version` 만 올리면 된다.** 웹 코드를 바꿀 때마다, 그리고 서명 빌드 직전에 `npm run cap:sync` 를 반드시 실행한다 (`npm run build` 직후 `npx cap sync` 만 하면 `/go_practice/` 경로가 들어간 dist 가 복사되어 흰 화면이 된다).
 
