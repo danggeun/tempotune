@@ -8,7 +8,7 @@ import { settingsStore, tunerStore, metroStore, refToneStore, CFG } from './stat
 import { loadSettings, startSettingsAutosave, onPersistError } from './persist/settings.ts'
 import { openRecDb, onDbError } from './persist/recordingsDb.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError } from './audio/engine.ts'
-import { startAnalysis, lastFrameMs } from './audio/analysis.ts'
+import { startAnalysis, lastFrameMs, metroCalibMs } from './audio/analysis.ts'
 import { playbackActive, playbackDiag } from './audio/playback.ts'
 import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
@@ -155,7 +155,7 @@ if (!isNative() && 'serviceWorker' in navigator) {
 
 // ── 진단 훅 (e2e/디버그): 워커 프레임 시간, 컨텍스트 상태 ──
 ;(window as unknown as { __gp: unknown }).__gp = {
-  stats: () => ({ frameMs: lastFrameMs(), acState: A.ac?.state ?? 'none', micOpen: !!A.micStream, sampleRate: A.sampleRate }),
+  stats: () => ({ frameMs: lastFrameMs(), acState: A.ac?.state ?? 'none', micOpen: !!A.micStream, sampleRate: A.sampleRate, metroCalibMs: metroCalibMs() }),
   ac: () => A.ac,
   /** 테스트용: 마지막 활동 시각을 과거로 (무활동 감시 검증) */
   backdate: (ms: number) => tunerStore.set({ lastActivityMs: Date.now() - ms }),

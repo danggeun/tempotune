@@ -34,8 +34,9 @@ async function ensureNode(): Promise<AudioWorkletNode> {
       const delay = Math.max(0, (m.t - ac.currentTime + outLat) * 1000)
       setTimeout(() => { if (metroStore.get().playing) metroStore.set({ lastTick: { tick: m.tick, n: ++tickN } }) }, delay)
       // 클릭이 스피커→마이크로 누설되는 구간을 워커에 알린다 (해당 창은 신뢰도를 낮춰 처리). 클릭이 마이크에 닿는 시각(t + 출력지연)부터
-      // 클릭 길이 + 입력지연 여유(60 ms)까지 — 창 겹침 93 ms 가 더해지므로 여유를 크게 주면 빠른 템포에서 모든 창이 걸린다
-      if (micOpen() && !m.muted) muteAnalysis(m.t + outLat - 0.01, m.t + outLat + m.dur + 0.06)
+      // 클릭 길이 + 여유(60 ms)까지 — 창 겹침 93 ms 가 더해지므로 여유를 크게 주면 빠른 템포에서 모든 창이 걸린다.
+      // **입력 지연**(마이크 쪽, 표준 API 없음)은 여기서 모른다 — 워커가 실제 도착 시각을 재서 구간을 그만큼 민다 (M1, core/metro/arrival.ts)
+      if (micOpen() && !m.muted) { const at = m.t + outLat; muteAnalysis(at - 0.01, at + m.dur + 0.06, at) }
     }
     // 소프트 리미터를 한 단 둔다 (A-2). 클릭을 키우면 세분음 꼬리와 다음 박이 겹치는 순간, 그리고 어택
     // 트랜지언트에서 합이 1.0 을 넘을 수 있다 — 하드 클리핑은 폰 스피커에서 유난히 거칠게 들린다.

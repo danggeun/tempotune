@@ -169,6 +169,6 @@ export function resumeIfRunning(): void {
   if (tunerStore.get().running) sendToWorker({ type: 'reset', afterT: A.ac.currentTime })
 }
 /** 메트로놈 클릭 구간을 워커에 알려 그 창의 프레임을 버리게 한다 (같은 컨텍스트 시계) */
-export function muteAnalysis(fromT: number, untilT: number): void { if (A.worker) sendToWorker({ type: 'mute', from: fromT, until: untilT }) }
+export function muteAnalysis(fromT: number, untilT: number, at: number): void { if (A.worker) sendToWorker({ type: 'mute', from: fromT, until: untilT, at }) }
 
 settingsStore.subscribe(() => { if (A.worker) sendToWorker({ type: 'settings', settings: analyzerSettings() }) })
