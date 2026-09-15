@@ -48,29 +48,47 @@ function seek(idx: number): void { const sk = document.getElementById('rec-seek-
 export function releaseAudio(a: HTMLAudioElement): void { detachGain(a); try { a.pause(); a.removeAttribute('src'); a.load() } catch { /* */ } }
 export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { releaseAudio(a); delete players[idx] } }
 
-/** 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고 — 열어 보기 전에 '어느 녹음인지' 알 수 있게 (UX 감사 B4). 없으면 줄 자체가 없다 */
-export function itemMeta(item: RecItem, now = Date.now()): string {
+/**
+ * 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고 — 열어 보기 전에 '어느 녹음인지' 알 수 있게 (UX 감사 B4). 없으면 줄 자체가 없다.
+ * 마지막 요소가 `link` 면 탭할 수 있는 글자다(F2): 예고 중이면 '남기기', 남긴 뒤면 '자동 삭제 안 함'(탭하면 해제).
+ * 자동 삭제 스위치는 버튼 줄(편집·다운로드·삭제 = 지금 하는 동작)에 두지 않는다 — 그건 항목의 상태라 범주가 다르고,
+ * 30일 중 마지막 7일에만 뜻이 있는데 자리를 늘 차지한다. 상태가 사는 자리(예고문) 안에서만, 필요한 때만 나타난다.
+ */
+export function itemMeta(item: RecItem, now = Date.now()): { text: string; link: string | null } {
   const parts: string[] = []
   if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
   if (item.ab) parts.push('A-B')
   const autoDelete = settingsStore.get().autoDelete
-  // '삭제 방지' 는 자동 삭제가 켜져 있을 때만 뜻이 있다 — 꺼져 있으면 버튼도 표시도 숨긴다 (플래그는 남아 다시 켜면 되살아난다). (F2)
-  if (item.keep && autoDelete) parts.push('삭제 방지')
-  // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만). 판정은 persist 와 같은 함수를 쓴다
-  const d = warnDaysLeft(item.ts, item.keep, autoDelete, now)
-  if (d !== null) parts.push((d === 0 ? '오늘 삭제' : `${d}일 후 삭제`) + ' · 삭제 방지를 누르면 남아요')
-  return parts.join(' · ')
+  let link: string | null = null
+  // 남긴 표시는 자동 삭제가 켜져 있을 때만 뜻이 있다 — 꺼져 있으면 숨긴다 (플래그는 남아 다시 켜면 되살아난다)
+  if (item.keep && autoDelete) link = '자동 삭제 안 함'
+  else {
+    // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만). 판정은 persist 와 같은 함수를 쓴다
+    const d = warnDaysLeft(item.ts, item.keep, autoDelete, now)
+    if (d !== null) { parts.push(d === 0 ? '오늘 삭제' : `${d}일 후 삭제`); link = '남기기' }
+  }
+  return { text: parts.join(' · '), link }
+}
+/** 메타 줄을 그린다 — 글자는 textContent 로, 탭 가능한 꼬리만 span (사용자 데이터 없음) */
+function renderMeta(el: Element, item: RecItem, idx: number): void {
+  const m = itemMeta(item)
+  el.textContent = m.text
+  if (m.link) {
+    if (m.text) el.append(' · ')
+    const a = document.createElement('span'); a.className = 'rec-keep-link'; a.dataset.action = 'keep'; a.dataset.idx = String(idx); a.textContent = m.link
+    el.appendChild(a)
+  }
 }
 
-/** 삭제 방지 토글 (F2). 풀 때 이미 삭제 기한이 지났다면 다음 실행에서 조용히 사라지므로 미리 알린다 */
+/** 남기기 토글 (F2). 풀 때 이미 삭제 기한이 지났다면 다음 실행에서 조용히 사라지므로 미리 알린다 */
 function toggleKeep(item: RecItem): void {
   const next = !item.keep
   const applied = patchRec(item, { keep: next })
   if (!applied) return
   if (next) { toast('이 녹음은 자동 삭제되지 않아요'); return }
   if (expires(applied.ts, false, settingsStore.get().autoDelete, Date.now())) {
-    toast('삭제 방지를 풀었어요 — 이미 기한이 지나 다음 실행에서 삭제됩니다 · 되돌리기', 5000, () => { patchRec(applied, { keep: true }) })
-  } else toast('삭제 방지를 풀었어요')
+    toast('이미 기한이 지나 다음 실행에서 삭제됩니다 · 되돌리기', 5000, () => { patchRec(applied, { keep: true }) })
+  } else toast('다시 자동 삭제 대상이 됐어요')
 }
 
 function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLElement {
@@ -89,14 +107,13 @@ function renderItem(item: RecItem, idx: number, defaultOpen: boolean): HTMLEleme
           </div>
           <div class="rec-item-btns">
             <button class="rec-item-btn" data-action="edit" data-idx="${idx}">편집</button>
-            ${settingsStore.get().autoDelete ? `<button class="rec-item-btn keep${item.keep ? ' on' : ''}" data-action="keep" data-idx="${idx}">삭제 방지</button>` : ''}
             <a class="rec-item-btn rec-dl-link" href="${item.url}" data-action="download" data-idx="${idx}">다운로드</a>
             <button class="rec-item-btn del" data-action="delete" data-idx="${idx}">삭제</button>
           </div>
         </div>
       </div>`
   div.querySelector('.rec-item-name')!.textContent = displayName(item) // 사용자 데이터는 textContent 로만 (인젝션 방지)
-  div.querySelector('.rec-item-meta')!.textContent = itemMeta(item)
+  renderMeta(div.querySelector('.rec-item-meta')!, item, idx)
   ;(div.querySelector('.rec-dl-link') as HTMLAnchorElement).download = recFileName(item)
   return div
 }
@@ -152,8 +169,7 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
   recListStore.select(s => s.items, items => {
     list.querySelectorAll<HTMLElement>('.rec-item[data-idx]').forEach(el => {
       const it = items[+el.dataset.idx!]; if (!it) return
-      const m = el.querySelector('.rec-item-meta'); if (m) m.textContent = itemMeta(it)
-      el.querySelector('.rec-item-btn.keep')?.classList.toggle('on', !!it.keep)
+      const m = el.querySelector('.rec-item-meta'); if (m) renderMeta(m, it, +el.dataset.idx!)
     })
   })
 }

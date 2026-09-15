@@ -232,6 +232,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .rec-item-name{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rec-item-meta{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);margin-top:3px;letter-spacing:.02em;}
 .rec-item-meta:empty{display:none;}
+.rec-keep-link{color:var(--text-2);text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:6px 2px;margin:-6px -2px;} /* 예고문 안의 탭 가능한 꼬리(남기기 / 자동 삭제 안 함) — 글자는 작지만 탭 영역은 패딩으로 키운다 (F2) */
 .rec-item-dur{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text-2);}
 .rec-item-detail{display:none;margin-top:10px;}
 .rec-item-detail.open{display:flex;flex-direction:column;gap:7px;}
@@ -242,7 +243,6 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .rec-player{display:flex;flex-direction:column;gap:7px;}
 .rec-player-top{display:flex;align-items:center;gap:8px;}
 .rec-item-btns{display:flex;gap:6px;}
-.rec-item-btn.keep.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);} /* 켜짐 표시는 앱 공통 언어(A-B·확대와 동일) — F2 */
 .rec-old{display:none;flex-direction:column;gap:8px;margin-top:8px;}
 .rec-old.open{display:flex;}
 .rec-more{width:100%;height:var(--h-seg);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text-2);font-size:var(--fs-btn-sm);font-weight:var(--fw-md);cursor:pointer;text-align:center;margin-top:2px;}
