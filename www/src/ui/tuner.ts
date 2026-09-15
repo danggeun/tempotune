@@ -93,7 +93,12 @@ function drawHistory(inTune: boolean): void {
     const y0 = (i + .5) * rH, y1 = (j + .5) * rH
     const x0 = W / 2 + Math.max(-50, Math.min(50, v0)) * ppc, x1 = W / 2 + Math.max(-50, Math.min(50, v1)) * ppc
     c.globalAlpha = .22 + (i / (N - 1)) * .78
-    c.strokeStyle = Math.abs(v0) <= tol ? `rgb(${okRgb})` : '#ffffff'
+    // 트레이스는 **항상 흰색**. 맞음을 색으로 또 말하면, 하필 맞은 순간에 초록 선이 초록 띠 위에 얹혀
+    // 대비가 가장 낮아진다(실측 4.53:1 → 흰색 5.92:1; 녹색맹에서는 4.45 → 5.88).
+    // 정보 손실은 없다 — 띠는 |cents| ≤ tol 구간을 그대로 칠하고 트레이스의 x 도 같은 cents 축이므로
+    // '선이 띠 안에 있다' 가 '맞았다' 와 정확히 같은 뜻이다. 색은 그 말을 중복해서 할 뿐이었다.
+    // 띠는 '영역', 트레이스는 '신호' — 신호가 영역보다 앞에 있어야 한다(이 파일의 띠 알파 주석과 같은 규칙).
+    c.strokeStyle = '#ffffff'
     c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke()
   }
   c.globalAlpha = 1; c.restore()
