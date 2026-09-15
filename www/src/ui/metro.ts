@@ -1,7 +1,7 @@
 /**
  * 메트로놈 카드 UI — BPM 표시/드래그, 박자·세분 버튼, 비트 점, 강박 flash, 접기/펼치기.
  * 접힘은 CSS grid(0fr/1fr) 트랜지션 — v1의 maxHeight 측정 코드는 제거(설계서 §C3).
- * 표시 규칙(v1 유지): 폰 레이아웃에서는 "사용자가 접음 OR 재생 중"이면 접힌다.
+ * 표시 규칙(U1 이후): 폰 레이아웃에서는 **사용자가 접었을 때만** 접힌다. 재생은 접힘에 관여하지 않는다.
  */
 import { CFG, metroStore, settingsStore, type SubDiv, type TimeSig } from '../state/index.ts'
 import { setBPM, adjBPM, setTimeSig, setSubDiv, setMetroVol, toggleMetro, totalTicks } from '../audio/metronome.ts'
@@ -53,11 +53,9 @@ function attachDrag(el: HTMLElement): void {
   on(window, 'touchend', () => { sw = false })
 }
 
-/** 재생 시작이 접었으면(사용자가 펼쳐 두었던 것) 정지 때 다시 펼친다 — v1 동작 유지. 재생 중 사용자가 펼치면 그대로 둔다 */
-let autoCollapsed = false
 function applyCollapse(): void {
   const { collapsed, playing } = metroStore.get()
-  const effective = isPhoneLayout() && collapsed // 재생 '시작' 시 자동으로 접히지만(아래), 재생 중에도 펼쳐서 박자·세분·음량을 바꿀 수 있다 (리뷰)
+  const effective = isPhoneLayout() && collapsed // 접힘은 오직 사용자가 정한다 (U1). 재생은 접힘 상태를 바꾸지 않는다
   q('metro-body-wrap').classList.toggle('collapsed', effective)
   q('metro-card').classList.toggle('bar', effective && playing) // 접힌 채 재생: 헤더 점을 키워 원거리에서 박이 보이게
   if (effective) clearDots()
@@ -65,19 +63,15 @@ function applyCollapse(): void {
 
 /**
  * 폭에 따라 달라지는 것들을 한 곳에 모은다 (C8). 전에는 재생을 시작하는 순간에만 판정해서,
- * 폰에서 재생 중에 화면을 돌리면 헤더 재생 버튼이 넓은 화면에도 남고 자동 접힘이 풀리지 않았다.
+ * 폰에서 재생 중에 화면을 돌리면 헤더 재생 버튼이 넓은 화면에도 남았다.
+ *
+ * U1(베타 피드백 #1): 재생 시작 시 자동 접힘을 없앴다. "연습 중엔 튜너만" 은 우리 가정이었고,
+ * 실사용자는 메트로놈을 **보려고** 켠다. 접힘은 이제 오직 접기 버튼으로만 바뀐다.
+ * 헤더 재생 버튼은 '접힌 채 재생 중' 일 때만 — 펼쳐져 있으면 본체 재생 버튼이 보여 둘이 겹친다.
  */
 function syncLayout(): void {
-  const playing = metroStore.get().playing
-  if (isPhoneLayout()) {
-    q('metro-play-hdr-btn').style.display = playing ? 'flex' : 'none'
-    if (playing && !metroStore.get().collapsed) { autoCollapsed = true; metroStore.set({ collapsed: true }) } // 시작 시 자동 접힘 (연습 중엔 튜너만). 접기 버튼은 남아 재생 중에도 펼칠 수 있다
-    else if (!playing && autoCollapsed) { autoCollapsed = false; metroStore.set({ collapsed: false }) }
-  } else {
-    // 넓은 화면에서는 본체가 다 보이므로 헤더 재생 버튼이 필요 없고, 자동으로 접었던 것도 펴 준다
-    q('metro-play-hdr-btn').style.display = 'none'
-    if (autoCollapsed) { autoCollapsed = false; metroStore.set({ collapsed: false }) }
-  }
+  const { playing, collapsed } = metroStore.get()
+  q('metro-play-hdr-btn').style.display = isPhoneLayout() && playing && collapsed ? 'flex' : 'none'
   applyCollapse()
 }
 
@@ -85,7 +79,7 @@ export function mountMetro(): void {
   attachDrag(q('metro-bpm-wrap')); attachDrag(q('metro-hdr-label'))
   on(q('metro-play-hdr-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
   on(q('metro-play-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
-  on(q('metro-collapse-btn'), 'click', () => { autoCollapsed = false; metroStore.set({ collapsed: !metroStore.get().collapsed }) }) // 사용자가 직접 만지면 자동 접힘 기억은 지운다
+  on(q('metro-collapse-btn'), 'click', () => metroStore.set({ collapsed: !metroStore.get().collapsed }))
   qsa('.m-adj, .m-adj-pad').forEach(b => on(b, 'click', () => adjBPM(b.textContent === '−' ? -1 : 1)))
   const volMain = q<HTMLInputElement>('metro-vol'), volPad = q<HTMLInputElement>('metro-vol-pad-input')
   on(volMain, 'input', () => { setMetroVol(+volMain.value); volPad.value = volMain.value })
@@ -128,7 +122,7 @@ export function mountMetro(): void {
     if (resizeT) clearTimeout(resizeT)
     resizeT = setTimeout(() => { const phone = isPhoneLayout(); if (phone !== lastPhone) { lastPhone = phone; syncLayout() } }, 150)
   })
-  metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); applyCollapse() })
+  metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); syncLayout() }) // 헤더 재생 버튼이 접힘에 달려 있다
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
   // 초기 상태 (v1): 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션

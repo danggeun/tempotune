@@ -94,27 +94,35 @@ await scenario('settings: note names C D E — tuner shows A with 라 as seconda
 })
 
 // ── 메트로놈 ──
-await scenario('metro: play/stop, collapse on play (phone), header bpm', 'silence_lowfloor.wav', async p => {
+// U1: 재생은 접힘을 건드리지 않는다. 접힘은 접기 버튼으로만 바뀐다.
+await scenario('metro: play/stop 이 접힘을 바꾸지 않는다 (U1), header bpm', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 900)
   const collapsedEl = () => p.evaluate(() => (document.getElementById('metro-body-wrap') || document.getElementById('metro-body')).classList.contains('collapsed'))
+  const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
   assert.equal(await collapsedEl(), true, 'collapsed after load on phone')
   await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false)
   assert.equal(await p.evaluate(() => document.getElementById('metro-collapse-btn').classList.contains('collapsed')), false)
   await p.click('#metro-play-btn'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
-  assert.equal(await collapsedEl(), true, 'collapses while playing')
-  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display), 'flex')
+  assert.equal(await collapsedEl(), false, 'U1: 펼친 채 재생하면 펼친 채로 남는다')
+  assert.equal(await hdr(), 'none', '펼쳐져 있으면 헤더 재생 버튼은 숨는다 (본체 버튼과 겹치지 않게)')
   await sleep(p, 1600)
   const lit = await p.evaluate(() => document.querySelectorAll('#beat-vis .bd.lit-a, #beat-vis .bd.lit-b, #beat-vis .bd.lit-s').length); assert.ok(lit >= 0)
-  // 재생 중에도 펼쳐서 박자를 바꿀 수 있다 (final review) — 접기 버튼이 남아 있다
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('metro-collapse-btn')).display), 'flex', 'collapse btn stays while playing')
-  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false, 'expanded while playing')
   await p.click('[data-ts="3"]'); assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '3')
-  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), true)
+  // 재생 중에 직접 접으면 접히고, 그때만 헤더 재생 버튼이 나온다
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), true, '재생 중 수동 접기')
+  assert.equal(await hdr(), 'flex', '접힌 채 재생 중 → 헤더 재생 버튼')
   await p.click('#metro-play-hdr-btn'); await sleep(p, 700)
-  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶'); assert.equal(await collapsedEl(), true, 'user collapsed it explicitly → stays')
-  await p.click('#metro-collapse-btn'); await sleep(p, 700); await p.click('#metro-play-btn'); await sleep(p, 300); assert.equal(await collapsedEl(), true)
-  await p.click('#metro-play-hdr-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false, 'expands back (auto-collapsed at start)')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶')
+  assert.equal(await collapsedEl(), true, 'U1: 정지해도 접힘은 그대로')
+  assert.equal(await hdr(), 'none', '정지하면 헤더 재생 버튼은 사라진다')
+  // 접힌 채 재생 → 접힌 채로 남는다
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false)
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), true)
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); await p.click('#metro-play-btn'); await sleep(p, 300)
+  assert.equal(await collapsedEl(), false, 'U1: 펼친 채 재생 — 여전히 펼침')
+  await p.click('#metro-play-btn'); await sleep(p, 300)
 })
 await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots count', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600)
@@ -326,22 +334,24 @@ await scenario('keys: 닫힌 메뉴·설정은 Tab 순서에 없다 (C2)', 'viol
 
 await scenario('metro: 재생 중에 화면이 넓어지면 헤더 재생 버튼이 사라진다 (C8)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1200)
-  await p.click('#metro-collapse-btn'); await sleep(p, 700) // 시작 시 자동으로 접혀 있다 → 본체 재생 버튼을 쓰려면 편다
   const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
   const collapsed = () => p.evaluate(() => document.getElementById('metro-collapse-btn').classList.contains('collapsed'))
-  await p.click('#metro-play-btn'); await sleep(p, 600)
-  assert.equal(await hdr(), 'flex', '폰: 재생 중 헤더 버튼')
-  assert.equal(await collapsed(), true, '폰: 재생 시작 시 자동 접힘')
+  // 로드 직후 폰에서는 접혀 있다. 접힌 채 재생을 시작한다 (헤더 버튼이 나오는 유일한 조건)
+  assert.equal(await collapsed(), true, '폰: 로드 직후 접힘')
+  await p.click('#metro-collapse-btn'); await sleep(p, 700); await p.click('#metro-play-btn'); await sleep(p, 300)
+  await p.click('#metro-collapse-btn'); await sleep(p, 700)
+  assert.equal(await collapsed(), true, '재생 중 수동 접기')
+  assert.equal(await hdr(), 'flex', '폰: 접힌 채 재생 중 헤더 버튼')
   await p.setViewportSize({ width: 900, height: 844 }); await sleep(p, 600)
   assert.equal(await hdr(), 'none', '넓은 화면: 헤더 버튼 없음')
-  assert.equal(await collapsed(), false, '넓은 화면: 자동 접힘 해제')
   await p.setViewportSize({ width: 390, height: 844 }); await sleep(p, 600)
   assert.equal(await hdr(), 'flex', '다시 폰: 헤더 버튼 복귀')
+  assert.equal(await collapsed(), true, 'U1: 폭이 바뀌어도 접힘은 사용자가 정한 그대로')
   // 폰에서 재생 중에 일부러 펼친 카드는, 높이만 바뀌는 resize(안드로이드 주소창 숨김·키보드)에 다시 접히면 안 된다
   await p.click('#metro-collapse-btn'); await sleep(p, 700); assert.equal(await collapsed(), false, '재생 중 수동 펼침')
   await p.setViewportSize({ width: 390, height: 700 }); await sleep(p, 600)
   assert.equal(await collapsed(), false, '높이만 바뀐 resize 에는 접히지 않는다')
-  await p.click('#metro-play-hdr-btn'); await sleep(p, 600)
+  await p.click('#metro-play-btn'); await sleep(p, 600)
   assert.equal(await hdr(), 'none', '정지하면 헤더 버튼 사라짐')
 })
 
@@ -406,7 +416,7 @@ await scenario('metro+tuner: note keeps showing while metronome clicks (mute ran
   await p.click('#metro-collapse-btn'); await sleep(p, 600); await p.click('#metro-play-btn'); await sleep(p, 2500)
   let shown = 0; for (let i = 0; i < 10; i++) { if ((await tunerText(p)).note === '라') shown++; await sleep(p, 120) }
   assert.ok(shown >= 6, 'note visible in most samples while clicking: ' + shown + '/10')
-  await p.click('#metro-play-hdr-btn')
+  await p.click('#metro-play-btn') // U1: 펼친 채 재생 중이라 헤더 버튼은 없다
 })
 
 // ── Phase 3: 메트로놈 정확도 / BPM 즉시 반영 / 마이크 없는 기준음 ──
@@ -435,14 +445,14 @@ function sr48(s) { return Math.round(48000 * s) }
 await scenario('metro: bpm change while playing does not restart (beats keep coming, playing stays)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600)
   await p.click('#metro-play-btn'); await sleep(p, 900)
-  // 재생 중엔 본체가 접혀 있으므로 헤더 ♩BPM 라벨을 드래그해 올린다 (2 px/BPM → 60 px = +30)
+  // 헤더 ♩BPM 라벨을 드래그해 올린다 (2 px/BPM → 60 px = +30). 헤더는 접힘과 무관하게 항상 보인다
   const box = await p.locator('#metro-hdr-label').boundingBox()
   await p.mouse.move(box.x + 10, box.y + 10); await p.mouse.down(); await p.mouse.move(box.x + 10, box.y + 10 - 60, { steps: 6 }); await p.mouse.up()
   assert.equal(await p.evaluate(() => document.getElementById('metro-bpm').textContent), '110')
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
   const seen = new Set(); for (let i = 0; i < 25; i++) { seen.add(await p.evaluate(() => document.querySelector('#beat-vis .bd.lit-a, #beat-vis .bd.lit-b, #beat-vis .bd.lit-s')?.dataset.tick ?? '-')); await sleep(p, 60) }
   assert.ok(seen.size >= 2, 'beat dots advancing after bpm change: ' + [...seen].join(','))
-  await p.click('#metro-play-hdr-btn')
+  await p.click('#metro-play-btn') // U1: 펼친 채 재생 중이라 헤더 버튼은 없다
 })
 await scenario('ref tone plays without mic (single AudioContext)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel')
