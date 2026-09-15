@@ -1,4 +1,4 @@
-# Go practice
+# TempoTune
 
 > 현악기 연습을 위한 크로마틱 튜너 · 메트로놈 · 기준음 · 녹음 편집기
 > 웹(PWA) + Android 앱 (Capacitor)

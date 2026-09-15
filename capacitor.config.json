@@ -1,6 +1,6 @@
 {
   "appId": "com.gopractice.app",
-  "appName": "Go practice",
+  "appName": "TempoTune",
   "webDir": "dist",
   "backgroundColor": "#181b21",
   "server": {
