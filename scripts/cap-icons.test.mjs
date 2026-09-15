@@ -72,7 +72,7 @@ describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
   })
 })
 
-describe('생성된 전경 실측 — 정식 크기 + 보이는 글자 폭 (C2 목표)', () => {
+describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 목표)', () => {
   const dir = join(import.meta.dirname, '..', 'resources', 'android')
   const files = Object.entries(ADAPTIVE_PX)
   test.skipIf(!existsSync(dir))('밀도별 크기가 108dp 정식값이다', () => {
@@ -81,15 +81,31 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 글자 폭 (C2 �
       expect([p.width, p.height]).toEqual([px, px])
     }
   })
-  test.skipIf(!existsSync(dir))('잉크 폭 34.7 ± 1 % → 마스크 안에서 52 ± 2 %', () => {
+  // v2.1.0: 워드마크(보이는 폭 52 %)를 다이얼로 교체하면서 목표가 82 % 로 올라갔다 —
+  // 이전 아이콘이 홈 화면에서 "있는 줄도 몰랐다" 는 지적을 받았기 때문이다(베타 피드백 #1).
+  // gen-icons 의 inkW 0.82 × (content 0.48 / 0.72) = 캔버스의 54.7 % → 보이는 타일 기준 82 %.
+  test.skipIf(!existsSync(dir))('잉크 폭 54.7 ± 1.5 % → 마스크 안에서 82 ± 2.5 %', () => {
     for (const [d] of files) {
       const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_foreground-${d}.png`)))
       let x0 = p.width, x1 = -1
       for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) { if (p.data[(y * p.width + x) * 4 + 3] < 24) continue; if (x < x0) x0 = x; if (x > x1) x1 = x }
       const ink = (x1 - x0 + 1) / p.width * 100
-      expect(ink).toBeGreaterThan(33.7); expect(ink).toBeLessThan(35.7)
+      expect(ink).toBeGreaterThan(53.2); expect(ink).toBeLessThan(56.2)
       const visible = ink / (72 / 108) // adaptive 108dp 중 보이는 것은 중앙 72dp
-      expect(Math.abs(visible - 52)).toBeLessThan(2)
+      expect(Math.abs(visible - 82)).toBeLessThan(2.5)
+    }
+  })
+  // 원형 마스크(적응형은 원으로 잘린다)에서 마크가 잘리지 않는다: 보이는 72dp 원 안에 들어와야 한다
+  test.skipIf(!existsSync(dir))('원형 안전영역(중앙 72dp) 밖으로 잉크가 나가지 않는다', () => {
+    for (const [d, px] of files) {
+      const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_foreground-${d}.png`)))
+      const c = px / 2, r = px * (72 / 108) / 2
+      let out = 0
+      for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
+        if (p.data[(y * p.width + x) * 4 + 3] < 24) continue
+        if (Math.hypot(x + 0.5 - c, y + 0.5 - c) > r) out++
+      }
+      expect(out).toBe(0)
     }
   })
   test.skipIf(!existsSync(dir))('투명 배경이다 (adaptive 전경은 배경 레이어와 합성된다)', () => {
