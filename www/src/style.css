@@ -7,20 +7,29 @@
   /* 면 — **다크 고정** (v2.0.2). 앱의 정체성(세리프 워드마크·검정 튜너 카드·초록)이 전부 어두운 쪽이고,
      실사용이 연습실·밤·거리 두고 보는 화면이라 흰 프레임이 검정 카드와 따로 놀았다. 시스템 설정을 따르지 않는다. */
   color-scheme:dark;
-  --bg:#0f0f0f;--surface:#1a1a1a;--surface-2:#262626;
+  /* 면 램프 — 단차는 WCAG 대비가 아니라 **지각 명도 ΔL\*** 로 잡는다(대비비는 글자 가독성용이고 어두운 값에서 압축된다).
+     한 단 = ΔL* 5~8. 무대 4.3 → bg 9.7 → surface 15.9 → surface-2 21.1 (ΔL* 5.4 / 6.2 / 5.2).
+     v2.0.2 는 무대가 순검정(L*0)이고 bg 가 L*4.3 이라 화면 전체가 '바닥에 깔린 한 덩어리 검정' 으로 읽혔다 (베타 피드백 #1).
+     램프 전체를 들어 올려 면이 층으로 나뉘게 했다. 약간의 한색(색상 ≈220°)은 중성 회색의 '죽은' 느낌을 없애고
+     경고색(빨강·앰버)과 색상환에서 멀어져 상태색이 더 또렷해진다. */
+  --bg:#181b21;--surface:#232830;--surface-2:#2e333c;
   /* 경계 — 하나의 헤어라인. 강조는 색으로, 굵기로 하지 않는다 */
-  --line:#343434;--line-strong:#4a4a4a;
+  --line:#363c46;--line-strong:#4d5560;
   /* 조작 요소(버튼·세그먼트) 테두리 — 면 구분선(--line)과 분리 (v2.0.3 D3). 어두운 면 위 1.4:1 이던 것을 WCAG 1.4.11 의 3:1 로.
      카드·구분선은 '얇고 낮게' 원칙대로 --line 을 유지한다. 그림으로 비교해 정함 (scripts/render-design.mjs) */
-  --line-ctl:#6a6a6a;
+  --line-ctl:#757d88;
   /* 글자 3단계 — text-3 는 '읽으라고 둔 보조문' 까지 AA(4.5:1) 를 넘긴다(#8a8a8a = 5.3:1; v2.0.2 의 #7c7c7c 는 4.2 로 미달이었다 — D1). 순수 장식은 --deco */
-  --text:#f0f0f0;--text-2:#9a9a9a;--text-3:#8a8a8a;--deco:#5a5a5a;
+  --text:#dfe3e8;--text-2:#a2a9b2;--text-3:#99a1aa;--deco:#616974;
   /* 액센트 — 빨강 하나. 어두운 면 위에서 4.6:1 이 되도록 반 톤 밝게 */
-  --accent:#ec4646;--accent-rgb:236,70,70;--accent-soft:rgba(236,70,70,.13);
+  /* 액센트 — 빨강 하나. **두 값으로 나눈다**: 어두운 면 위의 '글자·테두리' 와 흰 글자를 얹는 '면'.
+     v2.0.2 는 하나로 썼는데, 흰 글자/#ec4646 = 3.80:1 로 WCAG AA(4.5) 미달이었다(실측).
+     채도 높은 빨강을 큰 면적에 그대로 쓰면 각성도도 높다 — 면적 × 채도는 함께 줄인다. */
+  --accent:#f15f54;--accent-rgb:241,95,84;--accent-soft:rgba(241,95,84,.13); /* 글자·테두리(작은 면적) — 채도 85%, surface 위 4.59:1 */
+  --accent-fill:#cc473e; /* 솔리드 버튼(큰 면적) — 채도 58% 로 낮춘다. 흰 글자 4.63:1 */
   /* 상태 — 맞음(초록)은 튜너 안에서만. 앰버는 두 곳: 주의 점(--warn) 과 북마크 표식(--mark) — 같은 색, 다른 이름 (뜻이 섞이지 않게) */
   --ok:#22c55e;--ok-rgb:34,197,94;--warn:#f59e0b;--mark:#f59e0b;--mark-rgb:245,158,11;
   /* 튜너 카드 전용 (라이트/다크 무관하게 항상 검정 무대) */
-  --tuner-bg:#000;--tuner-line:#1c1c1c;--tuner-well:#111;--tuner-text-1:#aaa;--tuner-text-2:#8a8a8a;--tuner-text-3:#7a7a7a;--tuner-empty:#2a2a2a; /* text-3 = 이명(레♭·C♯·D♭) — 정보라 4.6:1 (D2; 옛 #555 는 2.8) */
+  --tuner-bg:#0d0f13;--tuner-line:#1f242c;--tuner-well:#151a21;--tuner-text-1:#b6bcc4;--tuner-text-2:#949aa2;--tuner-text-3:#868c94;--tuner-empty:#2f353d; /* text-3 = 이명(레♭·C♯·D♭) — 정보라 4.6:1 (D2; 옛 #555 는 2.8) */
   /* 형태 */
   --r-lg:16px;--r-md:10px;--r-sm:7px;
   --gap:8px;
@@ -69,7 +78,7 @@ button{font-family:inherit;color:inherit;}
 #mic-popup{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px 22px 18px;max-width:300px;width:90%;display:flex;flex-direction:column;gap:16px;text-align:center;}
 #mic-popup-title{font-size:var(--fs-lg);font-weight:var(--fw-b);color:var(--text);}
 #mic-popup-desc{font-size:var(--fs-base);color:var(--text-2);line-height:1.6;word-break:keep-all;}
-#mic-popup-btn{height:var(--h-control);background:var(--accent);border:none;border-radius:var(--r-md);color:#fff;font-size:var(--fs-base);font-weight:var(--fw-b);cursor:pointer;}
+#mic-popup-btn{height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:#fff;font-size:var(--fs-base);font-weight:var(--fw-b);cursor:pointer;}
 #mic-popup-cancel{height:var(--h-seg);background:transparent;border:none;color:var(--text-3);font-size:var(--fs-md);cursor:pointer;}
 
 /* ── 앱 ── */
@@ -94,7 +103,7 @@ button{font-family:inherit;color:inherit;}
 /* ══════════════════════════════════
    튜너 — 검정 무대. 색은 '맞음' 에만.
 ══════════════════════════════════ */
-#tuner-card{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--tuner-bg);border:1px solid var(--tuner-line);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow var(--t-std);} /* 헤어라인: 다크 배경(#0f0f0f)에서 카드 윤곽이 남게 */
+#tuner-card{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--tuner-bg);border:1px solid var(--tuner-line);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow var(--t-std);} /* 헤어라인: 무대(L*4.3)가 bg(L*9.7) 위에서 한 단 낮게 읽히도록 윤곽을 남긴다 */
 #tuner-card.in-tune{box-shadow:0 0 0 2px var(--ok),0 0 28px rgba(var(--ok-rgb),.45);}
 #tuner-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--tuner-line);transition:border-color .06s;}
 @keyframes tunerbeat{0%{border-color:var(--accent)}50%{border-color:var(--accent)}100%{border-color:var(--tuner-line)}}
@@ -168,7 +177,7 @@ button{font-family:inherit;color:inherit;}
 .bd.lit-b{background:var(--accent);transform:scale(1.25);box-shadow:0 0 5px var(--accent);}
 .bd.lit-s{background:var(--accent);opacity:.75;transform:scale(1.1);}
 #metro-hdr-right{display:flex;align-items:center;gap:6px;}
-#metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
+#metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 #metro-collapse-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-collapse-btn::after{content:'';position:absolute;inset:-6px;}
 /* 접기/펼치기: grid-template-rows 0fr↔1fr (v1 의 .55 s 느긋한 전이 유지) */
@@ -184,7 +193,7 @@ button{font-family:inherit;color:inherit;}
 #metro-adj-col{display:flex;flex-direction:column;gap:8px;flex:1;}
 #metro-btn-row{display:flex;gap:8px;}
 .m-adj{flex:1;height:var(--h-control);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-#metro-play-btn{flex:1;height:var(--h-control);background:var(--accent);border:none;border-radius:var(--r-md);color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#metro-play-btn{flex:1;height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-vol-row{display:flex;align-items:center;gap:8px;}
 .m-vol-lbl{font-size:var(--fs-sm);color:var(--text-2);font-weight:var(--fw-md);white-space:nowrap;}
 /* 슬라이더 — 트랙은 얇게, 히트는 두껍게 */
@@ -316,7 +325,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .ed-ab-time-group{display:inline-flex;align-items:center;gap:0;}
 .ed-nudge{width:44px;height:44px;margin:-12px -8px;background:none;border:none;color:var(--text-2);font-family:'DM Mono',monospace;font-size:var(--fs-lg);line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
 #ed-transport{display:flex;align-items:center;gap:var(--s2);padding:var(--s4);margin:var(--s3) var(--s5) var(--s4);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);flex-shrink:0;}
-#ed-play-btn{width:var(--h-tall);height:var(--h-tall);background:var(--accent);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding-left:3px;}
+#ed-play-btn{width:var(--h-tall);height:var(--h-tall);background:var(--accent-fill);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding-left:3px;}
 #ed-play-btn.playing{font-size:var(--fs-base);letter-spacing:-.05em;padding-left:0;}
 #ed-speed-ctrl{flex:1;display:flex;flex-direction:column;border-left:1px solid var(--line);padding-left:14px;}
 #ed-speed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
