@@ -45,8 +45,11 @@ function readTokens(): void {
 let gaugeW = 0
 /**
  * 바늘. cents 는 **현재 음 기준** 이므로 라벨이 바뀌는 순간 +45 → −45 처럼 뒤집힌다(tracker 가 midi 와 dispA 를
- * 같이 갱신). 그 자체는 정당한 정보인데, CSS `transition: left .07s` 가 그 도약을 70 ms 동안 **애니메이션**해서
- * "바늘이 양쪽으로 쓸고 간다" 로 보였다(B10). 전환 프레임에만 전이를 끄면 착시만 사라지고 정보는 그대로다.
+ * 같이 갱신). 자리를 애니메이션하면 70 ms 동안 반대편까지 쓸고 가는 **거짓 궤적**이 된다(B10) — 그래서 전이를 껐는데,
+ * 이번엔 순간이동으로 보인다는 지적을 받았다(베타 피드백 #1).
+ *
+ * 기준이 바뀐 두 값은 애초에 자리로 이을 수 없다. 그래서 자리는 즉시 옮기되, 그 순간 바늘을 사라졌다 돌아오게 한다
+ * (opacity 0 → 1, 140 ms). 거짓 궤적도 없고 툭 튀지도 않는다. **값은 건드리지 않는다** — 표시만 바뀐다.
  */
 let lastGaugeMidi: number | null = null
 function drawGauge(cents: number | null, midi: number | null = null): void {
@@ -56,13 +59,16 @@ function drawGauge(cents: number | null, midi: number | null = null): void {
   zone.style.left = (W / 2 - tol * ppc) + 'px'; zone.style.width = (tol * 2 * ppc) + 'px'
   const jumped = midi !== lastGaugeMidi
   lastGaugeMidi = midi
-  if (jumped) { needle.style.transition = 'none'; void needle.offsetWidth } // reflow 로 '전이 없음' 을 확정시킨 뒤 위치를 옮긴다
-  if (cents === null) { needle.style.left = '50%'; needle.className = '' }
-  else {
-    needle.style.left = (W / 2 + Math.max(-50, Math.min(50, cents)) * ppc) + 'px'
-    needle.className = Math.abs(cents) <= tol ? 'tune' : ''
+  // 'tune' 과 'hop' 은 따로 관리한다 — className 을 매 프레임 통째로 쓰면 다음 분석 프레임(≈23 ms)에
+  // hop 이 지워져 140 ms 애니메이션이 잘린다 (프레임 덤프로 확인)
+  if (jumped) { needle.classList.remove('hop'); needle.style.transition = 'none'; void needle.offsetWidth } // reflow 로 '전이 없음'·애니메이션 재시작을 확정
+  if (cents === null) needle.style.left = '50%'
+  else needle.style.left = (W / 2 + Math.max(-50, Math.min(50, cents)) * ppc) + 'px'
+  needle.classList.toggle('tune', cents !== null && Math.abs(cents) <= tol)
+  if (jumped) {
+    if (cents !== null) needle.classList.add('hop')
+    requestAnimationFrame(() => { needle.style.transition = '' }) // 다음 프레임부터 다시 부드럽게
   }
-  if (jumped) requestAnimationFrame(() => { needle.style.transition = '' }) // 다음 프레임부터 다시 부드럽게
 }
 
 // ── 히스토리 ──

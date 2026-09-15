@@ -158,6 +158,11 @@ button{font-family:inherit;color:inherit;}
 #gauge-zone{position:absolute;top:-2px;height:10px;background:var(--ok);opacity:.4;border-radius:4px;}
 #gauge-center{position:absolute;top:-4px;left:50%;width:1px;height:14px;background:var(--tuner-empty);transform:translateX(-50%);}
 #gauge-needle{position:absolute;top:-8px;width:6px;height:22px;background:rgba(255,255,255,.85);border-radius:2px;transform:translateX(-50%);transition:left .07s;left:50%;}
+/* 음이 바뀌면 cents 의 기준이 바뀐다(+45 → −45). 자리를 애니메이션하면 '바늘이 반대편까지 쓸고 간' 거짓 궤적이 되고(B10),
+   전이만 끄면 순간이동으로 보인다(베타 피드백 #1). 기준이 바뀐 값은 **자리로 이을 수 없는 값**이므로,
+   자리는 즉시 옮기되 그 순간 바늘을 사라졌다 돌아오게 한다 — 거짓 궤적 없이 끊김도 없다. */
+@keyframes needlehop{0%{opacity:0}100%{opacity:1}}
+#gauge-needle.hop{animation:needlehop .14s var(--ease);}
 #gauge-needle.tune{background:var(--ok);box-shadow:0 0 8px rgba(var(--ok-rgb),.9);}
 
 /* ══════════════════════════════════
