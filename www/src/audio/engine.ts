@@ -137,7 +137,7 @@ export async function openMic(): Promise<MicResult> {
 export function micErrorMessage(e: unknown): string {
   const name = e instanceof Error ? e.name : ''
   const msg = e instanceof Error ? e.message : String(e)
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return isNativeGuess() ? '마이크 권한이 꺼져 있어요 — 설정 › 앱 › Go practice › 권한에서 마이크를 허용해주세요' : '마이크가 차단돼 있어요 — 주소창의 자물쇠(사이트 설정)에서 마이크를 허용해주세요'
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return isNativeGuess() ? '마이크 권한이 꺼져 있어요 — 설정 › 앱 › TempoTune › 권한에서 마이크를 허용해주세요' : '마이크가 차단돼 있어요 — 주소창의 자물쇠(사이트 설정)에서 마이크를 허용해주세요'
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return '마이크를 찾을 수 없어요'
   if (name === 'NotReadableError' || name === 'TrackStartError') return '다른 앱이 마이크를 쓰고 있어요 — 그 앱을 닫고 다시 시도해주세요'
   if (name === 'SecurityError') return '이 페이지에서는 마이크를 쓸 수 없어요 (HTTPS 필요)'

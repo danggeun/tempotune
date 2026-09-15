@@ -1,4 +1,4 @@
-# Go practice — 아키텍처
+# TempoTune — 아키텍처
 
 이 문서는 "왜 이런 구조인가"를 두 쪽으로 설명한다. 대안과 기각 이유는 [DESIGN.md](DESIGN.md), UI 의도는 [UX-AUDIT.md](UX-AUDIT.md) 에 있다.
 
@@ -118,6 +118,6 @@ npx cap open android     # Android Studio
 3. Build variant **release** → Create → `android\app\release\app-release.apk`
 4. 키스토어 파일과 비밀번호를 백업한다. 잃으면 같은 서명으로 업데이트를 만들 수 없다. **키스토어는 절대 커밋하지 않는다** (`.gitignore` 에 `*.jks`)
 
-아이콘 소스는 `npm run icons` (`scripts/gen-icons.mjs`) 가 앱의 워드마크 폰트로 렌더한다 — 앱 안의 "Go practice" 와 같은 글꼴·같은 검정 무대·같은 초록.
+아이콘 소스는 `npm run icons` (`scripts/gen-icons.mjs`) 가 캔버스 2D 로 렌더한다 — 초록 타일 위 흰 튜너 다이얼(호·눈금·바늘·축이 **한 중심**을 공유). 비례는 호 반지름 R 하나로 묶이고, 잉크 폭 = 1.9522 R = 타일의 82 %. v2.1.0 에서 워드마크 아이콘을 대체했다(베타 피드백 #1: "깔아 놓고도 있는 줄 몰랐다").
 
 확인 필요(실기기): Android 15 엣지투엣지에서 상단 safe-area 값이 WebView `env()` 로 들어오는지, `minWebViewVersion: 94` 미만 기기의 안내 화면, 공유 시트, 뒤로가기, 통화 후 복구.
