@@ -32,7 +32,14 @@ let lastSkipped = 0
 export const histDiag = (): { len: number; sec: number; sr: number; skipped: number } => ({ len: hist.length, sec: histSec, sr: histSr, skipped: lastSkipped })
 /** 캔버스 색은 토큰에서 (style.css 의 '색은 토큰에서만' 원칙) */
 let okRgb = '34,197,94'
-function readTokens(): void { const cs = getComputedStyle(document.documentElement); okRgb = cs.getPropertyValue('--ok-rgb').trim() || okRgb }
+let stageBg = '#0d0f13'
+function readTokens(): void {
+  const cs = getComputedStyle(document.documentElement)
+  okRgb = cs.getPropertyValue('--ok-rgb').trim() || okRgb
+  // 무대 색은 토큰에서 읽는다. 전에는 '#000' 리터럴이었는데, 화면에서 가장 큰 면이 토큰 체계 밖에 있어
+  // 팔레트를 올려도 여기만 순검정으로 남았다 (style.css 머리말: "값은 토큰에서만 온다")
+  stageBg = cs.getPropertyValue('--tuner-bg').trim() || stageBg
+}
 
 // ── 게이지 ──
 let gaugeW = 0
@@ -64,7 +71,7 @@ function drawHistory(inTune: boolean): void {
   const W = canvas.offsetWidth, H = Math.max(80, canvas.offsetHeight || 100), dpr = devicePixelRatio || 1
   if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.width = W + 'px'; canvas.style.height = H + 'px' }
   const c = canvas.getContext('2d')!; c.save(); c.scale(dpr, dpr)
-  c.fillStyle = '#000'; c.fillRect(0, 0, W, H)
+  c.fillStyle = stageBg; c.fillRect(0, 0, W, H)
   if (inTune) { c.fillStyle = `rgba(${okRgb},.07)`; c.fillRect(0, 0, W, H) }
   const ppc = (W / 2) / 50, tol = settingsStore.get().tolCents, N = hist.length, rH = H / N
   lastSkipped = 0
