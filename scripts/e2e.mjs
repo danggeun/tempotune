@@ -210,34 +210,56 @@ await scenario('rec: 연속 삭제 두 건 → 실행 취소 토스트가 각각
   await p.click('#toast'); await sleep(p, 400) // 남아 있던 첫 번째 토스트
   assert.equal((await names()).length, 2, '첫 번째 실행 취소도 살아 있다 (v2.0.3 에서는 덮여 사라졌다)')
 })
-await scenario('rec: 삭제 방지 — 토글·유지·메타 표시·설정 꺼지면 숨김 (F2)', 'violin_A4.wav', async p => {
+await scenario('rec: 남기기 — 예고문 안에서만, 토글·유지·설정 꺼지면 숨김 (F2)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   await p.click('#menu-btn'); await sleep(p, 400)
-  const btn = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-btn.keep'))
-  const on = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-btn.keep').classList.contains('on'))
   const meta = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-meta').textContent)
-  assert.equal(await p.evaluate(() => document.querySelector('#rec-list .rec-item-btn.keep').textContent), '삭제 방지')
-  assert.equal(await on(), false, '처음엔 꺼짐')
-  await p.click('[data-action="keep"][data-idx="0"]'); await sleep(p, 300)
-  assert.equal(await on(), true, '켜짐')
-  assert.match(await meta(), /삭제 방지/, '메타 줄에 표시')
-  if (process.env.GP_SHOT) { await sleep(p, 3000); await p.screenshot({ path: process.env.GP_SHOT }) } // 토스트가 사라진 뒤 버튼 줄을 눈으로 확인
+  const link = () => p.evaluate(() => { const l = document.querySelector('#rec-list .rec-keep-link'); return l ? l.textContent : null })
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item-btn').length), 3, '버튼 줄은 편집·다운로드·삭제 셋뿐')
+  assert.equal(await link(), null, '예고 전에는 남기기 글자도 없다 (정보는 있는 것만)')
+  // 녹음을 27일 전으로 돌려 예고 구간(마지막 7일)에 넣는다
+  await p.evaluate(async () => {
+    const db = await new Promise(r => { const q = indexedDB.open('gopractice_rec', 3); q.onsuccess = () => r(q.result) })
+    const tx = db.transaction('recordings', 'readwrite'), st = tx.objectStore('recordings')
+    const rows = await new Promise(r => { const g = st.getAll(); g.onsuccess = () => r(g.result) })
+    for (const row of rows) { row.ts -= 27 * 86400000; st.put(row) }
+    await new Promise(r => { tx.oncomplete = r }); db.close()
+  })
   await p.reload(); await sleep(p, 1500); await p.click('#menu-btn'); await sleep(p, 400)
-  assert.equal(await on(), true, '리로드 후에도 유지 (meta 에 저장)')
-  // 자동 삭제 설정을 끄면 버튼도 표시도 사라진다 (지킬 게 없는데 버튼이 있으면 헷갈린다) — 플래그는 남는다
+  assert.match(await meta(), /^\d일 후 삭제 · 남기기$/, '예고 + 남기기: ' + await meta())
+  if (process.env.GP_SHOT) await p.screenshot({ path: process.env.GP_SHOT.replace('.png', '_warn.png') })
+  await p.click('#rec-list .rec-keep-link'); await sleep(p, 300)
+  assert.equal(await meta(), '자동 삭제 안 함', '남긴 뒤 표시')
+  if (process.env.GP_SHOT) { await sleep(p, 3000); await p.screenshot({ path: process.env.GP_SHOT.replace('.png', '_kept.png') }) }
+  await p.reload(); await sleep(p, 1500); await p.click('#menu-btn'); await sleep(p, 400)
+  assert.equal(await meta(), '자동 삭제 안 함', '리로드 후에도 유지 (meta 에 저장)')
+  // 자동 삭제 설정을 끄면 표시가 사라진다 (지킬 게 없다) — 플래그는 남는다
   await p.click('#settings-open-btn'); await sleep(p, 300)
   await p.click('#autodelete-steps .step-btn[data-v="0"]'); await sleep(p, 300)
   await p.click('#settings-back-btn'); await sleep(p, 300)
-  assert.equal(await btn(), null, '설정 꺼짐 → 버튼 없음')
   assert.equal(await meta(), '', '설정 꺼짐 → 표시 없음')
   await p.click('#settings-open-btn'); await sleep(p, 300)
   await p.click('#autodelete-steps .step-btn[data-v="1"]'); await sleep(p, 300)
   await p.click('#settings-back-btn'); await sleep(p, 300)
-  assert.equal(await on(), true, '다시 켜면 플래그가 살아 있다')
-  await p.click('[data-action="keep"][data-idx="0"]'); await sleep(p, 300)
-  assert.equal(await on(), false, '다시 누르면 해제')
-  assert.equal(await meta(), '', '해제하면 표시도 사라진다')
+  assert.equal(await meta(), '자동 삭제 안 함', '다시 켜면 플래그가 살아 있다')
+  await p.click('#rec-list .rec-keep-link'); await sleep(p, 300)
+  assert.match(await meta(), /^\d일 후 삭제 · 남기기$/, '해제하면 예고로 돌아간다')
+  // 31일 전 = 기한 지난 항목을 남긴 상태에서 해제하면 미리 알린다 (되돌리기)
+  await p.click('#rec-list .rec-keep-link'); await sleep(p, 300)
+  await p.evaluate(async () => {
+    const db = await new Promise(r => { const q = indexedDB.open('gopractice_rec', 3); q.onsuccess = () => r(q.result) })
+    const tx = db.transaction('recordings', 'readwrite'), st = tx.objectStore('recordings')
+    const rows = await new Promise(r => { const g = st.getAll(); g.onsuccess = () => r(g.result) })
+    for (const row of rows) { row.ts -= 5 * 86400000; st.put(row) }
+    await new Promise(r => { tx.oncomplete = r }); db.close()
+  })
+  await p.reload(); await sleep(p, 1500); await p.click('#menu-btn'); await sleep(p, 400)
+  assert.equal(await meta(), '자동 삭제 안 함', '기한이 지나도 남긴 항목은 로드된다')
+  await p.click('#rec-list .rec-keep-link'); await sleep(p, 300)
+  assert.match(await p.evaluate(() => document.getElementById('toast').textContent), /되돌리기/, '기한 지난 해제는 경고 토스트')
+  await p.click('#toast'); await sleep(p, 300)
+  assert.equal(await meta(), '자동 삭제 안 함', '되돌리기로 다시 남김')
 })
 
 await scenario('editor: A/B/loop/bookmark flows', 'violin_A4.wav', async p => {
