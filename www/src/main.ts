@@ -42,12 +42,28 @@ mountTimer()
 mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 
 // ── 마이크 생명주기 ──
-const tryOpenMic = async (): Promise<boolean> => {
+/**
+ * 마이크 열기. `popupOnDenied` 는 **사용자가 직접 마이크를 누른 경우에만** 켠다.
+ *
+ * U2(베타 피드백 #1): 예전에는 권한 오류면 무조건 차단 팝업을 띄웠다. 그런데 iOS 웹앱에서는
+ * 제스처 없이 연 호출도 같은 NotAllowedError 로 떨어져서, 실제로 차단되지 않았는데도 실행할 때마다
+ * "마이크가 차단돼 있어요" 가 떴다 — "왜 자꾸 물어보냐" 의 정체. 자동 시도의 실패는 팝업이 아니라
+ * 가벼운 탭 안내로 받는다.
+ */
+const tryOpenMic = async (popupOnDenied = false): Promise<boolean> => {
   const r = await openMic()
-  if (!r.ok && r.error !== 'busy') { if (isPermissionError(r.error)) showMicPopup(true); else toast(r.error); return false } // 권한 문제는 팝업(앱: 시스템 설정 경로), 그 외는 토스트
+  if (!r.ok && r.error !== 'busy') {
+    if (!isPermissionError(r.error)) toast(r.error)
+    else if (popupOnDenied) showMicPopup(true)
+    return false
+  }
   // 권한 프롬프트를 거치는 동안 사용자 제스처가 만료되면 컨텍스트가 suspended 로 남는다 (iOS/Firefox) → 탭 안내 (모든 경로에서)
   setTimeout(() => { if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }, 400)
   return r.ok
+}
+/** 권한 상태. 사파리는 microphone 을 지원하지 않아 null 이 나온다 — 그때는 '모른다' 로 다룬다 */
+const micPermission = async (): Promise<PermissionState | null> => {
+  try { return (await navigator.permissions?.query({ name: 'microphone' as PermissionName }))?.state ?? null } catch { return null }
 }
 mountMicPopup(tryOpenMic)
 onEngineFatal(toast); onMetroError(toast); onRecorderError(toast); onPersistError(toast); onDbError(toast); onWakeLockUnsupported(toast)
@@ -69,7 +85,7 @@ function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); in
 // 마이크를 열 때 활동 시각을 새로 잡는다 — 이걸 안 하면 "앱을 15분 넘게 켜둔 뒤 마이크를 (다시) 켠 순간" 바로 자동 종료된다.
 // P1(숨김 → 복귀 시 마이크 재개)이 이 상황을 매번 만든다. 뜻은 '마이크가 켜진 뒤 15분간 소리가 없으면' 이다.
 onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
-on(q('hdr-mic-btn'), 'click', () => tryOpenMic().then(ok => { if (ok) toast('마이크가 켜졌어요') }))
+on(q('hdr-mic-btn'), 'click', () => tryOpenMic(true).then(ok => { if (ok) toast('마이크가 켜졌어요') })) // 직접 누른 것이므로 차단이면 안내한다
 settingsStore.select(s => s.wakeLock, syncWake)
 // ── 생명주기 매트릭스 (설계서 §B7, v2.0.3 P1 개정) ──
 // 숨김: **마이크를 놓는다** — 숨겨진 동안 튜너는 볼 수 없으니 쥐고 있을 이유가 없고, 쥐고 있으면 안드로이드에서
@@ -123,26 +139,22 @@ onBackButton(() => {
 })
 on(q('logo'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 홈 화면에 추가하면 전체화면으로 사용할 수 있어요')))
 
-// ── 시작 시퀀스 (v1 그대로) ──
-if (isNative()) {
-  // 첫 실행엔 OS 권한 다이얼로그 전에 '왜 필요한지' 를 한 번 보여준다 (팝업의 '마이크 켜기' 가 OS 다이얼로그를 띄운다). 그 뒤로는 바로 시도
-  let intro = false; try { intro = !localStorage.getItem('gp_mic_intro') } catch { /* */ }
-  if (intro) { try { localStorage.setItem('gp_mic_intro', '1') } catch { /* */ } showMicPopup(false) }
-  else tryOpenMic().then(ok => { if (!ok) showTapHint(tryOpenMic) })
-} else {
-  navigator.permissions?.query({ name: 'microphone' as PermissionName })
-    .then(p => {
-      if (p.state !== 'granted') { showMicPopup(p.state === 'denied'); p.onchange = () => { if (p.state === 'granted') closeMicPopup() }; return }
-      tryOpenMic().then(ok => {
-        if (!ok) { showTapHint(tryOpenMic); return }
-        // 자동 시작 시 AudioContext 가 suspended 일 수 있음 (Chrome 자동재생 정책)
-        setTimeout(() => {
-          if (A.ac && A.ac.state === 'suspended') showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' })
-        }, 400)
-      })
-    })
-    .catch(() => showMicPopup())
-}
+// ── 시작 시퀀스 ──
+// U2: 튜너에 마이크가 필요한 건 자명하다. 우리가 한 번 더 묻지 않는다 — 들어오면 바로 연다.
+// 팝업은 '문 앞의 관문' 이 아니라 **정말 차단됐을 때의 안내** 로만 쓴다.
+//   · 권한이 확실히 denied → 안내 팝업 (설정에서 풀어야 하므로 경로를 알려줘야 한다)
+//   · 그 외(prompt · 모름) → 바로 시도. 실패하면 탭 안내로 받고, 탭한 뒤에도 denied 면 그때 팝업.
+// 사파리는 권한 API 가 없어 항상 '모름' 이다 → 자동 시도 → 실패 시 탭 안내. 매번 뜨던 팝업이 사라진다.
+void (async () => {
+  const state = await micPermission()
+  if (state === 'denied') { showMicPopup(true); return }
+  if (await tryOpenMic()) return
+  showTapHint(async () => {
+    if (await tryOpenMic()) return true
+    if (await micPermission() === 'denied') showMicPopup(true) // 탭까지 했는데 안 되면 진짜 차단이다
+    return false
+  })
+})()
 
 // ── 녹음 복원 ──
 openRecDb().then(restoreRecordings).catch(() => toast('녹음 저장소를 열 수 없어요 — 녹음은 이번 세션에만 남아요'))
