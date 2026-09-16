@@ -43,6 +43,12 @@ async function scenario(name, wav, fn, ctxOpts = {}) {
 const tunerText = p => p.evaluate(() => ({ note: document.getElementById('tuner-note').textContent, acc: document.getElementById('tuner-acc').textContent, oct: document.getElementById('tuner-oct').textContent, cents: document.getElementById('tuner-cents').textContent, inTune: document.getElementById('tuner-card').classList.contains('in-tune') }))
 const waitNote = async (p, pred, ms = 4000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const t = await tunerText(p); if (pred(t)) return t; await p.waitForTimeout(100) } throw new Error('note not reached: ' + JSON.stringify(await tunerText(p))) }
 const sleep = (p, ms) => p.waitForTimeout(ms)
+/** 조건이 참이 될 때까지 폴링. 비동기 동작(마이크 재개 등)을 sleep 으로 어림잡지 않기 위한 것 */
+const waitUntil = async (p, fn, ms = 4000, what = 'condition') => {
+  const t0 = Date.now()
+  while (Date.now() - t0 < ms) { if (await p.evaluate(fn)) return true; await p.waitForTimeout(100) }
+  throw new Error('timed out waiting for ' + what)
+}
 
 // ── 튜너 ──
 await scenario('tuner: 440 Hz @A=442 → 라4 −8¢ (in-tune ±15)', 'violin_A4.wav', async p => {
@@ -597,10 +603,13 @@ await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고, 돌아오
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지', '숨김: 타이머는 멈추지 않는다 (연습이 끝난 게 아니다)')
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■', '숨김: 메트로놈은 계속')
   assert.equal(await p.evaluate(() => window.__gp.stats().acState), 'running', '메트로놈이 돌고 있으니 컨텍스트는 살아 있다')
-  // 복귀 → 권한 창 없이 다시 열리고 음이 다시 뜬다
+  // 복귀 → 권한 창 없이 다시 열리고 음이 다시 뜬다.
+  // 마이크 재개는 비동기(getUserMedia)다. 여기서 waitNote 로 기다리면 **숨기기 전에 남아 있던 음이름 텍스트**를
+  // 보고 즉시 통과해 버려서 아무것도 기다리지 않는다 — 그래서 micOpen 을 직접 기다린다 (이 테스트가
+  // 2/3 확률로 실패하던 원인. 앱이 아니라 테스트가 너무 일찍 단정하고 있었다).
   await setVisibility(p, 'visible')
+  await waitUntil(p, () => window.__gp.stats().micOpen === true, 5000, '복귀: 마이크 다시 열림')
   await waitNote(p, t => t.note === '라', 5000)
-  assert.equal(await p.evaluate(() => window.__gp.stats().micOpen), true, '복귀: 마이크 다시 열림')
   assert.equal(await p.evaluate(() => document.getElementById('tuner-note').textContent !== '탭하여 시작'), true, '복귀: 탭 안내 없이 바로')
 })
 await scenario('lifecycle: 웹에서 녹음 중이면 숨겨져도 마이크를 놓지 않는다 (녹음이 끊기면 안 된다) (P1)', 'violin_A4.wav', async p => {
