@@ -48,4 +48,4 @@
 
 ## 문의
 
-<https://github.com/danggeun/go_practice/issues>
+<https://github.com/danggeun/tempotune/issues>

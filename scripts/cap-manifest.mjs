@@ -20,10 +20,11 @@ export function setAllowBackup(xml) {
 }
 
 /**
- * dist 가 GitHub Pages 용 빌드(base=/go_practice/)인지 (R3). 그대로 APK 에 넣으면 자산 경로가 어긋나 **흰 화면**이 된다.
- * 앱 빌드는 `npm run build:cap`(BASE=/). 순수.
+ * dist 가 GitHub Pages 용 빌드(base=/<레포명>/)인지 (R3). 그대로 APK 에 넣으면 자산 경로가 어긋나 **흰 화면**이 된다.
+ * 앱 빌드는 `npm run build:cap`(BASE=/) 이라 자산이 `/assets/` 에 있고, Pages 빌드는 `/<무언가>/assets/` 에 있다.
+ * 레포명을 박지 않는다 — 이름이 바뀌어도 가드가 계속 작동해야 한다. 순수.
  */
-export function isWebBuildHtml(html) { return html.includes('/go_practice/') }
+export function isWebBuildHtml(html) { return /(?:src|href)="\/[^"/]+\/assets\//.test(html) }
 
 export function main(log = console.log) {
   // R3: 잘못된 dist 가 동기화된 채로 APK 를 만들지 않게 먼저 막는다

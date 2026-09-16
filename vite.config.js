@@ -3,11 +3,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
-// base: GitHub Pages 는 /go_practice/, Capacitor 빌드(build:cap)는 / (package.json scripts 참고)
+// base: GitHub Pages 는 /tempotune/, Capacitor 빌드(build:cap)는 / (package.json scripts 참고)
 export default defineConfig(({ mode }) => ({
   root: 'www',
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-  base: process.env.BASE ?? '/go_practice/',
+  base: process.env.BASE ?? '/tempotune/',
   build: { outDir: '../dist', emptyOutDir: true, target: 'es2022' },
   server: { port: 5173, open: false },
   worker: { format: 'es' },
@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ['icons/*.png'],
       manifest: {
         // id 를 못 박아 둔다 — 없으면 start_url 이 곧 identity 라 base 가 바뀌면 '다른 앱' 이 되어 재설치된다
-        id: process.env.BASE ?? '/go_practice/',
+        id: process.env.BASE ?? '/tempotune/',
         name: 'TempoTune', short_name: 'TempoTune', description: '현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집',
         display: 'standalone', orientation: 'portrait', background_color: '#181b21', theme_color: '#181b21', lang: 'ko',
         icons: [

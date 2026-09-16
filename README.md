@@ -4,11 +4,11 @@
 > 현악기 연습을 위한 크로마틱 튜너 · 메트로놈 · 기준음 · 녹음 편집기.
 > 웹(PWA) + Android (Capacitor). 오프라인 동작, 오디오는 기기 밖으로 나가지 않는다.
 
-[![CI](https://github.com/danggeun/go_practice/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/go_practice/actions/workflows/ci.yml)
-[![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/go_practice/)
+[![CI](https://github.com/danggeun/tempotune/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/tempotune/actions/workflows/ci.yml)
+[![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/tempotune/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-**<https://danggeun.github.io/go_practice/>** — Chrome · Safari · Edge 최신 버전. 홈 화면에 추가하면 오프라인 PWA 로 동작한다.
+**<https://danggeun.github.io/tempotune/>** — Chrome · Safari · Edge 최신 버전. 홈 화면에 추가하면 오프라인 PWA 로 동작한다.
 
 ## 기능
 
@@ -31,7 +31,7 @@
 ```bash
 npm install          # Node 22 이상
 npm run dev          # http://localhost:5173 — 마이크는 localhost 또는 HTTPS 에서만
-npm run build        # GitHub Pages 용 (base=/go_practice/) → dist/
+npm run build        # GitHub Pages 용 (base=/tempotune/) → dist/
 ```
 
 ### 검증

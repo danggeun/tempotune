@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: build (base=/go_practice/)
+      - name: build (base=/tempotune/)
         run: npm run build
       - name: build (base=/ for Capacitor)
         run: npm run build:cap
