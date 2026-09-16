@@ -90,7 +90,7 @@ for (const kind of ['fast', 'slow']) {
     ['v2.0.2_4.0s', 4.0, false],    // 후(기본값)
     ['variant_3.0s', 3.0, false],
     ['variant_5.0s', 5.0, false],
-    ['variant_4.0s_가로줄있음', 4.0, true], // 창만 줄이고 C1 을 안 했다면
+    ['variant_4.0s_with_seam', 4.0, true], // 창만 줄이고 C1 을 안 했다면
   ]) {
     const info = await page.evaluate(([data, sec, flatten]) => {
       window.__gp.tuner.setHistSec(sec)
