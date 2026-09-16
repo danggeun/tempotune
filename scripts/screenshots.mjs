@@ -43,7 +43,10 @@ const SCENES = {
 }
 
 const results = []
-for (const scheme of ['light', 'dark']) {
+// 앱은 다크 고정(style.css `color-scheme:dark`)이라 라이트로 찍어도 **픽셀까지 같은 그림**이 나온다.
+// v2.1.0 전까지 light/dark 두 벌을 찍고 두 벌을 비교했는데, 라이트 쪽은 아무것도 잡지 못하면서
+// 검증 시간만 두 배로 쓰고 있었다. 다크만 찍는다. (라이트 모드를 되살리면 여기에 다시 넣는다.)
+for (const scheme of ['dark']) {
   for (const [name, prep] of Object.entries(SCENES)) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
     const page = await ctx.newPage()

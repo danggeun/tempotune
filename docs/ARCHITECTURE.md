@@ -1,6 +1,6 @@
 # TempoTune — 아키텍처
 
-이 문서는 "왜 이런 구조인가"를 두 쪽으로 설명한다. 대안과 기각 이유는 [DESIGN.md](DESIGN.md), UI 의도는 [UX-AUDIT.md](UX-AUDIT.md) 에 있다.
+이 문서는 "왜 이런 구조인가"를 두 쪽으로 설명한다. 버전별로 무엇이 왜 바뀌었는지는 [CHANGELOG.md](../CHANGELOG.md) 에 있다.
 
 ## 1. 층 구조
 
@@ -76,8 +76,8 @@ Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin �
 |---|---|---|
 | 파일 저장 | `<a download>` | `@capacitor/filesystem`(캐시) → `@capacitor/share` 시트 |
 | 화면 켜짐 | Wake Lock API | 동일 |
-| 상태바 | — | `@capacitor/status-bar`, 라이트/다크 (Android 15 엣지투엣지에서는 스타일만 유효, 여백은 CSS safe-area) |
-| 권한 | `permissions.query` 로 미결정/거부 분기 팝업 | 첫 실행 안내 팝업 → OS 다이얼로그, 거부 시 시스템 설정 경로 안내 |
+| 상태바 | — | `@capacitor/status-bar` (Android 15 엣지투엣지에서는 스타일만 유효, 여백은 CSS safe-area) |
+| 권한 | 진입 즉시 마이크를 연다. 실패하면 탭 안내, 권한이 `denied` 일 때만 팝업 | 동일. 거부 팝업은 시스템 설정 경로를 안내 |
 | 뒤로가기 | — | `@capacitor/app` backButton: 편집기 → 설정 → 메뉴 → 팝업 순으로 닫고, 메인에서는 `minimizeApp` |
 | Service Worker | 등록 (프리캐시, prompt 모드 — 유휴일 때만 적용) | 등록 안 함 (파일이 로컬) |
 
@@ -87,10 +87,10 @@ Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin �
 
 | 층 | 도구 | 무엇을 |
 |---|---|---|
-| 순수 알고리즘 | Vitest (`*.test.ts`, 73개) | YIN cents 오차, 트래커, 감지기, 시퀀서, 기준음 보정, WAV, 설정 마이그레이션 |
-| 튜너 벤치마크 | `npm run bench` | `scripts/gen-signals.mjs` 가 결정적 난수로 합성한 현악기·잡음·말소리 신호 39개(`test-assets/signals/`, gitignore)를 v1/v2 어댑터에 넣어 bias·p90·옥타브 오류·락 지연·F1·프레임 ms 를 표로 |
-| 브라우저 통합 | `npm run e2e` (`scripts/e2e.mjs`, 38 시나리오) | 헤드리스 Chromium 에 `--use-file-for-fake-audio-capture=<wav>` 로 WAV 를 마이크로 주입. "440 Hz 를 넣으면 라 4 가 뜨는가", A=415 회귀, 권한 거부, 메트로놈 샘플 정확도(OfflineAudioContext), 녹음→편집→저장, 무활동 종료, SW 등록. 앱은 `window.__gp` 진단 훅을 노출 |
-| 시각 회귀 | `npm run shots` (`scripts/screenshots.mjs`) | 390×844 @2x, 라이트/다크 × main/metro_open/menu/settings/editor/popup 12장을 `test-assets/screens/baseline/` 과 pixelmatch. 무음 WAV 를 주입해 바늘을 고정 |
+| 순수 알고리즘 | Vitest (`*.test.ts`) | YIN cents 오차, 트래커, 감지기, 시퀀서, 기준음 보정, WAV, 설정 마이그레이션, 녹음 보관 정책 |
+| 튜너 벤치마크 | `npm run bench` | `scripts/gen-signals.mjs` 가 결정적 난수로 합성한 현악기·잡음·말소리 신호(`test-assets/signals/`, gitignore)를 넣어 bias·p90·옥타브 오류·락 지연·F1·프레임 ms 를 표로. **튜너·감지기를 건드리면 이 지표가 후퇴하면 안 되고, 표시만 바꿨다면 완전히 같아야 한다** |
+| 브라우저 통합 | `npm run e2e` (`scripts/e2e.mjs`) | 헤드리스 Chromium 에 `--use-file-for-fake-audio-capture=<wav>` 로 WAV 를 마이크로 주입. "440 Hz 를 넣으면 라 4 가 뜨는가", A=415 회귀, 권한 거부, 메트로놈 샘플 정확도(OfflineAudioContext), 녹음→편집→저장, 무활동 종료, SW 등록. 앱은 `window.__gp` 진단 훅을 노출 |
+| 시각 회귀 | `npm run shots` (`scripts/screenshots.mjs`) | 390×844 @2x, main/metro_open/menu/settings/editor/popup 6장을 `test-assets/screens/baseline/` 과 pixelmatch. 무음 WAV 를 주입해 바늘을 고정. 앱이 다크 고정이라 라이트로 찍어도 같은 그림이 나오므로 한 벌만 찍는다 |
 | 디자인 비교 | `scripts/ux-compare.mjs` | 여러 dist(+오버라이드 CSS)를 같은 시나리오로 찍어 나란히 |
 | 모듈 경계 | `scripts/check-deps.mjs` | §1 표 위반, `core` 의 브라우저 API 사용 |
 

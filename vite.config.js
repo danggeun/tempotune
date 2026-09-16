@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         // id 를 못 박아 둔다 — 없으면 start_url 이 곧 identity 라 base 가 바뀌면 '다른 앱' 이 되어 재설치된다
         id: process.env.BASE ?? '/go_practice/',
-        name: 'TempoTune', short_name: 'TempoTune', description: '현악기 연습 — 튜너 · 메트로놈 · 녹음 편집',
+        name: 'TempoTune', short_name: 'TempoTune', description: '현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집',
         display: 'standalone', orientation: 'portrait', background_color: '#181b21', theme_color: '#181b21', lang: 'ko',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
