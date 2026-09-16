@@ -35,7 +35,10 @@ const OUTDIR = process.argv.includes('--out') ? process.argv[process.argv.indexO
 
 /** 비례 — 전부 캔버스 한 변(S) 대비. content = 0.72(전면 아이콘) 기준, 다른 content 는 비례 축소된다. */
 const SPEC = {
-  bg0: '#2ecc66', bg1: '#169a45', // 세로 그라디언트 (위가 밝다)
+  // 단색 — 그라디언트를 쓰면 위쪽이 밝아져 흰 마크와의 대비가 2.11:1 까지 떨어진다.
+  // WCAG 1.4.11 이 비텍스트 그래픽에 요구하는 3:1 미달이었다. 단색 #189E46 은 전면에서 3.49:1.
+  // ⚠ 이 색을 바꾸면 package.json 의 cap:assets(--iconBackgroundColor) 도 같이 바꿔야 한다.
+  bg0: '#189E46', bg1: '#189E46',
   ink: '#ffffff',
   inkW: 0.82,        // 잉크 폭 = 타일의 82 %. 이전 아이콘은 52 % 였고 "한눈에 안 띈다" 는 지적을 받았다
   lift: 0.012,       // 광학 리프트 — 정사각 타일에서 기하 중심에 두면 가라앉아 보인다

@@ -113,3 +113,19 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 �
     expect(p.data[3]).toBe(0) // 좌상단 모서리
   })
 })
+
+// 실제로 어긋난 적이 있다: 타일색을 #2ecc66 그라디언트 → #189E46 단색으로 바꿨는데
+// package.json 의 cap:assets 에는 옛 #22b355 가 남아 있었다. 그러면 런처의 adaptive 배경만
+// 다른 초록이 되어, PWA 아이콘과 앱 아이콘의 색이 갈린다. 두 곳은 손으로 맞추는 값이라 테스트로 묶는다.
+describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
+  test('gen-icons 의 타일색 = package.json 의 adaptive 배경색', () => {
+    const spec = readFileSync(new URL('./gen-icons.mjs', import.meta.url), 'utf8')
+    const tile = /bg0:\s*'(#[0-9a-fA-F]{6})'/.exec(spec)?.[1]
+    const pkg = readFileSync(new URL('../package.json', import.meta.url), 'utf8')
+    const bg = /--iconBackgroundColor\s+(#[0-9a-fA-F]{6})/.exec(pkg)?.[1]
+    const bgDark = /--iconBackgroundColorDark\s+(#[0-9a-fA-F]{6})/.exec(pkg)?.[1]
+    expect(tile).toBeTruthy()
+    expect(bg?.toLowerCase()).toBe(tile?.toLowerCase())
+    expect(bgDark?.toLowerCase()).toBe(tile?.toLowerCase())
+  })
+})
