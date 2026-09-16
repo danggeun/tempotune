@@ -52,10 +52,12 @@ TempoTune 은 현악기 연습에 필요한 것만 담은 도구입니다.
 ## 개인정보처리방침 URL
 
 ```
-https://danggeun.github.io/go_practice/privacy
+https://github.com/danggeun/tempotune/blob/main/PRIVACY.md
 ```
 
-`PRIVACY.md` 를 Pages 에 함께 배포해야 한다 — **Play 심사 필수 항목**이고, 마이크 권한을 쓰므로 없으면 반려된다.
+**Play 심사 필수 항목**이다 — 마이크 권한을 쓰므로 없으면 반려된다.
+GitHub 가 마크다운을 렌더해서 보여주므로 이 URL 을 그대로 쓸 수 있다(공개 저장소여야 한다).
+Pages 에 따로 페이지를 만들면 원본이 둘로 갈라져 어긋난다 — 파일 하나만 둔다.
 
 ## 데이터 보안 양식 (Play Console)
 

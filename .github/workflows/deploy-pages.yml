@@ -23,9 +23,9 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run check
-      - name: build (BASE=/go_practice/)
+      - name: build (BASE=/tempotune/)
         run: npm run build
-        env: { BASE: /go_practice/ }
+        env: { BASE: /tempotune/ }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }

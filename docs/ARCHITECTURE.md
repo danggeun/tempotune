@@ -81,7 +81,7 @@ Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin �
 | 뒤로가기 | — | `@capacitor/app` backButton: 편집기 → 설정 → 메뉴 → 팝업 순으로 닫고, 메인에서는 `minimizeApp` |
 | Service Worker | 등록 (프리캐시, prompt 모드 — 유휴일 때만 적용) | 등록 안 함 (파일이 로컬) |
 
-빌드는 두 종류: `npm run build` (base `/go_practice/`, Pages) 와 `npm run build:cap` (base `/`, Google Fonts 링크 제거, Capacitor `webDir: dist`).
+빌드는 두 종류: `npm run build` (base `/tempotune/`, Pages) 와 `npm run build:cap` (base `/`, Google Fonts 링크 제거, Capacitor `webDir: dist`).
 
 ## 5. 검증 백본 — "사람이 연주하지 않고 확신하는 법"
 
@@ -110,7 +110,7 @@ npx cap open android     # Android Studio
 
 `cap-icons.mjs` 는 `capacitor-assets` 출력을 두 군데 고친다(C2): (1) adaptive 전경을 `resources/android/` 의 **정식 크기 렌더**(108/162/216/324/432 px)로 덮는다 — 생성기가 xxxhdpi 에 192 px 만 내보내 2.25배 확대되던 것, (2) `ic_launcher.xml` 의 `inset 16.7%` 래퍼를 벗긴다 — `gen-icons.mjs` 가 이미 안전영역을 반영해 그려서 두 번 줄어들던 것. 결과: 마스크 안 글자 폭 38 % → **52 %**(PWA 와 동일). 웹/PWA 아이콘은 무변경.
 
-`cap-manifest.mjs` 는 (1) `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` / `INTERNET` 권한과 `uses-feature microphone required=false`, (2) `screenOrientation="portrait"`, (3) `build.gradle` 의 `versionName`(= package.json version) / `versionCode`(= major·10000 + minor·100 + patch) 를 보정한다. **버전을 올릴 때는 package.json 의 `version` 만 올리면 된다.** 웹 코드를 바꿀 때마다, 그리고 서명 빌드 직전에 `npm run cap:sync` 를 반드시 실행한다 (`npm run build` 직후 `npx cap sync` 만 하면 `/go_practice/` 경로가 들어간 dist 가 복사되어 흰 화면이 된다).
+`cap-manifest.mjs` 는 (1) `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` / `INTERNET` 권한과 `uses-feature microphone required=false`, (2) `screenOrientation="portrait"`, (3) `build.gradle` 의 `versionName`(= package.json version) / `versionCode`(= major·10000 + minor·100 + patch) 를 보정한다. **버전을 올릴 때는 package.json 의 `version` 만 올리면 된다.** 웹 코드를 바꿀 때마다, 그리고 서명 빌드 직전에 `npm run cap:sync` 를 반드시 실행한다 (`npm run build` 직후 `npx cap sync` 만 하면 `/tempotune/` 경로가 들어간 dist 가 복사되어 흰 화면이 된다).
 
 서명 APK (Android Studio, Windows):
 1. **Build › Generate Signed App Bundle / APK…** → APK → Next

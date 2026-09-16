@@ -8,10 +8,11 @@ import { mkdirSync, existsSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn, execSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const argv = process.argv.slice(2)
-const OUT = argv.includes('--out') ? argv[argv.indexOf('--out') + 1] : '/tmp/ux-compare'
+const OUT = argv.includes('--out') ? argv[argv.indexOf('--out') + 1] : join(tmpdir(), 'ux-compare') // 윈도우에는 /tmp 가 없다
 const variants = argv.flatMap((a, i) => a === '--variant' ? [argv[i + 1]] : []).map(s => {
   const [name, rest] = s.split('='); const [dist, css] = rest.split(':')
   return { name, dist: resolve(ROOT, dist), css: css ? readFileSync(resolve(ROOT, css), 'utf8') : null }

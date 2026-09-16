@@ -18,6 +18,6 @@ describe('setAllowBackup (R1)', () => {
 })
 
 describe('isWebBuildHtml (R3)', () => {
-  test('Pages 빌드 감지', () => expect(isWebBuildHtml('<script src="/go_practice/assets/a.js">')).toBe(true))
+  test('Pages 빌드 감지 (레포명 무관)', () => { expect(isWebBuildHtml('<script src="/tempotune/assets/a.js">')).toBe(true); expect(isWebBuildHtml('<link href="/anything/assets/a.css">')).toBe(true) })
   test('앱 빌드는 통과', () => expect(isWebBuildHtml('<script src="/assets/a.js">')).toBe(false))
 })

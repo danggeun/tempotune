@@ -5,10 +5,10 @@
   "private": true,
   "license": "MIT",
   "author": "Yeonho (danggeun)",
-  "homepage": "https://danggeun.github.io/go_practice/",
+  "homepage": "https://danggeun.github.io/tempotune/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danggeun/go_practice.git"
+    "url": "https://github.com/danggeun/tempotune.git"
   },
   "engines": {
     "node": ">=22"

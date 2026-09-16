@@ -81,7 +81,7 @@ v2.0.2 의 부작용 정리(T1·P1·M1·D·C2)에 더해, **전 코드베이스�
 ### 수정 — 프라이버시·릴리즈 (R1~R8)
 - **R1 안드로이드 자동 백업을 끈다.** Capacitor 템플릿의 `android:allowBackup="true"` 는 녹음(IndexedDB)을 **사용자 동의 없이 구글 드라이브로 올린다.** 연습 녹음은 개인 자료다. 대가를 분명히 적어 둔다 — 새 폰으로 기기 간 전송을 해도 녹음은 넘어가지 않는다(다운로드·공유로 옮긴다).
 - **R2 웹 빌드에서 Google Fonts 요청 제거.** 앱 빌드에서는 이미 지웠지만 웹에는 남아 있어 방문 사실이 외부로 나갔다. 한글은 시스템 글꼴로 충분하다(앱이 쓰는 굵기는 400/500/700 뿐). 자체 호스팅 대신 제거를 골랐다.
-- **R3 웹 빌드로 APK 를 만드는 사고를 막는다.** `dist/` 가 Pages 용(base `/go_practice/`)이면 그대로 넣은 APK 는 **흰 화면**이 된다. `cap-manifest` 가 먼저 확인하고 멈춘다.
+- **R3 웹 빌드로 APK 를 만드는 사고를 막는다.** `dist/` 가 Pages 용(base `/tempotune/`)이면 그대로 넣은 APK 는 **흰 화면**이 된다. `cap-manifest` 가 먼저 확인하고 멈춘다.
 - **R4 콜드스타트 흰 번쩍.** `capacitor.config.json` 에 `backgroundColor: #0f0f0f`.
 - **R5 홈 화면에 둔 PWA 가 새 버전을 영영 못 받던 문제.** 브라우저는 SW 갱신을 '탐색할 때' 만 확인하는데, 앱처럼 띄워두고 쓰면 탐색이 없다. 1시간마다 직접 확인한다. 적용은 그대로 유휴일 때만.
 - **R6 링크 공유 미리보기·앱 identity.** `description`/OG 메타 추가. manifest 에 `id` 를 고정 — 없으면 `start_url` 이 곧 identity 라 base 가 바뀌면 '다른 앱' 으로 재설치된다.
@@ -131,6 +131,13 @@ v2.0.2 의 부작용 정리(T1·P1·M1·D·C2)에 더해, **전 코드베이스�
 - **스크린샷 라이트 6장 제거.** 앱이 다크 고정이라 라이트로 찍어도 픽셀까지 같은 그림이 나온다(실측 0 px 차이). 아무것도 잡지 못하면서 검증 시간만 두 배로 쓰고 있었다. 12장 → 6장.
 - 작업 일지 성격의 문서 4개(DESIGN·UX-AUDIT·ROADMAP·RETROSPECTIVE)와 낡은 `푸시_방법.txt` 를 저장소에서 제거. 공개 저장소에는 "이 앱이 무엇이고 어떻게 빌드·검증·배포하는가" 만 남긴다(내용은 git 이력에 있다).
 - 새로 추가: `PRIVACY.md`(Play 심사 필수 — 마이크 권한을 쓴다), `docs/STORE.md`(스토어 문구의 원본을 저장소에서 관리).
+
+### 저장소 이름 변경 (go_practice → tempotune)
+- GitHub Pages 주소가 `…/go_practice/` → `…/tempotune/` 로 바뀌므로 빌드 `base`, 배지·링크, og:image, 워크플로를 함께 옮겼다. **레포 이름을 먼저 바꾼 뒤 push 해야 한다** — 순서가 뒤바뀌면 자산 경로가 어긋나 사이트가 깨진다.
+- `appId`(`com.gopractice.app`)와 저장 키는 **그대로**다. 안드로이드 앱 정체성과 기존 녹음이 걸려 있다. 웹은 origin(`danggeun.github.io`)이 그대로라 경로만 바뀌어도 IndexedDB·설정이 유지된다.
+- `cap-manifest.mjs` 의 "Pages 빌드로 APK 만들기" 가드가 레포명을 문자열로 박고 있었다(R3). 이름이 바뀌면 가드가 조용히 무력화된다 — `/<무언가>/assets/` 패턴으로 바꿔 이름과 무관하게 작동하게 했다.
+- `scripts/render-design.mjs` 제거. 개발 샌드박스의 절대경로가 박혀 있어 다른 환경에서는 실행 자체가 불가능했고, 같은 일을 `ux-compare.mjs` 가 인자로 받아 제대로 한다.
+- `ux-compare.mjs` 기본 출력 경로를 `/tmp` 리터럴에서 OS 임시 폴더로 (윈도우에는 `/tmp` 가 없다).
 
 ### e2e 수정
 - `context suspended externally` 가 v2.0.2 부터 가끔 실패하던 원인은 앱이 아니라 **검사의 경합**이었다 — 앱이 statechange 에서 즉시 되살리는데 그 사이의 'suspended' 를 단언했다. "결국 running 으로 돌아오는가" 만 검사한다.
@@ -272,5 +279,5 @@ v1(단일 파일 웹 프로토타입)을 기능·디자인 언어를 유지한 �
 ## [1.0.0] — 2026-06-01
 - 단일 파일 웹 프로토타입 (YIN + FFT 교차검증 튜너, lookahead 메트로놈, YAMNet 연주 감지, IndexedDB 녹음, Capacitor Android)
 
-[2.0.1]: https://github.com/danggeun/go_practice/compare/v2.0.0...v2.0.1
-[2.0.0]: https://github.com/danggeun/go_practice/compare/fd56de1...v2.0.0
+[2.0.1]: https://github.com/danggeun/tempotune/compare/v2.0.0...v2.0.1
+[2.0.0]: https://github.com/danggeun/tempotune/compare/fd56de1...v2.0.0
