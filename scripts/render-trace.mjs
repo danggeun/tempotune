@@ -6,6 +6,7 @@
 // 전/후 비교 방법: 같은 cents 열을 주입하면서 midi 를 **고정** 하면 세그먼트가 하나도 생략되지 않아
 //     v2.0.1 의 그림과 정확히 같아진다(가로줄 포함). midi 를 실제대로 주면 v2.0.2 의 그림이 된다.
 import { chromium } from 'playwright'
+import { waitForServer } from './lib/wait-server.mjs'
 import { mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,7 +23,7 @@ const SIG = join(ROOT, 'test-assets', 'signals')
 if (!existsSync(join(SIG, 'silence_lowfloor.wav'))) execSync('node scripts/gen-signals.mjs', { cwd: ROOT, stdio: 'ignore' })
 
 const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' })
-await new Promise(r => setTimeout(r, 2500))
+await waitForServer(`http://localhost:${PORT}/`)
 
 // ── 합성 프레임: 실제 연주의 통계를 쓴다 ──
 // 「실측 발견 — 확정 버그」: 한 음이 유지되는 길이 중앙값 6프레임(128 ms), 빠른 패시지는 초당 7~8회 전환.
@@ -57,7 +58,7 @@ async function freshPage() {
 }
 const first = await freshPage()
 const size = await first.page.evaluate(() => { const c = document.getElementById('tuner-history'); return { w: c.offsetWidth, h: c.offsetHeight } })
-const diag0 = await first.page.evaluate(() => window.__gp.tuner.diag())
+const diag0 = await first.page.evaluate(() => window.__tt.tuner.diag())
 console.log(`캔버스 실측 ${size.w}×${size.h} px · 기본 창 ${diag0.sec}초 = ${diag0.len}프레임 (sr ${diag0.sr}) → ${(diag0.len / size.h).toFixed(2)} 점/px`)
 await first.ctx.close()
 
@@ -70,9 +71,9 @@ for (const fx of ['scale-80bpm', 'scale-80bpm-outoftune']) {
   const frames = JSON.parse(readFileSync(file, 'utf8')).frames
   for (const [tag, map] of [['v2.0.1', f => (f.rawCents === null ? null : { cents: f.rawCents, midi: 69 })], ['v2.0.2', f => (f.cents === null ? null : { cents: f.cents, midi: f.midi })]]) {
     const { ctx, page } = await freshPage()
-    await page.evaluate(fr => window.__gp.tuner.inject(fr), frames.map(map))
+    await page.evaluate(fr => window.__tt.tuner.inject(fr), frames.map(map))
     await page.waitForTimeout(250) // rAF 페인트 뒤에 읽어야 끊긴 자리 수가 갱신돼 있다
-    const info = await page.evaluate(() => window.__gp.tuner.diag())
+    const info = await page.evaluate(() => window.__tt.tuner.diag())
     const name = `${fx}_${tag}`
     await page.locator('#tuner-history').screenshot({ path: join(OUT, name + '.png') })
     scaleRows.push({ fx, tag, name, skipped: info.skipped })
@@ -93,10 +94,10 @@ for (const kind of ['fast', 'slow']) {
     ['variant_4.0s_with_seam', 4.0, true], // 창만 줄이고 C1 을 안 했다면
   ]) {
     const info = await page.evaluate(([data, sec, flatten]) => {
-      window.__gp.tuner.setHistSec(sec)
+      window.__tt.tuner.setHistSec(sec)
       const f = flatten ? data.map(d => ({ cents: d.cents, midi: 69 })) : data // midi 고정 = 세그먼트 생략이 절대 안 일어남 = v2.0.1 그림
-      window.__gp.tuner.inject(f)
-      return window.__gp.tuner.diag()
+      window.__tt.tuner.inject(f)
+      return window.__tt.tuner.diag()
     }, [data, sec, flatten])
     await page.waitForTimeout(120)
     const file = join(OUT, `${kind}_${label}.png`)

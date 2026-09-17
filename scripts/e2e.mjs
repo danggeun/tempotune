@@ -4,6 +4,7 @@
 // 왜: 스크린샷은 정지 화면만 본다. 리팩토링 전/후 빌드에 같은 시나리오를 돌려 "동작 변경 0"을 증명한다.
 // 마이크는 --use-file-for-fake-audio-capture 로 WAV 를 주입한다 (사람 연주 불필요).
 import { chromium } from 'playwright'
+import { waitForServer } from './lib/wait-server.mjs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -19,7 +20,7 @@ if (!existsSync(join(SIG, 'violin_A4.wav'))) execSync('node scripts/gen-signals.
 
 // 정적 서버 (vite preview 는 outDir 고정이라 직접 띄운다)
 const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (자식 serve 잔존 방지)
-await new Promise(r => setTimeout(r, 2500))
+await waitForServer(`http://localhost:${PORT}/`)
 
 const exe = process.env.CHROMIUM_PATH || undefined
 const launch = wav => chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${join(SIG, wav)}`, '--autoplay-policy=no-user-gesture-required'] })
