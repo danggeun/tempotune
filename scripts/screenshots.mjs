@@ -4,6 +4,7 @@
 // 왜: 리팩토링 중 "의도치 않은 UI 변화"를 픽셀 단위로 잡기 위해. 기준선과 비교하면 diff 이미지를 만든다.
 // 전제: `npx vite build --base=/ && npx vite preview --base=/ --port 4173` 이 떠 있거나, --serve 로 이 스크립트가 직접 띄운다.
 import { chromium } from 'playwright'
+import { waitForServer } from './lib/wait-server.mjs'
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,7 +23,7 @@ let server = null
 if (args.serve) {
   execSync('npx vite build --base=/', { cwd: ROOT, stdio: 'ignore' })
   server = spawn('npx', ['vite', 'preview', '--base=/', '--port', String(PORT)], { cwd: ROOT, stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (Windows 는 shell 로)
-  await new Promise(r => setTimeout(r, 2500))
+  await waitForServer(`http://localhost:${PORT}/`)
 }
 
 const exe = process.env.CHROMIUM_PATH || undefined

@@ -4,6 +4,7 @@
 //   variant 형식: 이름=dist경로[:오버라이드CSS경로]  (오버라이드는 페이지에 <style> 로 주입)
 // 왜: 색·경계·크기 후보를 말로 비교하지 않고 실제 화면(음 맞음/틀림, 녹음 목록, 편집기, 설정)으로 본다.
 import { chromium } from 'playwright'
+import { waitForServer } from './lib/wait-server.mjs'
 import { mkdirSync, existsSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -46,14 +47,14 @@ const SCENES = [
     await p.click('#ed-play-btn'); await p.waitForTimeout(1500); await p.click('#ed-a-btn'); await p.waitForTimeout(1200); await p.click('#ed-b-btn'); await p.waitForTimeout(200); await p.click('#ed-bm-add-btn'); await p.waitForTimeout(400); await p.click('#ed-play-btn')
     await p.click('#ed-zoom-btn'); await p.waitForTimeout(300)
   }],
-  ['mic_off', 'silence_lowfloor.wav', async p => { await p.evaluate(() => window.__gp.closeMic()); await p.waitForTimeout(300) }],
+  ['mic_off', 'silence_lowfloor.wav', async p => { await p.evaluate(() => window.__tt.closeMic()); await p.waitForTimeout(300) }],
 ]
 
 let port = 4300
 for (const v of variants) {
   // detached + 프로세스 그룹 kill: npx 만 죽이면 자식 serve 가 포트를 물고 남아 다음 실행이 옛 빌드를 찍는다
   const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(port), v.dist], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' })
-  await new Promise(r => setTimeout(r, 2200))
+  await waitForServer(`http://localhost:${port}/`)
   for (const [scene, wav, prep] of SCENES) {
     if (only && !only.includes(scene)) continue
     const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${join(SIG, wav)}`, '--autoplay-policy=no-user-gesture-required'] })
