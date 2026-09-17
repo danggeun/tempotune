@@ -14,7 +14,7 @@ import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
-import { mountTuner, showTapHint, setAudioDot, setHistSec, histDiag } from './ui/tuner.ts'
+import { mountTuner, showTapHint, setHistSec, histDiag } from './ui/tuner.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { onMetroError } from './audio/metronome.ts'
@@ -134,14 +134,9 @@ let micReleasedByEditor = false
   }
   new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ['class'] })
 }
-// 오디오 상태 점: 마이크가 열려 있고 컨텍스트가 돌면 초록, 마이크는 열렸는데 컨텍스트가 멈춰 있으면(탭 필요·중단) 앰버, 마이크 꺼짐이면 숨김
-const syncAudioDot = () => { const t = tunerStore.get(); setAudioDot(!t.running ? 'off' : A.ac?.state === 'running' ? 'on' : 'warn') }
-tunerStore.select(s => s.running, syncAudioDot)
-setTimeout(syncAudioDot, 500) // 자동 시작 경로에서 running 이 먼저 서고 컨텍스트가 늦게 도는 경우
 // 전화·다른 앱 오디오 등으로 컨텍스트가 멈추면: 화면에 보일 때 재개를 시도하고, 그래도 안 되면 메트로놈을 멈추고 알린다
 let interruptedTimer: ReturnType<typeof setTimeout> | null = null
 onContextState(state => {
-  syncAudioDot()
   if (state === 'running') { if (interruptedTimer) { clearTimeout(interruptedTimer); interruptedTimer = null } return }
   if (state === 'closed') return
   if (!metroStore.get().playing && !tunerStore.get().running) return // 유휴 suspend 는 정상

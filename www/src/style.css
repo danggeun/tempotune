@@ -86,7 +86,9 @@ button{font-family:inherit;color:inherit;}
 
 /* ── 헤더 ── */
 #hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
-#logo{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:28px;color:var(--text);line-height:1;font-weight:600;letter-spacing:-.01em;cursor:pointer;}
+/* K1: 본문 서체로 통일하고 뒤로 물린다. 디스플레이 세리프 이탤릭 하나만 획 대비가 커서
+   산세리프 UI 안에서 혼자 튀었다("고급스러운데 계속 눈에 잡힌다"). 화면의 서체 3종 → 2종. */
+#logo{font-size:16px;color:var(--text-2);line-height:1;font-weight:var(--fw-b);letter-spacing:.01em;cursor:pointer;}
 #hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 #hdr-rec-time{display:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;letter-spacing:.04em;min-width:2.6em;text-align:right;}
 #hdr-rec-time.show{display:inline;}
@@ -112,9 +114,6 @@ button{font-family:inherit;color:inherit;}
 #tuner-hdr.beat-flash-weak{animation:tunerbeatweak .18s ease-out forwards;}
 #tuner-label{font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);display:flex;align-items:center;}
 /* 오디오 상태 점 — 말 대신 점 (v1 66e7159 의 의도 계승): 켜짐 = 무채색(초록은 '맞음' 하나의 뜻만 가진다), 주의 = 앰버 펄스, 꺼짐 = 숨김 */
-#ai-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--tuner-text-2);margin-left:8px;opacity:0;transition:opacity .4s,background .4s;}
-#ai-dot.on{opacity:.9;}
-#ai-dot.warn{opacity:1;background:var(--warn);animation:pulse 1.2s ease-in-out infinite;}
 #tuner-hdr-right{display:flex;align-items:center;gap:10px;}
 /* 'A 듣기' — 검정 무대 위의 글자 버튼: 회색 테두리·글자, 켜짐 = 흰 테두리+흰 글자 (채움 없음) */
 #ref-a-btn{height:var(--h-chip);padding:0 9px;border-color:#333;color:var(--tuner-text-2);font-size:var(--fs-xs);font-weight:var(--fw-md);}
@@ -152,18 +151,9 @@ button{font-family:inherit;color:inherit;}
 #tuner-cents{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);font-weight:var(--fw-md);text-align:right;}
 #tuner-history{flex:1;min-height:80px;border-radius:var(--r-sm);background:var(--tuner-bg);display:block;width:100%;border:none;}
 /* 게이지 양 끝 ♭ ♯ — '왼쪽이 낮음' 을 학습하지 않아도 되게 (색 추가 없음) */
-#gauge-row{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.gauge-cue{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);line-height:1;width:12px;text-align:center;}
-#gauge-wrap{position:relative;flex:1;height:6px;background:var(--tuner-line);border-radius:3px;}
-#gauge-zone{position:absolute;top:-2px;height:10px;background:var(--ok);opacity:.4;border-radius:4px;}
-#gauge-center{position:absolute;top:-4px;left:50%;width:1px;height:14px;background:var(--tuner-empty);transform:translateX(-50%);}
-#gauge-needle{position:absolute;top:-8px;width:6px;height:22px;background:rgba(255,255,255,.85);border-radius:2px;transform:translateX(-50%);transition:left .07s;left:50%;}
 /* 음이 바뀌면 cents 의 기준이 바뀐다(+45 → −45). 자리를 애니메이션하면 '바늘이 반대편까지 쓸고 간' 거짓 궤적이 되고(B10),
    전이만 끄면 순간이동으로 보인다(베타 피드백 #1). 기준이 바뀐 값은 **자리로 이을 수 없는 값**이므로,
    자리는 즉시 옮기되 그 순간 바늘을 사라졌다 돌아오게 한다 — 거짓 궤적 없이 끊김도 없다. */
-@keyframes needlehop{0%{opacity:0}100%{opacity:1}}
-#gauge-needle.hop{animation:needlehop .14s var(--ease);}
-#gauge-needle.tune{background:var(--ok);box-shadow:0 0 8px rgba(var(--ok-rgb),.9);}
 
 /* ══════════════════════════════════
    메트로놈 — 카드 하나, 헤어라인 하나. 강박은 면과 안쪽 링으로.
