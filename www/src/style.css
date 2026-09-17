@@ -68,6 +68,8 @@ button{font-family:inherit;color:inherit;}
 .nav-glyph.chev{transition:transform var(--t-std) var(--ease);}
 #metro-collapse-btn.collapsed .nav-glyph.chev{transform:rotate(180deg);}
 .note-glyph{width:12px;height:17px;fill:currentColor;display:inline-block;vertical-align:-3px;}
+/* 빔으로 묶인 글리프는 가로로 길다 — viewBox 비율 그대로 폭을 준다 (찌그러지면 음표가 아니다) */
+.note-glyph.g2{width:22px;}.note-glyph.g3{width:29px;height:17.5px;}.note-glyph.gd{width:25px;}
 .note-glyph .flag{display:none;}
 #sd-grid.compound .note-glyph .flag{display:block;}
 .note-dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;margin-left:3px;vertical-align:-2px;}
