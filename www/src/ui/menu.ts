@@ -1,5 +1,6 @@
 /** 풀스크린 메뉴 + 설정 페이지 열기/닫기 */
 import { q, qs, on, reflow } from './dom.ts'
+import { attachSwipeBack } from './swipeBack.ts'
 
 export function toggleMenu(): void { q('menu-overlay').classList.toggle('open') }
 /** 편집기에서 돌아올 때: 트랜지션 없이 즉시 열린 상태로 (v1 closeEditor) */
@@ -22,4 +23,7 @@ export function mountMenu(): void {
   on(qs('.menu-close-btn'), 'click', toggleMenu)
   on(q('settings-open-btn'), 'click', openSettings)
   on(q('settings-back-btn'), 'click', closeSettings)
+  // 가장자리 스와이프 = 뒤로 (v2.3.0): 메뉴 → 본화면, 설정 → 메뉴. 버튼은 그대로 있다
+  attachSwipeBack(q('menu-overlay'), { onBack: hideMenu })
+  attachSwipeBack(q('settings-page'), { onBack: closeSettings, ignore: 'input[type=range]' })
 }

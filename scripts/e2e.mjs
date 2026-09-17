@@ -613,6 +613,37 @@ await scenario('ux: speed label tap cycles 1.0→0.5→0.7→0.85→1.0 and is r
   assert.equal(await val(), '0.85×', 'speed restored from meta')
   await p.click('#ed-speed-val'); assert.equal(await val(), '1.0×')
 })
+await scenario('ux: 가장자리 스와이프로 뒤로 — 메뉴·설정·편집기, 가운데서 긋거나 세로로 긋거나 짧으면 무시 (v2.3.0)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  const swipe = async (x0, y0, x1, y1, steps = 8) => { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i <= steps; i++) await p.mouse.move(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps); await p.mouse.up() }
+  const menuOpen = () => p.evaluate(() => document.getElementById('menu-overlay').classList.contains('open'))
+  const settingsOpen = () => p.evaluate(() => document.getElementById('settings-page').classList.contains('open'))
+  const W = await p.evaluate(() => innerWidth)
+  // 메뉴 → 본화면
+  await p.click('#menu-btn'); await sleep(p, 300); assert.equal(await menuOpen(), true)
+  await swipe(200, 400, 320, 400); await sleep(p, 300); assert.equal(await menuOpen(), true, '가운데서 그은 건 무시')
+  await swipe(8, 400, 12, 560); await sleep(p, 300); assert.equal(await menuOpen(), true, '세로로 그은 건 스크롤')
+  await swipe(8, 400, 8 + W * 0.2, 400); await sleep(p, 500); assert.equal(await menuOpen(), true, '35 % 못 미치면 제자리')
+  assert.equal(await p.evaluate(() => document.getElementById('menu-overlay').style.transform), '', '되돌아간 뒤 transform 은 지운다')
+  await swipe(8, 400, 8 + W * 0.5, 400); await sleep(p, 600); assert.equal(await menuOpen(), false, '절반 넘게 끌면 닫힘')
+  assert.equal(await p.evaluate(() => document.getElementById('menu-overlay').style.transform), '', '닫힌 뒤 transform 은 지운다')
+  // 설정 → 메뉴 (메뉴는 남아 있어야 한다)
+  await p.click('#menu-btn'); await sleep(p, 300); await p.click('#settings-open-btn'); await sleep(p, 300); assert.equal(await settingsOpen(), true)
+  await swipe(8, 300, W * 0.6, 300); await sleep(p, 600)
+  assert.equal(await settingsOpen(), false, '설정 닫힘'); assert.equal(await menuOpen(), true, '메뉴는 그대로')
+  // 편집기 → 메뉴
+  await p.click('.menu-close-btn'); await sleep(p, 200)
+  await p.click('#rec-hdr-btn'); await sleep(p, 1500); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  await p.click('#menu-btn'); await sleep(p, 200); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1200)
+  const edOpen = () => p.evaluate(() => document.getElementById('editor-page').classList.contains('open'))
+  assert.equal(await edOpen(), true)
+  // 파형 스크럽(가로 드래그)은 가장자리 영역(24 px) 밖에서 시작해야 서로 안 다툰다 — 겹치면 ignore 목록이 막지만, 겹치지 않는 게 먼저다
+  const trackLeft = await p.evaluate(() => document.getElementById('ed-track').getBoundingClientRect().left)
+  assert.ok(trackLeft > 24, `파형 왼쪽 끝이 가장자리 영역 안에 들어오면 스크럽과 뒤로가 겹친다: left=${trackLeft}`)
+  await swipe(8, 60, W * 0.6, 60); await sleep(p, 700)
+  assert.equal(await edOpen(), false, '편집기 닫힘'); assert.equal(await menuOpen(), true, '닫히면 메뉴로')
+  await p.click('.menu-close-btn')
+})
 await scenario('ux: list meta shows 북마크 n · A-B after editing', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 2200); await p.click('#rec-hdr-btn'); await sleep(p, 800)

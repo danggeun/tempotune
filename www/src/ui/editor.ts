@@ -15,6 +15,7 @@ import { q, on, reflow, PLAY_GLYPH, PAUSE_GLYPH } from './dom.ts'
 import { displayName, releaseAudio } from './recList.ts'
 import { toast } from './toast.ts'
 import { hideMenu, showMenuInstant } from './menu.ts'
+import { attachSwipeBack } from './swipeBack.ts'
 
 interface EdState {
   idx: number; item: RecItem | null; audio: HTMLAudioElement | null
@@ -401,6 +402,9 @@ async function downloadWhole(): Promise<void> {
 }
 
 export function mountEditor(): void {
+  // 가장자리 스와이프 = 닫기 (v2.3.0). 파형 스크럽·핸들·속도 슬라이더 위에서 시작하면 잡지 않는다 — 그건 그들 것.
+  // 잡히는 순간 뒤에 메뉴를 깔아, 끌리는 동안 본화면이 아니라 돌아갈 메뉴가 보이게 (closeEditor 도 메뉴로 돌아간다)
+  attachSwipeBack(q('editor-page'), { onBack: closeEditor, onArm: showMenuInstant, ignore: '#ed-track, #ed-a-handle, #ed-b-handle, #ed-pos-handle, input[type=range]' })
   const track = q('ed-track')
   on(track, 'click', (e: MouseEvent) => {
     if (ed.dragging || Date.now() - dragEndedAt < 300) return // 드래그 직후의 click 은 시크가 아니다
