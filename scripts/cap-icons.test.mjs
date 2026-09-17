@@ -81,18 +81,15 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 �
       expect([p.width, p.height]).toEqual([px, px])
     }
   })
-  // v2.1.0: 워드마크(보이는 폭 52 %)를 다이얼로 교체하면서 목표가 82 % 로 올라갔다 —
-  // 이전 아이콘이 홈 화면에서 "있는 줄도 몰랐다" 는 지적을 받았기 때문이다(베타 피드백 #1).
-  // gen-icons 의 inkW 0.82 × (content 0.48 / 0.72) = 캔버스의 54.7 % → 보이는 타일 기준 82 %.
-  test.skipIf(!existsSync(dir))('잉크 폭 54.7 ± 1.5 % → 마스크 안에서 82 ± 2.5 %', () => {
+  // v2.2.0: 원본 그림(베타 사용자의 메트로놈+소리굽쇠)을 66 % 안전영역에 맞춘다. 눈에 띄려면
+  // 보이는 72dp 의 절반 이상은 차야 한다 — "깔아 놓고도 있는 줄 몰랐다"(베타 피드백 #1) 재발 방지선.
+  test.skipIf(!existsSync(dir))('보이는 72dp 기준 그림 폭 ≥ 55 %', () => {
     for (const [d] of files) {
       const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_foreground-${d}.png`)))
       let x0 = p.width, x1 = -1
       for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) { if (p.data[(y * p.width + x) * 4 + 3] < 24) continue; if (x < x0) x0 = x; if (x > x1) x1 = x }
-      const ink = (x1 - x0 + 1) / p.width * 100
-      expect(ink).toBeGreaterThan(53.2); expect(ink).toBeLessThan(56.2)
-      const visible = ink / (72 / 108) // adaptive 108dp 중 보이는 것은 중앙 72dp
-      expect(Math.abs(visible - 82)).toBeLessThan(2.5)
+      const visible = (x1 - x0 + 1) / p.width / (72 / 108) * 100
+      expect(visible, `${d}: 보이는 폭 ${visible.toFixed(1)} %`).toBeGreaterThan(55)
     }
   })
   // 원형 마스크(적응형은 원으로 잘린다)에서 마크가 잘리지 않는다: 보이는 72dp 원 안에 들어와야 한다
@@ -114,19 +111,19 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 �
   })
 })
 
-// 실제로 어긋난 적이 있다: 타일색을 #2ecc66 그라디언트 → #189E46 단색으로 바꿨는데
-// package.json 의 cap:assets 에는 옛 #22b355 가 남아 있었다. 그러면 런처의 adaptive 배경만
-// 다른 초록이 되어, PWA 아이콘과 앱 아이콘의 색이 갈린다. 두 곳은 손으로 맞추는 값이라 테스트로 묶는다.
+// 실제로 어긋난 적이 있다(v2.1.0): 타일색을 바꿨는데 package.json 의 cap:assets 에는 옛 색이 남아
+// 런처의 adaptive 배경만 다른 색이 될 뻔했다. 두 곳은 손으로 맞추는 값이라 테스트로 묶는다.
+// v2.2.0 부터 타일색의 원천은 resources/icon-src.png 의 모서리 픽셀이다(gen-icons 가 거기서 읽는다).
 describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
-  test('gen-icons 의 타일색 = package.json 의 adaptive 배경색', () => {
-    const spec = readFileSync(new URL('./gen-icons.mjs', import.meta.url), 'utf8')
-    const tile = /bg0:\s*'(#[0-9a-fA-F]{6})'/.exec(spec)?.[1]
+  const src = new URL('../resources/icon-src.png', import.meta.url)
+  test.skipIf(!existsSync(src))('icon-src 의 크림 = package.json 의 adaptive 배경색', () => {
+    const p = PNG.sync.read(readFileSync(src)); const i = (3 * p.width + 3) * 4
+    const tile = '#' + [p.data[i], p.data[i + 1], p.data[i + 2]].map(v => v.toString(16).padStart(2, '0')).join('')
     const pkg = readFileSync(new URL('../package.json', import.meta.url), 'utf8')
     const bg = /--iconBackgroundColor\s+(#[0-9a-fA-F]{6})/.exec(pkg)?.[1]
     const bgDark = /--iconBackgroundColorDark\s+(#[0-9a-fA-F]{6})/.exec(pkg)?.[1]
-    expect(tile).toBeTruthy()
-    expect(bg?.toLowerCase()).toBe(tile?.toLowerCase())
-    expect(bgDark?.toLowerCase()).toBe(tile?.toLowerCase())
+    expect(bg?.toLowerCase()).toBe(tile.toLowerCase())
+    expect(bgDark?.toLowerCase()).toBe(tile.toLowerCase())
   })
 })
 

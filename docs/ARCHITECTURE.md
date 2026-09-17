@@ -6,7 +6,7 @@
 
 ```
 www/src/
-  main.ts      조립만 — 모듈 연결과 시작 시퀀스 (마이크 자동 시도, 권한 팝업, SW 등록, 뒤로가기, 진단 훅 window.__gp)
+  main.ts      조립만 — 모듈 연결과 시작 시퀀스 (마이크 자동 시도, 권한 팝업, SW 등록, 뒤로가기, 진단 훅 window.__tt)
   ui/          카드별 DOM 바인딩: tuner, refDrum, metro, refPanel(기준음 버튼), menu, settings, timer,
                micPopup, recHeader, recList, editor, toast. mount*() 가 바인딩 + 스토어 구독
   audio/       Web Audio 어댑터: engine(단일 AudioContext·마이크 세션), analysis(+worker), capture.worklet,
@@ -49,7 +49,7 @@ www/src/
                             ▼
                      main: tunerStore.set(...)                  ← 초당 ≈43회, DOM 안 만짐
                             ▼
-                     ui/tuner: requestAnimationFrame 에서 최신 값만 렌더 (음이름·게이지·히스토리 캔버스)
+                     ui/tuner: requestAnimationFrame 에서 최신 값만 렌더 (음이름·히스토리 캔버스 — v2.2.0 에서 게이지 바늘 제거: 히스토리 맨 앞 점과 같은 값이었다)
 ```
 
 - **단일 `AudioContext`** (engine.ts). 첫 사용자 제스처에서 생성, 마이크는 소스 노드 연결/해제만. 유휴(마이크·메트로놈·기준음 없음)면 `suspend()` 해 오디오 포커스를 돌려준다. 마이크 세션은 토큰(`micGen`)으로 식별해, 여는 도중 닫혀도 옛 세션이 이어지지 않는다.
@@ -62,8 +62,8 @@ www/src/
 
 | 무엇 | 어디 | 스키마 |
 |---|---|---|
-| 설정 | `localStorage["gopractice_settings_v1"]` | `{v:2, …}` — 키 이름은 v1 호환. 읽을 때 값 범위까지 검증(refHz 410–466, 허용 오차 5단계, 음량 0–1) |
-| 녹음 | IndexedDB `gopractice_rec` **v3** | `recordings`(id, name, ts, dur, mime, blob) + `meta`(북마크, A-B, 파형 피크, 마지막 속도) 분리 — 편집 정보 저장이 blob 을 다시 쓰지 않게 |
+| 설정 | `localStorage["tempotune_settings_v1"]` | `{v:2, …}` — 키 이름은 v1 호환. 읽을 때 값 범위까지 검증(refHz 410–466, 허용 오차 5단계, 음량 0–1) |
+| 녹음 | IndexedDB `tempotune_rec` **v3** | `recordings`(id, name, ts, dur, mime, blob) + `meta`(북마크, A-B, 파형 피크, 마지막 속도) 분리 — 편집 정보 저장이 blob 을 다시 쓰지 않게 |
 | 보관 정책 | `core/recPolicy` | 30일 TTL(설정에서 끌 수 있음), 마지막 7일 예고, 60분 벽시계 상한 자동 저장 |
 
 Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin 이 바뀌어 위 데이터가 전부 사라진다.**
@@ -89,8 +89,8 @@ Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin �
 |---|---|---|
 | 순수 알고리즘 | Vitest (`*.test.ts`) | YIN cents 오차, 트래커, 감지기, 시퀀서, 기준음 보정, WAV, 설정 마이그레이션, 녹음 보관 정책 |
 | 튜너 벤치마크 | `npm run bench` | `scripts/gen-signals.mjs` 가 결정적 난수로 합성한 현악기·잡음·말소리 신호(`test-assets/signals/`, gitignore)를 넣어 bias·p90·옥타브 오류·락 지연·F1·프레임 ms 를 표로. **튜너·감지기를 건드리면 이 지표가 후퇴하면 안 되고, 표시만 바꿨다면 완전히 같아야 한다** |
-| 브라우저 통합 | `npm run e2e` (`scripts/e2e.mjs`) | 헤드리스 Chromium 에 `--use-file-for-fake-audio-capture=<wav>` 로 WAV 를 마이크로 주입. "440 Hz 를 넣으면 라 4 가 뜨는가", A=415 회귀, 권한 거부, 메트로놈 샘플 정확도(OfflineAudioContext), 녹음→편집→저장, 무활동 종료, SW 등록. 앱은 `window.__gp` 진단 훅을 노출 |
-| 시각 회귀 | `npm run shots` (`scripts/screenshots.mjs`) | 390×844 @2x, main/metro_open/menu/settings/editor/popup 6장을 `test-assets/screens/baseline/` 과 pixelmatch. 무음 WAV 를 주입해 바늘을 고정. 앱이 다크 고정이라 라이트로 찍어도 같은 그림이 나오므로 한 벌만 찍는다 |
+| 브라우저 통합 | `npm run e2e` (`scripts/e2e.mjs`) | 헤드리스 Chromium 에 `--use-file-for-fake-audio-capture=<wav>` 로 WAV 를 마이크로 주입. "440 Hz 를 넣으면 라 4 가 뜨는가", A=415 회귀, 권한 거부, 메트로놈 샘플 정확도(OfflineAudioContext), 녹음→편집→저장, 무활동 종료, SW 등록. 앱은 `window.__tt` 진단 훅을 노출 |
+| 시각 회귀 | `npm run shots` (`scripts/screenshots.mjs`) | 390×844 @2x, main/metro_open/menu/settings/editor/popup 6장을 `test-assets/screens/baseline/` 과 pixelmatch. 무음 WAV 를 주입해 트레이스를 비운다. 앱이 다크 고정이라 라이트로 찍어도 같은 그림이 나오므로 한 벌만 찍는다 |
 | 디자인 비교 | `scripts/ux-compare.mjs` | 여러 dist(+오버라이드 CSS)를 같은 시나리오로 찍어 나란히 |
 | 모듈 경계 | `scripts/check-deps.mjs` | §1 표 위반, `core` 의 브라우저 API 사용 |
 
@@ -114,10 +114,10 @@ npx cap open android     # Android Studio
 
 서명 APK (Android Studio, Windows):
 1. **Build › Generate Signed App Bundle / APK…** → APK → Next
-2. Key store path: **Create new…** — 경로 `C:\Users\<이름>\keys\gopractice-release.jks` (리포 폴더 밖), 비밀번호 2개, Alias `gopractice`, 유효기간 25년 이상
+2. Key store path: **Create new…** — 경로 `C:\Users\<이름>\keys\tempotune-release.jks` (리포 폴더 밖), 비밀번호 2개, Alias `tempotune`, 유효기간 25년 이상
 3. Build variant **release** → Create → `android\app\release\app-release.apk`
 4. 키스토어 파일과 비밀번호를 백업한다. 잃으면 같은 서명으로 업데이트를 만들 수 없다. **키스토어는 절대 커밋하지 않는다** (`.gitignore` 에 `*.jks`)
 
-아이콘 소스는 `npm run icons` (`scripts/gen-icons.mjs`) 가 캔버스 2D 로 렌더한다 — 초록 타일 위 흰 튜너 다이얼(호·눈금·바늘·축이 **한 중심**을 공유). 비례는 호 반지름 R 하나로 묶이고, 잉크 폭 = 1.9522 R = 타일의 82 %. v2.1.0 에서 워드마크 아이콘을 대체했다(베타 피드백 #1: "깔아 놓고도 있는 줄 몰랐다").
+아이콘은 원본 그림 `resources/icon-src.png`(1024² 풀블리드, 크림 바탕의 메트로놈+소리굽쇠 — 베타 사용자 제작, v2.2.0)에서 `npm run icons` (`scripts/gen-icons.mjs`) 가 플랫폼별 파일을 뽑는다: iOS/PWA 는 풀블리드 그대로(OS 가 스퀘어클로 깎는다), PWA maskable 은 그림을 중앙 지름 74 % 원 안으로(규격 80 %), Android adaptive 전경은 66 % 안전영역 안 + 투명 배경, 배경은 크림 단색, 테마 아이콘은 흰 실루엣. **그림은 손대지 않는다** — 규격만 맞춘다. `scripts/cap-icons.test.mjs` 가 안전영역·배경색 일치를 검사한다.
 
 확인 필요(실기기): Android 15 엣지투엣지에서 상단 safe-area 값이 WebView `env()` 로 들어오는지, `minWebViewVersion: 94` 미만 기기의 안내 화면, 공유 시트, 뒤로가기, 통화 후 복구.
