@@ -69,7 +69,7 @@ button{font-family:inherit;color:inherit;}
 #metro-collapse-btn.collapsed .nav-glyph.chev{transform:rotate(180deg);}
 .note-glyph{width:12px;height:17px;fill:currentColor;display:inline-block;vertical-align:-3px;}
 /* 빔으로 묶인 글리프는 가로로 길다 — viewBox 비율 그대로 폭을 준다 (찌그러지면 음표가 아니다) */
-.note-glyph.g2{width:22px;}.note-glyph.g3{width:29px;height:17.5px;}.note-glyph.gd{width:25px;}
+.note-glyph.g2{width:22px;}.note-glyph.g4{width:37px;}.note-glyph.g3{width:29px;height:17.5px;}.note-glyph.gd{width:25px;}
 .note-glyph .flag{display:none;}
 #sd-grid.compound .note-glyph .flag{display:block;}
 .note-dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;margin-left:3px;vertical-align:-2px;}
@@ -177,6 +177,38 @@ button{font-family:inherit;color:inherit;}
 #metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 #metro-collapse-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-collapse-btn::after{content:'';position:absolute;inset:-6px;}
+#metro-full-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#metro-full-btn::after{content:'';position:absolute;inset:-6px;}
+#metro-full-btn .nav-glyph{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+/* ── 메트로놈 전용 모드 (K10) ──
+   "메트로놈 켜고 연습하고 싶은데 튜너가 자꾸 왔다갔다해서 거슬린다." 튜너 카드를 숨기고 메트로놈이 화면을 다 쓴다.
+   마이크도 놓는다(main.ts) — 튜너가 없으니 들을 이유가 없고, OS 마이크 표시도 그동안 사라진다(K6). */
+#main-body.metro-full #tuner-card{display:none;}
+#app.metro-full #hdr-mic-btn{display:none !important;}
+#app.metro-full #hdr-mic-btn{display:none !important;}
+#metro-card.full{flex:1;min-height:0;display:flex;flex-direction:column;}
+#metro-card.full #metro-body-wrap{flex:1;min-height:0;grid-template-rows:1fr;}
+#metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;}
+#metro-card.full #metro-body{height:100%;justify-content:center;gap:var(--s3);}
+#metro-card.full #metro-collapse-btn{display:none;}
+#metro-card.full #metro-bpm{font-size:min(var(--fs-d3),26vw);min-width:130px;}
+#metro-card.full #beat-vis{display:none;} /* 전용 모드의 박 표시는 아래 세이코식 트랙이 맡는다 */
+/* ── 세이코식 LED 줄 (K5) ──
+   세이코 SQ100 의 LED 줄 그대로: 칸 수는 **고정**(분할이 많아져도 안 넘친다), 불이 한 박에 끝→끝으로 쓸고 간다.
+   양 끝 = 정박 → 초록으로 탁. 사이 분할 자리 = 액센트색으로 탁. 첫 박은 더 크게. */
+.led{border-radius:50%;background:var(--line);flex-shrink:0;transition:background .05s,transform .05s,box-shadow .05s;}
+.led.mv{background:var(--text-2);} /* 쓸고 가는 불 */
+.led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
+.led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
+.led.hit-acc{background:var(--ok);transform:scale(1.7);box-shadow:0 0 16px rgba(var(--ok-rgb),1);}
+#beat-vis .led{width:10px;height:10px;}
+#metro-card.bar #beat-vis .led{width:13px;height:13px;} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
+#sweep{display:none;flex-direction:column;gap:12px;padding:8px 2px 4px;}
+#metro-card.full #sweep{display:flex;}
+#sweep-leds{display:flex;justify-content:space-between;align-items:center;height:44px;padding:0 4px;}
+#sweep-leds .led{width:18px;height:18px;}
+#sweep-beats{display:flex;justify-content:center;gap:10px;height:16px;align-items:center;}
+#sweep-beats .bd{width:12px;height:12px;}
 /* 접기/펼치기: grid-template-rows 0fr↔1fr (v1 의 .55 s 느긋한 전이 유지) */
 #metro-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--t-slow) ease;}
 #metro-body-clip{min-height:0;overflow:hidden;transition:opacity .35s ease .2s;}

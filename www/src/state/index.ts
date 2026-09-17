@@ -48,7 +48,7 @@ export const V201_RMS_LEVELS = [.024, .014, .008] as const
 /** 표시 평활 계수 — 분석 프레임(≈43 Hz) 기준. v1(.05/.10/.15 @ 60 Hz·4프레임 스킵)과 시간상수가 같도록 환산 */
 export const SMOOTH_LEVELS = [.06, .12, .20] as const
 
-export type SubDiv = 1 | 2 | 3 | 'd'
+export type SubDiv = 1 | 2 | 3 | 4 | 'd' // 4 = 16분음표 (K10)
 export type TimeSig = 1 | 2 | 3 | 4 | 6 // 1 = 박자표 없음(정박만) — K3
 
 // ── 사용자 설정 (영속) ──
@@ -108,10 +108,11 @@ export interface MetroState {
   playing: boolean
   /** 폰 레이아웃에서 본체 접힘 */
   collapsed: boolean
+  full: boolean // 메트로놈 전용 모드 (K10) — 튜너를 숨기고 화면을 다 쓴다
   /** 마지막으로 울린 틱 (시각 피드백용). {n} 카운터로 같은 틱도 재알림 */
   lastTick: { tick: number; n: number }
 }
-export const metroStore = createStore<MetroState>({ playing: false, collapsed: true, lastTick: { tick: -1, n: 0 } })
+export const metroStore = createStore<MetroState>({ playing: false, collapsed: true, full: false, lastTick: { tick: -1, n: 0 } })
 
 // ── 기준음 ──
 export interface RefToneState { octave: number; active: string | null }

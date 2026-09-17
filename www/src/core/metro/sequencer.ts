@@ -8,7 +8,7 @@
  * 패턴(v1 유지): 6/8 은 8분음표 6개(강·약·약·중·약·약이 아니라 v1 처럼 첫 박만 강), 세분 1/2/3, 붓점('d')은 3:1.
  * 클릭음: 강박 1800 Hz / 박 1100 Hz / 세분 750 Hz 삼각파, 50 ms 지수 감쇠 (v1 과 같은 음색).
  */
-export type SubDiv = 1 | 2 | 3 | 'd'
+export type SubDiv = 1 | 2 | 3 | 4 | 'd' // 4 = 16분음표 (K10)
 export type TimeSig = 1 | 2 | 3 | 4 | 6 // 1 = 박자표 없음(정박만) — K3
 
 export interface Pattern { bpm: number; timeSig: TimeSig; subDiv: SubDiv; volume: number; muted: boolean }
