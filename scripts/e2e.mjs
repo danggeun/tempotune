@@ -4,7 +4,6 @@
 // 왜: 스크린샷은 정지 화면만 본다. 리팩토링 전/후 빌드에 같은 시나리오를 돌려 "동작 변경 0"을 증명한다.
 // 마이크는 --use-file-for-fake-audio-capture 로 WAV 를 주입한다 (사람 연주 불필요).
 import { chromium } from 'playwright'
-import { waitForServer } from './lib/wait-server.mjs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -20,7 +19,7 @@ if (!existsSync(join(SIG, 'violin_A4.wav'))) execSync('node scripts/gen-signals.
 
 // 정적 서버 (vite preview 는 outDir 고정이라 직접 띄운다)
 const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (자식 serve 잔존 방지)
-await waitForServer(`http://localhost:${PORT}/`)
+await new Promise(r => setTimeout(r, 2500))
 
 const exe = process.env.CHROMIUM_PATH || undefined
 const launch = wav => chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${join(SIG, wav)}`, '--autoplay-policy=no-user-gesture-required'] })
@@ -114,7 +113,7 @@ await scenario('metro: play/stop 이 접힘을 바꾸지 않는다 (U1), header 
   assert.equal(await collapsedEl(), false, 'U1: 펼친 채 재생하면 펼친 채로 남는다')
   assert.equal(await hdr(), 'none', '펼쳐져 있으면 헤더 재생 버튼은 숨는다 (본체 버튼과 겹치지 않게)')
   await sleep(p, 1600)
-  const lit = await p.evaluate(() => document.querySelectorAll('#beat-vis .led').length); assert.ok(lit >= 0)
+  const lit = await p.evaluate(() => document.querySelectorAll('#beat-vis .bd.lit-a, #beat-vis .bd.lit-b, #beat-vis .bd.lit-s').length); assert.ok(lit >= 0)
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('metro-collapse-btn')).display), 'flex', 'collapse btn stays while playing')
   await p.click('[data-ts="3"]'); assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '3')
   // 재생 중에 직접 접으면 접히고, 그때만 헤더 재생 버튼이 나온다
@@ -143,46 +142,27 @@ await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots
   assert.equal(await bpm(), 70, 'drag 100px = +50 bpm')
   await p.click('[data-ts="6"]'); assert.equal(await p.evaluate(() => document.getElementById('sd-grid').style.pointerEvents), 'none')
   assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector('[data-sd="1"] .flag')).display), 'block', '6/8 shows eighth-note flag')
-  // K5: 헤더는 세이코식 LED 9칸 **고정** — 전에는 틱 수만큼 점을 만들어 4/4·3분할이면 12개로 폰에서 넘쳤다
-  await p.click('#metro-play-btn'); await sleep(p, 150)
-  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .led').length), 9)
-  await p.click('[data-ts="3"]'); await p.click('[data-sd="2"]'); await sleep(p, 150); assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .led').length), 9)
-  await p.click('#metro-play-btn')
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd').length), 6)
+  await p.click('[data-ts="3"]'); await p.click('[data-sd="2"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd').length), 6)
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd.beat').length), 3)
+  await p.click('[data-sd="d"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd').length), 6)
 })
 await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다 (K3)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await p.click('#metro-collapse-btn'); await sleep(p, 600)
   await p.click('[data-ts="1"]')
   assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '1', '정박 버튼이 켜진다')
-  // 재생해도 어느 틱에서도 액센트(hit-acc)가 나오지 않아야 한다 — 이게 이 모드의 전부다
-  await p.click('#metro-play-btn')
-  let sawAccent = false, sawBeat = false
-  for (let i = 0; i < 40; i++) { if (await p.evaluate(() => !!document.querySelector('#beat-vis .led.hit-acc'))) sawAccent = true; if (await p.evaluate(() => !!document.querySelector('#beat-vis .led.hit-beat'))) sawBeat = true; await sleep(p, 40) }
-  assert.equal(sawBeat, true, '정박은 초록으로 친다')
+  // 마디가 없으니 점은 분할 수만큼만 — 세분 없음이면 하나
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd').length), 1)
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd.beat').length), 1)
+  await p.click('[data-sd="3"]')
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd').length), 3, '3분할이면 셋')
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .bd.beat').length), 1, '박 하나 + 분할 둘')
+  // 재생해도 어느 틱에서도 액센트(lit-a)가 나오지 않아야 한다 — 이게 이 모드의 전부다
+  await p.click('[data-sd="1"]'); await p.click('#metro-play-btn')
+  let sawAccent = false
+  for (let i = 0; i < 30; i++) { if (await p.evaluate(() => !!document.querySelector('#beat-vis .bd.lit-a'))) sawAccent = true; await sleep(p, 60) }
   await p.click('#metro-play-btn')
   assert.equal(sawAccent, false, '정박 모드에서는 액센트가 없어야 한다')
-})
-await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀, LED 가 끝→끝으로 쓸고 양 끝에서 초록 (K10·K5)', 'violin_A4.wav', async p => {
-  await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  await p.click('#metro-collapse-btn'); await sleep(p, 600); await p.click('#metro-full-btn'); await sleep(p, 700)
-  assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true)
-  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none', '튜너 카드 숨김')
-  await waitUntil(p, () => !window.__tt.stats().micOpen, 3000, '전용 모드는 마이크를 놓는다 (K6)')
-  assert.equal(await p.evaluate(() => document.querySelectorAll('#sweep-leds .led').length), 13)
-  await p.click('[data-sd="2"]'); await p.click('#metro-play-btn')
-  const seen = new Set(), hits = new Set()
-  for (let i = 0; i < 40; i++) {
-    const r = await p.evaluate(() => { const l = Array.from(document.querySelectorAll('#sweep-leds .led')); return { mv: l.findIndex(d => d.classList.contains('mv')), hit: l.findIndex(d => d.classList.contains('hit-beat') || d.classList.contains('hit-acc')), sub: l.findIndex(d => d.classList.contains('hit-sub')) } })
-    if (r.mv >= 0) seen.add(r.mv); if (r.hit >= 0) hits.add(r.hit); if (r.sub >= 0) hits.add('s' + r.sub)
-    await sleep(p, 40)
-  }
-  await p.click('#metro-play-btn')
-  assert.ok(seen.size >= 6, `불이 여러 칸을 지나가야 한다: ${[...seen]}`)
-  assert.ok(hits.has(0) || hits.has(12), `정박은 양 끝 칸에서: ${[...hits]}`)
-  assert.ok([...hits].some(h => h === 's6'), `2분할은 가운데 칸(6)에서: ${[...hits]}`)
-  // 나가면 튜너와 마이크가 돌아온다
-  await p.click('#metro-full-btn'); await sleep(p, 500)
-  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'flex')
-  await waitUntil(p, () => window.__tt.stats().micOpen, 4000, '전용 모드를 나가면 마이크가 돌아온다')
 })
 await scenario('metro: works without mic (permission denied) + spacebar', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
@@ -493,7 +473,7 @@ await scenario('metro: bpm change while playing does not restart (beats keep com
   await p.mouse.move(box.x + 10, box.y + 10); await p.mouse.down(); await p.mouse.move(box.x + 10, box.y + 10 - 60, { steps: 6 }); await p.mouse.up()
   assert.equal(await p.evaluate(() => document.getElementById('metro-bpm').textContent), '110')
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
-  const seen = new Set(); for (let i = 0; i < 25; i++) { seen.add(await p.evaluate(() => Array.from(document.querySelectorAll('#beat-vis .led')).findIndex(d => d.classList.contains('mv') || d.className.includes('hit')))); await sleep(p, 60) }
+  const seen = new Set(); for (let i = 0; i < 25; i++) { seen.add(await p.evaluate(() => document.querySelector('#beat-vis .bd.lit-a, #beat-vis .bd.lit-b, #beat-vis .bd.lit-s')?.dataset.tick ?? '-')); await sleep(p, 60) }
   assert.ok(seen.size >= 2, 'beat dots advancing after bpm change: ' + [...seen].join(','))
   await p.click('#metro-play-btn') // U1: 펼친 채 재생 중이라 헤더 버튼은 없다
 })

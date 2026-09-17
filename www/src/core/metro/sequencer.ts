@@ -9,7 +9,7 @@
  * 클릭음: 강박 1800 Hz / 박 1100 Hz / 세분 750 Hz 삼각파, 50 ms 지수 감쇠 (v1 과 같은 음색).
  */
 export type SubDiv = 1 | 2 | 3 | 'd'
-export type TimeSig = 2 | 3 | 4 | 6
+export type TimeSig = 1 | 2 | 3 | 4 | 6 // 1 = 박자표 없음(정박만) — K3
 
 export interface Pattern { bpm: number; timeSig: TimeSig; subDiv: SubDiv; volume: number; muted: boolean }
 
@@ -19,6 +19,9 @@ export const CLICK_DUR_S = 0.05
 
 export function totalTicks(p: Pick<Pattern, 'timeSig' | 'subDiv'>): number { return p.subDiv === 'd' ? p.timeSig * 2 : p.timeSig * p.subDiv }
 export function tickKind(p: Pick<Pattern, 'subDiv' | 'timeSig'>, tick: number): ClickEvent['kind'] {
+  // 정박만 (K3): 마디가 없으므로 첫 박 강세도 없다 — 완전히 균일한 딱딱딱딱.
+  // 분할은 그대로 약하게 둔다(분할까지 같은 세기면 무엇이 박인지 사라진다).
+  if (p.timeSig === 1) return p.subDiv === 'd' ? (tick % 2 === 0 ? 'beat' : 'sub') : (tick % p.subDiv === 0 ? 'beat' : 'sub')
   if (tick === 0) return 'accent'
   if (p.timeSig === 6) return tick === 3 ? 'beat' : 'sub' // 6/8: 둘째 큰 박(4번째 8분음표)에 중간 액센트 (리뷰: 음악적 정확성)
   const isBeat = p.subDiv === 'd' ? tick % 2 === 0 : tick % p.subDiv === 0

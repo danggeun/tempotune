@@ -125,4 +125,28 @@ describe('sequencer', () => {
     for (let s = 0; s < sr; s += 128) { out.fill(0); seq.render(out, s); for (let i = 0; i < 128; i++) if (Math.abs(out[i]!) > 1e-3) { if (first < 0) first = s + i; last = s + i } }
     expect(first).toBe(100); expect(last - first).toBeLessThan(0.05 * sr)
   })
+
+  // K3 — 박자표 없음(정박만). 사용자 요청: "2/4 3/4 4/4 6/8 말고 그냥 정박만 딱딱".
+  // 전에는 tickKind 가 tick 0 에서 무조건 'accent' 를 내서 **어떤 설정으로도 균일하게 만들 수 없었다.**
+  test('정박 모드는 첫 박 강세가 없다 — 모든 박이 같은 세기', () => {
+    expect([0, 1, 2, 3].map(t => tickKind({ subDiv: 1, timeSig: 1 }, t))).toEqual(['beat', 'beat', 'beat', 'beat'])
+  })
+  test('정박 모드에서도 분할은 약하게 남는다 (분할까지 같으면 무엇이 박인지 사라진다)', () => {
+    expect([0, 1, 2, 3].map(t => tickKind({ subDiv: 2, timeSig: 1 }, t))).toEqual(['beat', 'sub', 'beat', 'sub'])
+    expect([0, 1, 2].map(t => tickKind({ subDiv: 3, timeSig: 1 }, t))).toEqual(['beat', 'sub', 'sub'])
+  })
+  test('정박 모드의 붓점도 액센트 없이 3:1 을 유지한다', () => {
+    expect([0, 1].map(t => tickKind({ subDiv: 'd', timeSig: 1 }, t))).toEqual(['beat', 'sub'])
+    expect(tickIntervalS({ bpm: 60, timeSig: 1, subDiv: 'd' }, 0)).toBeCloseTo(0.75)
+    expect(tickIntervalS({ bpm: 60, timeSig: 1, subDiv: 'd' }, 1)).toBeCloseTo(0.25)
+  })
+  test('정박 모드의 틱 수는 분할 수와 같다 (마디가 없다)', () => {
+    expect(totalTicks({ timeSig: 1, subDiv: 1 })).toBe(1)
+    expect(totalTicks({ timeSig: 1, subDiv: 3 })).toBe(3)
+    expect(totalTicks({ timeSig: 1, subDiv: 'd' })).toBe(2)
+  })
+  test('다른 박자표는 그대로 첫 박에 액센트가 있다 (회귀)', () => {
+    expect(tickKind({ subDiv: 1, timeSig: 4 }, 0)).toBe('accent')
+    expect(tickKind({ subDiv: 1, timeSig: 6 }, 0)).toBe('accent')
+  })
 })

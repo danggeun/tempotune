@@ -49,7 +49,7 @@ export const V201_RMS_LEVELS = [.024, .014, .008] as const
 export const SMOOTH_LEVELS = [.06, .12, .20] as const
 
 export type SubDiv = 1 | 2 | 3 | 'd'
-export type TimeSig = 2 | 3 | 4 | 6
+export type TimeSig = 1 | 2 | 3 | 4 | 6 // 1 = 박자표 없음(정박만) — K3
 
 // ── 사용자 설정 (영속) ──
 export interface Settings {
