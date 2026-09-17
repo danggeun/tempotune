@@ -279,7 +279,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* ── 풀스크린 메뉴 ── */
 /* 닫혔을 때 visibility:hidden — 안 그러면 화면에 없는 메뉴의 버튼들이 Tab 순서와 스크린리더에 그대로 남는다 (C2).
    inert 는 지원 하한(WebView 94)보다 높아 쓸 수 없어 visibility 로 뺀다. 전환은 페이드가 끝난 뒤(0s var(--t-std))로 미뤄 페이드아웃을 유지한다. */
-#menu-overlay{position:fixed;inset:0;background:var(--bg);z-index:50;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
+#menu-overlay{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:50;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
 #menu-overlay.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #menu-panel{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s6);max-width:480px;margin:0 auto;}
 .menu-top{display:flex;justify-content:space-between;align-items:center;padding:0 0 var(--s2);}
@@ -321,7 +321,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* ── 설정 페이지 ── */
 #settings-version{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);text-align:center;padding-top:var(--s2);}
 #settings-tagline{font-size:var(--fs-xs);color:var(--deco);text-align:center;letter-spacing:var(--ls-caps-wide);text-transform:uppercase;margin-top:-4px;} /* 태그라인은 원거리 헤더에서 여기로 (9 px 로는 아무도 못 읽는다) */
-#settings-page{position:fixed;inset:0;background:var(--bg);z-index:60;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
+#settings-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:60;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
 #settings-page.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #settings-inner{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s3);max-width:480px;margin:0 auto;}
 .settings-top{display:flex;align-items:center;gap:6px;padding-bottom:var(--s2);}
@@ -345,8 +345,10 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* ══════════════════════════════════
    편집 페이지 — 근거리·두 손. 정보 밀도 OK.
 ══════════════════════════════════ */
-#editor-page{position:fixed;inset:0;background:var(--bg);z-index:70;display:none;flex-direction:column;overflow:hidden;opacity:0;transition:opacity var(--t-std);}
+#editor-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:70;display:none;flex-direction:column;overflow:hidden;opacity:0;transition:opacity var(--t-std);}
 #editor-page.open{opacity:1;}
+/* 가장자리 스와이프 중(ui/swipeBack): 끌리는 화면의 왼쪽에 그림자 — 뒤 화면과 층이 갈린다 (iOS 와 같은 신호) */
+#menu-overlay.swiping,#settings-page.swiping,#editor-page.swiping{box-shadow:-6px 0 24px rgba(0,0,0,.45);}
 #ed-inner{display:flex;flex-direction:column;min-height:100%;max-width:480px;margin:0 auto;width:100%;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 #ed-top{padding:var(--page-top) var(--s5) 0;flex-shrink:0;}
 #ed-nav{display:flex;align-items:center;gap:6px;padding:0 0 var(--s2);}
