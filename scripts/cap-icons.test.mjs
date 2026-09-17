@@ -129,3 +129,26 @@ describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
     expect(bgDark?.toLowerCase()).toBe(tile?.toLowerCase())
   })
 })
+
+// K8 — maskable 아이콘의 안전영역. 안드로이드 런처는 자기 마스크(원·스퀘어클)를 덧씌우고,
+// 규격은 "중앙 지름 80 % 원 안에 내용이 있어야 한다" 이다. 그 바깥은 잘릴 수 있다.
+// 실제로 어긋난 적이 있다: content 0.58 은 필요한 원이 80.3 % 라 규격을 0.3 %p 넘겼고,
+// 사용자가 "양끝이 거의 끝에 붙을 정도" 라고 했다. 폭만 보던 위 테스트는 이걸 못 잡았다 —
+// 잉크는 가로로 넓고 세로로 낮아서, **폭이 아니라 대각선(= 필요한 원 지름)** 이 걸리는 값이다.
+describe('K8 — maskable 아이콘은 안전영역 안에 여백을 남긴다', () => {
+  const file = new URL('../www/public/icons/icon-maskable-512.png', import.meta.url)
+  test.skipIf(!existsSync(file))('필요한 원 지름 ≤ 76 % (규격 80 % 에 최소 4 %p 여유)', () => {
+    const p = PNG.sync.read(readFileSync(file))
+    const bg = [p.data[0], p.data[1], p.data[2]]
+    let x0 = p.width, x1 = -1, y0 = p.height, y1 = -1
+    for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
+      const i = (y * p.width + x) * 4
+      if (Math.abs(p.data[i] - bg[0]) + Math.abs(p.data[i + 1] - bg[1]) + Math.abs(p.data[i + 2] - bg[2]) <= 60) continue
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y
+    }
+    const c = p.width / 2
+    const r = Math.max(...[[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => Math.hypot(x - c, y - c)))
+    const pct = r * 2 / p.width * 100
+    expect(pct, `잉크가 중앙 ${pct.toFixed(1)} % 원을 차지한다 — 런처 마스크에 양끝이 닿는다`).toBeLessThan(76)
+  })
+})
