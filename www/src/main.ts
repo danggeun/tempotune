@@ -76,15 +76,15 @@ const syncWake = () => { if (wantWake()) acquireWakeLock(); else releaseWakeLock
 onMic('afterOpen', syncWake)
 // 타이머는 사용자가 직접 켜고 끄는 것이라 마이크가 닫힐 때 같이 멈춘다(무활동·수동 종료). 단 **화면 숨김으로 잠시 놓는 것**(P1)은
 // 연습이 끝난 게 아니므로 타이머를 건드리지 않는다 — 악보 앱을 잠깐 보고 돌아와도 경과 시간이 이어진다
-let releasingForHide = false
-onMic('afterClose', () => { if (!releasingForHide) stopTimer(); syncWake(); stopInactivityWatch() })
+let releasingForHide = false, releasingForEditor = false
+onMic('afterClose', () => { if (!releasingForHide && !releasingForEditor) stopTimer(); syncWake(); stopInactivityWatch() })
 metroStore.select(s => s.playing, syncWake)
 // 15분 무활동 자동 종료 — 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시 (리뷰 #3: v1/이전 구현은 타이머 안에서만 검사했다)
 let inactInt: ReturnType<typeof setInterval> | null = null
 function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); inactInt = null }
 // 마이크를 열 때 활동 시각을 새로 잡는다 — 이걸 안 하면 "앱을 15분 넘게 켜둔 뒤 마이크를 (다시) 켠 순간" 바로 자동 종료된다.
 // P1(숨김 → 복귀 시 마이크 재개)이 이 상황을 매번 만든다. 뜻은 '마이크가 켜진 뒤 15분간 소리가 없으면' 이다.
-onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic() } }, 30 * 1000) })
+onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic(); showTapHint(tryOpenMic) } }, 30 * 1000) })
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic(true).then(ok => { if (ok) toast('마이크가 켜졌어요') })) // 직접 누른 것이므로 차단이면 안내한다
 settingsStore.select(s => s.wakeLock, syncWake)
 // ── 생명주기 매트릭스 (설계서 §B7, v2.0.3 P1 개정) ──
@@ -108,6 +108,32 @@ on(document, 'visibilitychange', () => {
   // 다시 열릴 때까지 플래그를 유지한다 — 여는 도중에 또 숨겨져 'busy' 로 끝나도 다음 복귀에서 다시 시도된다
   if (micReleasedByHide) tryOpenMic().then(ok => { if (ok) micReleasedByHide = false; else if (document.visibilityState === 'visible' && !A.micStream) showTapHint(tryOpenMic) })
 })
+/**
+ * 편집기가 열려 있는 동안에는 마이크를 놓는다 (K6).
+ * 왜 세 가지가 한꺼번에 좋아진다:
+ *   ① 녹음을 **듣는** 화면이라 튜너가 돌 이유가 없다 (배터리·워커)
+ *   ② iOS 는 'play-and-record' 인 동안 스피커 출력을 감쇠하거나 수화기로 돌린다(B12,
+ *      "폰 볼륨 최대인데 30 % 수준"). 마이크를 놓아야 재생이 제 음량으로 나온다
+ *   ③ OS 의 마이크 사용 표시가 그동안 사라진다 — 사용자가 "계속 떠 있다" 고 지적한 그것
+ * 튜너로 돌아오면 **자동으로 다시 연다.** 사용자가 뭘 눌러야 하는 상황은 만들지 않는다 —
+ * "튜너 사용에 무조건 문제가 없어야 한다" 가 이 항목의 상위 제약이다.
+ * 녹음 중이면 건드리지 않는다(녹음이 끊기면 안 된다 — P1 과 같은 규칙).
+ */
+let micReleasedByEditor = false
+{
+  const page = q('editor-page')
+  const sync = (): void => {
+    const open = page.classList.contains('open')
+    if (open && A.micStream && !sessionStore.get().recording) {
+      micReleasedByEditor = true; releasingForEditor = true
+      try { closeMic() } finally { releasingForEditor = false }
+    } else if (!open && micReleasedByEditor) {
+      micReleasedByEditor = false
+      if (document.visibilityState === 'visible') void tryOpenMic()
+    }
+  }
+  new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ['class'] })
+}
 // 오디오 상태 점: 마이크가 열려 있고 컨텍스트가 돌면 초록, 마이크는 열렸는데 컨텍스트가 멈춰 있으면(탭 필요·중단) 앰버, 마이크 꺼짐이면 숨김
 const syncAudioDot = () => { const t = tunerStore.get(); setAudioDot(!t.running ? 'off' : A.ac?.state === 'running' ? 'on' : 'warn') }
 tunerStore.select(s => s.running, syncAudioDot)
