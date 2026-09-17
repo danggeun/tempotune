@@ -41,36 +41,6 @@ function readTokens(): void {
   stageBg = cs.getPropertyValue('--tuner-bg').trim() || stageBg
 }
 
-// ── 게이지 ──
-let gaugeW = 0
-/**
- * 바늘. cents 는 **현재 음 기준** 이므로 라벨이 바뀌는 순간 +45 → −45 처럼 뒤집힌다(tracker 가 midi 와 dispA 를
- * 같이 갱신). 자리를 애니메이션하면 70 ms 동안 반대편까지 쓸고 가는 **거짓 궤적**이 된다(B10) — 그래서 전이를 껐는데,
- * 이번엔 순간이동으로 보인다는 지적을 받았다(베타 피드백 #1).
- *
- * 기준이 바뀐 두 값은 애초에 자리로 이을 수 없다. 그래서 자리는 즉시 옮기되, 그 순간 바늘을 사라졌다 돌아오게 한다
- * (opacity 0 → 1, 140 ms). 거짓 궤적도 없고 툭 튀지도 않는다. **값은 건드리지 않는다** — 표시만 바뀐다.
- */
-let lastGaugeMidi: number | null = null
-function drawGauge(cents: number | null, midi: number | null = null): void {
-  const needle = q('gauge-needle'), zone = q('gauge-zone'), wrap = q('gauge-wrap')
-  if (!gaugeW) gaugeW = wrap.offsetWidth || 300
-  const W = gaugeW, ppc = (W / 2) / 50, tol = settingsStore.get().tolCents
-  zone.style.left = (W / 2 - tol * ppc) + 'px'; zone.style.width = (tol * 2 * ppc) + 'px'
-  const jumped = midi !== lastGaugeMidi
-  lastGaugeMidi = midi
-  // 'tune' 과 'hop' 은 따로 관리한다 — className 을 매 프레임 통째로 쓰면 다음 분석 프레임(≈23 ms)에
-  // hop 이 지워져 140 ms 애니메이션이 잘린다 (프레임 덤프로 확인)
-  if (jumped) { needle.classList.remove('hop'); needle.style.transition = 'none'; void needle.offsetWidth } // reflow 로 '전이 없음'·애니메이션 재시작을 확정
-  if (cents === null) needle.style.left = '50%'
-  else needle.style.left = (W / 2 + Math.max(-50, Math.min(50, cents)) * ppc) + 'px'
-  needle.classList.toggle('tune', cents !== null && Math.abs(cents) <= tol)
-  if (jumped) {
-    if (cents !== null) needle.classList.add('hop')
-    requestAnimationFrame(() => { needle.style.transition = '' }) // 다음 프레임부터 다시 부드럽게
-  }
-}
-
 // ── 히스토리 ──
 function drawHistory(inTune: boolean): void {
   const canvas = q<HTMLCanvasElement>('tuner-history'); if (!canvas.offsetWidth) return
@@ -84,6 +54,12 @@ function drawHistory(inTune: boolean): void {
   c.fillStyle = `rgba(${okRgb},.38)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H) // 띠는 '영역' 이지 신호가 아니다 — 음이름·트레이스보다 뒤로 (.65 는 시선을 먼저 가져갔다)
   c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1
   c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2, H); c.stroke()
+  // ♭ / ♯ — 게이지 줄을 걷어내면서(K9) 방향 표시까지 사라지지 않게 캔버스 안으로 옮겼다.
+  // 축(가로 = cents)이 곧 이 캔버스이므로, 라벨도 축 위에 있는 게 맞다.
+  // 아래쪽에 둔다 — 최신 값이 맨 아래라 시선이 거기 있고, 걷어낸 게이지 줄도 아래에 있었다(공간 습관 유지)
+  c.fillStyle = 'rgba(255,255,255,.42)'; c.font = "14px 'DM Mono', monospace"; c.textBaseline = 'bottom'
+  c.textAlign = 'left'; c.fillText('\u266d', 8, H - 7)
+  c.textAlign = 'right'; c.fillText('\u266f', W - 8, H - 7)
   c.lineWidth = 3; c.lineCap = 'round' // 90 cm 에서 보이는 굵기
   // 무엇을 잇고 무엇을 버릴지는 core/trace.ts 가 정한다 (경계에 걸친 프레임 폐기 + 가짜 통과선 끊기)
   const { segs, breaks } = buildSegments(hist, histMidi)
@@ -152,11 +128,6 @@ function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boo
   q('tuner-cents').textContent = (cents > 0 ? '+' : '') + cents + ' ¢'
 }
 
-/** 오디오 상태 점 (튜너 헤더, UX 감사 B1): 켜짐 = 은은한 초록, 주의(컨텍스트 멈춤·탭 필요) = 앰버 펄스, 꺼짐 = 숨김. 글자 없이 점으로만 (v1 66e7159 계승) */
-export function setAudioDot(state: 'off' | 'on' | 'warn'): void {
-  const d = q('ai-dot'); d.classList.toggle('on', state === 'on'); d.classList.toggle('warn', state === 'warn')
-}
-
 /** "탭하여 시작" 안내 — 탭하면 onTap 을 호출, 성공(true) 시 원래 스타일로 복귀 */
 export function showTapHint(onTap: () => Promise<boolean>): void {
   const nEl = q('tuner-note'), card = q('tuner-card')
@@ -169,15 +140,14 @@ export function showTapHint(onTap: () => Promise<boolean>): void {
 
 export function mountTuner(): void {
   readTokens() // 앱은 다크 고정 — 시스템 테마 변화를 따라갈 일이 없다
-  new ResizeObserver(() => { gaugeW = 0 }).observe(q('gauge-wrap'))
   // 매 분석 프레임(≈43 Hz): 히스토리는 프레임마다 쌓고, 그리기는 rAF 에 한 번만 (vsync 와 비동기인 워커 프레임을 코얼레싱)
   let dirty = false, raf: number | null = null
   const paint = () => {
     raf = null; if (!dirty) return; dirty = false
     const s = tunerStore.get()
-    if (s.hz === -1) { renderEmpty(); drawGauge(null, null); drawHistory(false); return }
+    if (s.hz === -1) { renderEmpty(); drawHistory(false); return }
     const dualOk = renderDual(s.dualMidi, s.dualCents)
-    renderNote(s.midi, s.cents, s.inTune, s.inTune && dualOk); drawGauge(s.cents, s.midi); drawHistory(s.inTune && dualOk)
+    renderNote(s.midi, s.cents, s.inTune, s.inTune && dualOk); drawHistory(s.inTune && dualOk)
   }
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {
@@ -192,8 +162,8 @@ export function mountTuner(): void {
   tunerStore.select(s => s.micReady, ready => {
     q('hdr-mic-btn').style.display = ready ? 'none' : 'flex'
     q('rec-hdr-btn').style.opacity = ready ? '1' : '.35'
-    if (!ready) { renderEmpty(); drawGauge(null) }
+    if (!ready) renderEmpty()
   })
   // 초기 렌더 (v1: 200 ms 후)
-  setTimeout(() => { drawGauge(null); drawHistory(false) }, 200)
+  setTimeout(() => drawHistory(false), 200)
 }
