@@ -7,6 +7,7 @@ import './style.css'
 import { settingsStore, tunerStore, metroStore, refToneStore, CFG } from './state/index.ts'
 import { loadSettings, startSettingsAutosave, onPersistError } from './persist/settings.ts'
 import { openRecDb, onDbError } from './persist/recordingsDb.ts'
+import { clearLegacyStorage } from './persist/legacy.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError } from './audio/engine.ts'
 import { startAnalysis, lastFrameMs, metroCalibMs } from './audio/analysis.ts'
 import { playbackActive, playbackDiag } from './audio/playback.ts'
@@ -32,6 +33,9 @@ import { sessionStore } from './state/index.ts'
 import { registerSW } from 'virtual:pwa-register'
 
 initStatusBar()
+
+// v2.1.0 이름 변경으로 버려진 옛 저장소를 한 번 치운다 (읽을 수도 지울 수도 없는 데이터를 남기지 않는다)
+clearLegacyStorage()
 
 // ── 설정 복원 (화면 마운트 전에: 초기 렌더가 복원값을 쓰도록) ──
 loadSettings(); startSettingsAutosave()
@@ -119,11 +123,12 @@ on(document, 'visibilitychange', () => {
  * "튜너 사용에 무조건 문제가 없어야 한다" 가 이 항목의 상위 제약이다.
  * 녹음 중이면 건드리지 않는다(녹음이 끊기면 안 된다 — P1 과 같은 규칙).
  */
+/** 편집기(K6)와 메트로놈 전용 모드(K10) — 둘 다 '튜너가 없는 화면' 이라 같은 규칙으로 마이크를 놓았다 되돌린다 */
 let micReleasedByEditor = false
 {
-  const page = q('editor-page')
+  const page = q('editor-page'), metro = q('metro-card')
   const sync = (): void => {
-    const open = page.classList.contains('open')
+    const open = page.classList.contains('open') || metro.classList.contains('full')
     if (open && A.micStream && !sessionStore.get().recording) {
       micReleasedByEditor = true; releasingForEditor = true
       try { closeMic() } finally { releasingForEditor = false }
@@ -133,6 +138,7 @@ let micReleasedByEditor = false
     }
   }
   new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ['class'] })
+  new MutationObserver(sync).observe(metro, { attributes: true, attributeFilter: ['class'] })
 }
 // 전화·다른 앱 오디오 등으로 컨텍스트가 멈추면: 화면에 보일 때 재개를 시도하고, 그래도 안 되면 메트로놈을 멈추고 알린다
 let interruptedTimer: ReturnType<typeof setTimeout> | null = null
@@ -192,7 +198,7 @@ if (!isNative() && 'serviceWorker' in navigator) {
 }
 
 // ── 진단 훅 (e2e/디버그): 워커 프레임 시간, 컨텍스트 상태 ──
-;(window as unknown as { __gp: unknown }).__gp = {
+;(window as unknown as { __tt: unknown }).__tt = {
   stats: () => ({ frameMs: lastFrameMs(), acState: A.ac?.state ?? 'none', micOpen: !!A.micStream, sampleRate: A.sampleRate, metroCalibMs: metroCalibMs() }),
   ac: () => A.ac,
   /** 테스트용: 마지막 활동 시각을 과거로 (무활동 감시 검증) */

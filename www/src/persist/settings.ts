@@ -4,7 +4,8 @@
  */
 import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, V201_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
 
-export const SETTINGS_KEY = 'gopractice_settings_v1' // 키 이름은 유지 (기존 사용자 데이터 호환)
+export const SETTINGS_KEY = 'tempotune_settings_v1'
+export const LEGACY_SETTINGS_KEYS = ['gopractice_settings_v1', 'gp_mic_intro'] // v2.1.0 이름 변경 전. 버리고 간다 (persist/legacy.ts)
 
 type StoredV2 = { v: 2 } & Settings
 interface StoredV1 { cents?: number; rms?: number; smooth?: number; wakelock?: boolean; bpm?: number; timeSig?: number; subDiv?: number | string; refHz?: number; vol?: number; savedAt?: number }
@@ -30,8 +31,8 @@ function rmsStep(v: unknown, tables: ReadonlyArray<ReadonlyArray<number>>): numb
 const V2_TABLES = [RMS_LEVELS, V201_RMS_LEVELS]
 /** v1 키(`rms`): v1 값만 */
 const V1_TABLES = [V1_RMS_LEVELS]
-function isTimeSig(v: unknown): v is TimeSig { return v === 2 || v === 3 || v === 4 || v === 6 }
-function isSubDiv(v: unknown): v is SubDiv { return v === 1 || v === 2 || v === 3 || v === 'd' }
+function isTimeSig(v: unknown): v is TimeSig { return v === 1 || v === 2 || v === 3 || v === 4 || v === 6 } // 1 = 정박 모드(K3) — 빠지면 새로고침에 풀린다
+function isSubDiv(v: unknown): v is SubDiv { return v === 1 || v === 2 || v === 3 || v === 4 || v === 'd' }
 const clampBpm = (v: number) => Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, Math.round(v))) // v1 은 setBPM 이 클램프했다; 음수 BPM 은 스케줄러 무한루프
 
 /** 저장된 값 → Settings 부분 객체. 알 수 없는/깨진 값은 무시(기본값 유지). */
