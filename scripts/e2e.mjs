@@ -56,14 +56,22 @@ await scenario('tuner: 440 Hz @A=442 → 라4 −8¢ (in-tune ±15)', 'violin_A4
   await p.goto(URL_); const t = await waitNote(p, t => t.note === '라' && /^-(7|8|9) ¢$/.test(t.cents))
   assert.equal(t.oct, '4'); assert.equal(t.inTune, true)
   await sleep(p, 300); assert.equal((await tunerText(p)).note, '라')
+  // Hz 읽기표시 (v2.3.0): 음이름 왼쪽, 440 근처, 6칸 고정폭 + ' Hz' = 항상 9글자
+  const hz = await p.evaluate(() => document.getElementById('tuner-hz').textContent)
+  assert.match(hz, /^ 4(39|40|41)\.\d Hz$/, 'hz readout: ' + JSON.stringify(hz)); assert.equal(hz.length, 9)
 })
-await scenario('tuner: cello C2 → 도2', 'cello_C2.wav', async p => { await p.goto(URL_); const t = await waitNote(p, t => t.note === '도'); assert.equal(t.oct, '2') })
+await scenario('tuner: cello C2 → 도2 (Hz 는 두 자리여도 같은 폭)', 'cello_C2.wav', async p => {
+  await p.goto(URL_); const t = await waitNote(p, t => t.note === '도'); assert.equal(t.oct, '2')
+  await sleep(p, 250); const hz = await p.evaluate(() => document.getElementById('tuner-hz').textContent)
+  assert.match(hz, /^  6[456]\.\d Hz$/, 'hz readout: ' + JSON.stringify(hz)); assert.equal(hz.length, 9, 'Hz 자리가 움직이면 안 된다')
+})
 await scenario('tuner: 도♯ shows ♯ + 레♭ enharmonic', 'violin_scale_Amaj.wav', async p => {
   await p.goto(URL_); const t = await waitNote(p, t => t.acc === '♯', 8000)
   const enh = await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent); assert.match(enh, /♭/)
 })
 await scenario('tuner: silence → "--"', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500); const t = await tunerText(p); assert.equal(t.note, '--'); assert.equal(t.cents, '')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-hz').textContent), '', '무음이면 Hz 도 비운다')
 })
 await scenario('tuner: ±5 setting makes 440@442 out of tune', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')

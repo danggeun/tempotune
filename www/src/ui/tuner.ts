@@ -1,12 +1,15 @@
 /**
- * 튜너 카드 UI — 음이름/옥타브/cents, 게이지, 히스토리 캔버스, "탭하여 시작" 안내.
+ * 튜너 카드 UI — 음이름/옥타브/cents/Hz, 히스토리 캔버스, "탭하여 시작" 안내.
  * tunerStore 를 구독해 그린다. 오디오 모듈을 직접 읽지 않는다.
  */
 import { octaveOf, noteLabel } from '../core/note.ts'
+import { createHzReadout } from '../core/hzReadout.ts'
 import { histLenFor } from '../core/hist.ts'
 import { buildSegments, keepInTrace } from '../core/trace.ts'
 import { CFG, settingsStore, tunerStore } from '../state/index.ts'
 import { q } from './dom.ts'
+
+const hzReadout = createHzReadout() // Hz 표시의 평활·갱신 주기 (v2.3.0)
 
 let tapHandler: (() => void) | null = null
 /**
@@ -109,6 +112,7 @@ function renderEmpty(): void {
   const off = !tunerStore.get().micReady && !tapHandler
   nEl.textContent = off ? 'MIC 를 켜면 시작해요' : '--'; nEl.className = off ? 'empty hint' : 'empty'
   q('tuner-oct').textContent = ''; q('tuner-cents').textContent = ''; q('tuner-enharmonic').textContent = ''; q('tuner-acc').textContent = ''
+  hzReadout.reset(); q('tuner-hz').textContent = ''
   clearDual()
   q('tuner-card').classList.remove('in-tune')
 }
@@ -117,7 +121,7 @@ function renderEmpty(): void {
  * @param allInTune 지금 울리는 **모든 성부**가 안인가 — 카드 전체 초록 글로우. 중음에서 아래 음이 틀렸는데
  *   카드가 "완벽" 으로 빛나는 것을 막는다. 단음이면 두 값이 같다.
  */
-function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boolean): void {
+function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boolean, hz: number): void {
   const { name, secondary } = noteLabel(midi, settingsStore.get().noteNames)
   const base = name.replace('♯', ''), acc = name.includes('♯') ? '♯' : ''
   const nEl = q('tuner-note'); nEl.textContent = base; nEl.className = inTune ? 'tune' : ''
@@ -126,6 +130,7 @@ function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boo
   q('tuner-enharmonic').textContent = secondary
   q('tuner-card').classList.toggle('in-tune', allInTune)
   q('tuner-cents').textContent = (cents > 0 ? '+' : '') + cents + ' ¢'
+  const t = hzReadout.push(hz, midi, performance.now()); if (t !== null) q('tuner-hz').textContent = t
 }
 
 /** "탭하여 시작" 안내 — 탭하면 onTap 을 호출, 성공(true) 시 원래 스타일로 복귀 */
@@ -147,7 +152,7 @@ export function mountTuner(): void {
     const s = tunerStore.get()
     if (s.hz === -1) { renderEmpty(); drawHistory(false); return }
     const dualOk = renderDual(s.dualMidi, s.dualCents)
-    renderNote(s.midi, s.cents, s.inTune, s.inTune && dualOk); drawHistory(s.inTune && dualOk)
+    renderNote(s.midi, s.cents, s.inTune, s.inTune && dualOk, s.hz); drawHistory(s.inTune && dualOk)
   }
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {

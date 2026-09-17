@@ -149,6 +149,9 @@ button{font-family:inherit;color:inherit;}
 #tuner-dual.on{opacity:1;}
 #tuner-dual.tune{color:var(--ok);}
 #tuner-right{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;padding:2px 0;}
+/* Hz 는 ¢ 의 거울 자리 (v2.3.0): 왼쪽 가장자리, 아래줄, 같은 서체·크기. 값은 6칸 고정폭(core/hzReadout)이라 white-space:pre 로 앞 공백을 살려 'Hz' 가 자리를 옮기지 않는다 */
+#tuner-left{position:absolute;left:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:2px 0;pointer-events:none;}
+#tuner-hz{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);font-weight:var(--fw-md);white-space:pre;font-variant-numeric:tabular-nums;}
 #tuner-enharmonic{font-family:'DM Mono',monospace;font-size:var(--fs-base);color:var(--tuner-text-3);white-space:nowrap;}
 #tuner-cents{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);font-weight:var(--fw-md);text-align:right;}
 #tuner-history{flex:1;min-height:80px;border-radius:var(--r-sm);background:var(--tuner-bg);display:block;width:100%;border:none;}
