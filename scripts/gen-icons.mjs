@@ -38,6 +38,7 @@ const SPEC = {
   // 단색 — 그라디언트를 쓰면 위쪽이 밝아져 흰 마크와의 대비가 2.11:1 까지 떨어진다.
   // WCAG 1.4.11 이 비텍스트 그래픽에 요구하는 3:1 미달이었다. 단색 #189E46 은 전면에서 3.49:1.
   // ⚠ 이 색을 바꾸면 package.json 의 cap:assets(--iconBackgroundColor) 도 같이 바꿔야 한다.
+  //   안드로이드 adaptive 아이콘의 배경 레이어는 그쪽에서 나온다. cap-icons.test.mjs 가 둘의 일치를 검사한다.
   bg0: '#189E46', bg1: '#189E46',
   ink: '#ffffff',
   inkW: 0.82,        // 잉크 폭 = 타일의 82 %. 이전 아이콘은 52 % 였고 "한눈에 안 띈다" 는 지적을 받았다
@@ -45,7 +46,7 @@ const SPEC = {
   sweep: [-152, -28],
   ticks: [-152, -121, -59, -28],
   // R 대비 비율
-  rArc: 0.1864, rTickIn: 0.6171, rTickOut: 0.7640, rTick: 0.0877, rNeedle: 0.7053, rNeedleW: 0.1974, rPivot: 0.2204,
+  rArc: 0.1864, rTickIn: 0.6171, rTickOut: 0.7640, rTick: 0.1320, rNeedle: 0.7053, rNeedleW: 0.1974, rPivot: 0.2204,
   inkPerR: 1.9522,
 }
 const PAGE = '<!doctype html><html><head><style>html,body{margin:0}</style></head><body><canvas id=c></canvas></body></html>'
@@ -123,8 +124,11 @@ if (OUTDIR) { mkdirSync(OUTDIR, { recursive: true }); writeFileSync(join(OUTDIR,
 writeFileSync(join(ROOT, 'resources/icon.png'), full)
 writeFileSync(join(ROOT, 'www/public/icons/icon-512.png'), resize(full, 512))
 writeFileSync(join(ROOT, 'www/public/icons/icon-192.png'), resize(full, 192))
-// maskable: 원형 마스크에도 잘리지 않게 콘텐츠를 중앙 안전영역 안으로
-writeFileSync(join(ROOT, 'www/public/icons/icon-maskable-512.png'), resize(await render(1024, 0.58), 512))
+// maskable: 원형 마스크에도 잘리지 않게 콘텐츠를 중앙 안전영역 안으로.
+// 0.58 은 규격(중앙 지름 80 % 원)을 **겨우** 채워 여백이 0 이었다 — 실측 80.3 %, 0.3 %p 초과.
+// 안드로이드 런처가 자기 마스크를 씌우면 다이얼 양끝이 경계에 닿아 "거의 끝에 붙는다" 로 보였다(K8).
+// 0.52 로 낮춰 필요한 원을 ~72 % 로 만든다 — 8 %p 여유. cap-icons.test.mjs 가 이 여유를 지킨다.
+writeFileSync(join(ROOT, 'www/public/icons/icon-maskable-512.png'), resize(await render(1024, 0.52), 512))
 writeFileSync(join(ROOT, 'resources/icon-foreground.png'), await render(1024, 0.52, { transparent: true }))
 // adaptive 전경 — 밀도별 정식 크기로 **직접** 렌더 (다운샘플이 아니라 그 크기로 그려야 획 굵기가 그 해상도에 맞는다)
 mkdirSync(join(ROOT, 'resources/android'), { recursive: true })
