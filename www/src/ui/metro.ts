@@ -7,7 +7,8 @@ import { CFG, metroStore, settingsStore, type SubDiv, type TimeSig } from '../st
 import { setBPM, adjBPM, setTimeSig, setSubDiv, setMetroVol, toggleMetro } from '../audio/metronome.ts'
 import { tickKind } from '../core/metro/sequencer.ts'
 import { isPhoneLayout } from '../platform/index.ts'
-import { beatCount, beatDurS, beatIndex, isBeatStart, sweepX, ledIndex, hitIndex } from '../core/metro/sweep.ts'
+import { buildDial, setDialBpm, onDialChange } from './dial.ts'
+import { beatDurS, isBeatStart, sweepX, ledIndex, hitIndex } from '../core/metro/sweep.ts'
 import { q, qsa, on, reflow } from './dom.ts'
 import { toast } from './toast.ts'
 import { overlayOpen } from './menu.ts'
@@ -18,7 +19,7 @@ import { isEditorOpen } from './editor.ts'
  *   · 칸 수는 고정 — 전에는 틱 수만큼 점을 만들어 4/4·3분할이면 12개가 되어 폰에서 넘쳤다
  *   · 불(.mv)이 한 박에 끝→끝으로 쓸고 간다. 박이 **실제로 도착한 시각**(lastTick)에서 출발 — 소리와 어긋나면 안 된다
  *   · 박 시작 틱 = 끝 칸이 초록으로 탁(.hit-beat, 첫 박은 .hit-acc), 분할 틱 = 그 위치 칸이 액센트색으로 탁(.hit-sub)
- *   · 방향은 박마다 뒤집힌다. 몇 번째 박인지는 전용 모드의 작은 점 줄(#sweep-beats)이 따로 말한다
+ *   · 방향은 박마다 뒤집힌다. 몇 번째 박인지는 따로 표시하지 않는다 — 첫 박이 더 크게(초록) 치는 것으로 마디 시작은 구분된다(v2.3.0, 점 줄 제거)
  */
 const HDR_LEDS = 9, FULL_LEDS = 13
 type Row = { leds: HTMLElement[]; n: number }
@@ -59,22 +60,12 @@ function litBeat(tick: number): void {
     const t = setTimeout(() => { d.classList.remove(cls); const k = hitTimers.indexOf(t); if (k >= 0) hitTimers.splice(k, 1) }, kind === 'sub' ? 110 : 160)
     hitTimers.push(t) // 정지 시 한꺼번에 지우려고 들고 있다 — 발화하면 스스로 빠지므로 오래 재생해도 안 자란다
   }
-  if (beatStart && metroStore.get().full) {
-    const bi = beatIndex(p, tick)
-    sweepBeats.forEach((d, i) => { d.classList.toggle('lit-a', i === bi && bi === 0 && p.timeSig !== 1); d.classList.toggle('lit-b', i === bi && !(bi === 0 && p.timeSig !== 1)) })
-  }
-}
-let sweepBeats: HTMLElement[] = []
-function buildSweepBeats(): void {
-  const p = settingsStore.get(), beats = q('sweep-beats'); beats.innerHTML = ''
-  for (let i = 0; i < beatCount(p); i++) { const d = document.createElement('div'); d.className = 'bd beat'; beats.appendChild(d) }
-  sweepBeats = Array.from(beats.querySelectorAll<HTMLElement>('.bd'))
 }
 function sweepStop(): void {
   if (swRaf != null) { cancelAnimationFrame(swRaf); swRaf = null }
   hitTimers.splice(0).forEach(clearTimeout)
   swDur = 0; swDir = -1
-  clearDots(); sweepBeats.forEach(d => d.classList.remove('lit-a', 'lit-b'))
+  clearDots()
 }
 // ── 메트로놈 전용 모드 (K10) ──
 // 3단계: 접힘 → 펼침 → 전용. 전용에서는 튜너 카드를 숨기고(#main-body.metro-full) 메트로놈이 화면을 다 쓴다.
@@ -86,7 +77,8 @@ function applyFull(): void {
   q('metro-card').classList.toggle('full', full)
   q('metro-full-btn').setAttribute('aria-label', full ? '메트로놈 전용 화면 닫기' : '메트로놈 전용 화면')
   q('metro-full-btn').classList.toggle('on', full)
-  buildBeatVis(); buildSweepBeats(); if (!metroStore.get().playing) sweepStop()
+  buildBeatVis(); if (!metroStore.get().playing) sweepStop()
+  if (full) { buildDial(); setDialBpm(settingsStore.get().bpm) }
   applyCollapse(); syncLayout()
 }
 let flashTimer: ReturnType<typeof setTimeout> | null = null
@@ -154,7 +146,8 @@ export function mountMetro(): void {
   })
 
   // ── 상태 → 화면 ──
-  settingsStore.select(s => s.bpm, bpm => { q('metro-bpm').textContent = String(bpm); q('metro-hdr-bpm').textContent = String(bpm) }, { immediate: true })
+  settingsStore.select(s => s.bpm, bpm => { q('metro-bpm').textContent = String(bpm); q('metro-hdr-bpm').textContent = String(bpm); setDialBpm(bpm); q('dial').setAttribute('aria-valuenow', String(bpm)) }, { immediate: true })
+  onDialChange(setBPM)
   settingsStore.select(s => s.metroVol, v => { volMain.value = String(v); volPad.value = String(v) }, { immediate: true })
   settingsStore.select(s => s.timeSig, ts => {
     qsa('[data-ts]').forEach(b => b.classList.toggle('on', +b.dataset.ts! === ts))
@@ -169,7 +162,7 @@ export function mountMetro(): void {
     const btn = q('metro-play-btn')
     btn.textContent = playing ? '■' : '▶'
     syncLayout()
-    if (playing) { buildBeatVis(); buildSweepBeats() } else sweepStop()
+    if (playing) buildBeatVis(); else sweepStop()
     applyCollapse()
   })
   // 폭 등급(폰/넓음)이 바뀔 때만 다시 맞춘다 (C8). 150 ms 디바운스 — 회전 중에는 resize 가 연달아 온다.
@@ -182,7 +175,6 @@ export function mountMetro(): void {
   })
   metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); syncLayout() }) // 헤더 재생 버튼이 접힘에 달려 있다
   metroStore.select(s => s.full, applyFull)
-  settingsStore.select(s => s.timeSig, buildSweepBeats)
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
   // 초기 상태 (v1): 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션
