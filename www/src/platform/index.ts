@@ -97,10 +97,10 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])
     const safe = sanitizeFileName(name)
     // 이전 공유 파일 정리 (캐시에 50 MB 씩 쌓이지 않게)
-    await Filesystem.rmdir({ path: 'gopractice', directory: Directory.Cache, recursive: true }).catch(() => {})
-    await Filesystem.mkdir({ path: 'gopractice', directory: Directory.Cache, recursive: true }).catch(() => {})
+    await Filesystem.rmdir({ path: 'tempotune', directory: Directory.Cache, recursive: true }).catch(() => {})
+    await Filesystem.mkdir({ path: 'tempotune', directory: Directory.Cache, recursive: true }).catch(() => {})
     // 큰 파일은 1 MB 씩 나눠 쓴다 — base64 문자열 한 덩어리로 브리지를 건너면 ANR/OOM
-    const CHUNK = 1024 * 1024; const path = 'gopractice/' + safe
+    const CHUNK = 1024 * 1024; const path = 'tempotune/' + safe
     for (let off = 0; off < blob.size; off += CHUNK) {
       const b64 = await toBase64(blob.slice(off, off + CHUNK))
       if (off === 0) await Filesystem.writeFile({ path, data: b64, directory: Directory.Cache })
