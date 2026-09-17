@@ -7,7 +7,7 @@
 ```
 www/src/
   main.ts      조립만 — 모듈 연결과 시작 시퀀스 (마이크 자동 시도, 권한 팝업, SW 등록, 뒤로가기, 진단 훅 window.__tt)
-  ui/          카드별 DOM 바인딩: tuner, refDrum, metro, refPanel(기준음 버튼), menu, settings, timer,
+  ui/          카드별 DOM 바인딩: tuner, refDrum, metro, dial(전용 모드 다이얼), swipeBack(가장자리 뒤로), refPanel(기준음 버튼), menu, settings, timer,
                micPopup, recHeader, recList, editor, toast. mount*() 가 바인딩 + 스토어 구독
   audio/       Web Audio 어댑터: engine(단일 AudioContext·마이크 세션), analysis(+worker), capture.worklet,
                metronome(+metro.worklet), refTone, recorder, messages(메시지 타입)
@@ -15,7 +15,7 @@ www/src/
   persist/     localStorage 설정(v2, v1 마이그레이션), IndexedDB 녹음(v3)
   platform/    웹 / Capacitor 분기 (상태바, wake lock, 전체화면, 파일 저장, 뒤로가기)
   core/        순수 알고리즘. 브라우저 API 금지, 전부 단위 테스트:
-               pitch/(fft, yinFast, spectrum, tracker, dual, analyzer) · playing/detector · metro/(sequencer, arrival)
+               pitch/(fft, yinFast, spectrum, tracker, dual, analyzer) · playing/detector · metro/(sequencer, arrival, sweep, dial) · hzReadout
                note(도레미/CDE), wav, peaks, format, recPolicy(보관 정책)
 ```
 
