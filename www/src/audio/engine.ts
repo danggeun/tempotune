@@ -100,6 +100,12 @@ export async function openMic(): Promise<MicResult> {
   const gen = ++micGen
   const stale = () => gen !== micGen || !A.micStream
   try {
+    // ⚠ 순서가 중요하다 (K7). iOS 는 AVAudioSession 카테고리가 'playback' 이면 **마이크 캡처를 거부**한다
+    //   — `The audio session category is not compatible with audio capture`.
+    //   closeMic() 이 세션을 'playback' 으로 돌려놓으므로, 두 번째 openMic 은 그 상태에서 시작한다.
+    //   따라서 getUserMedia 를 부르기 **전에** 의도를 선언해야 한다. 성공 뒤에 선언하면 영영 도달하지 못한다.
+    //   (첫 실행은 기본값 'auto' 라 통과한다 — 그래서 "처음엔 되는데 껐다 켜면 안 된다" 로 보였다)
+    audioSessionHint(true)
     // 샘플레이트를 강제하지 않는다 — 기기 기본값(44.1/48 kHz)을 쓰고 분석기가 sr 을 받는다 (§B1)
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
     if (gen !== micGen) { stream.getTracks().forEach(t => t.stop()); opening = false; return { ok: false, error: 'busy' } }
@@ -121,15 +127,17 @@ export async function openMic(): Promise<MicResult> {
     A.micSource = ac.createMediaStreamSource(stream); A.micSource.connect(A.captureNode)
     // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리 — 자기 스트림일 때만 (이전 세션의 늦은 ended 가 새 세션을 닫지 않게)
     stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.('마이크 연결이 끊겼습니다') } })
-    audioSessionHint(true)
     tunerStore.set({ micReady: true, running: true, sampleRate: ac.sampleRate }) // 샘플레이트는 트레이스 창을 초 단위로 유지하는 데 쓰인다 (B11)
     opening = false
     for (const h of hooks.afterOpen) h()
     return { ok: true }
   } catch (e) {
     opening = false
-    if (e instanceof Error && e.message === 'busy') return { ok: false, error: 'busy' } // 도중에 닫힘 — 이미 정리됐다
+    if (e instanceof Error && e.message === 'busy') return { ok: false, error: 'busy' } // 도중에 닫힘 — closeMic 이 세션도 이미 되돌렸다
     teardownMic()
+    // 열기에 실패했으면 재생 전용으로 되돌린다. 'play-and-record' 로 남기면 iOS 가 스피커 출력을
+    // 감쇠하거나 수화기로 돌린다 — B12("폰 볼륨 최대인데 30 % 수준")가 마이크도 없이 재발한다.
+    audioSessionHint(false)
     return { ok: false, error: micErrorMessage(e) }
   }
 }
@@ -141,6 +149,8 @@ export function micErrorMessage(e: unknown): string {
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return '마이크를 찾을 수 없어요'
   if (name === 'NotReadableError' || name === 'TrackStartError') return '다른 앱이 마이크를 쓰고 있어요 — 그 앱을 닫고 다시 시도해주세요'
   if (name === 'SecurityError') return '이 페이지에서는 마이크를 쓸 수 없어요 (HTTPS 필요)'
+  // K7 의 보험. 원인(세션 선언 순서)은 openMic 에서 고쳤으므로 이 문장이 보이면 그 자체가 신호다.
+  if (/audio session/i.test(msg)) return '마이크를 다시 열지 못했어요 — 앱을 새로고침하면 복구됩니다'
   return msg || '알 수 없는 오류'
 }
 const isNativeGuess = () => typeof window !== 'undefined' && !!(window as unknown as { Capacitor?: unknown }).Capacitor
