@@ -65,7 +65,7 @@ npx cap open android  # Android Studio → Build › Generate Signed App Bundle 
 
 `cap:sync` 끝에 `scripts/cap-manifest.mjs` 가 `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` / `INTERNET` 권한, 세로 고정, `versionName`·`versionCode`(package.json 의 version)를 보정한다. 서명 APK 절차는 [docs/ARCHITECTURE.md §6](docs/ARCHITECTURE.md#6-android-릴리즈).
 
-> `capacitor.config.json` 의 `androidScheme` 과 `appId` 는 바꾸지 말 것. origin 이나 패키지명이 바뀌면 저장된 녹음·설정이 사라진다.
+> `capacitor.config.json` 의 `androidScheme` 과 `appId` 는 이제 바꾸지 말 것. origin 이나 패키지명이 바뀌면 저장된 녹음·설정이 사라지고, **스토어에 한 번 올라간 뒤에는 `appId` 를 영원히 바꿀 수 없다.**
 
 ## 개인정보
 

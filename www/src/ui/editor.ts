@@ -371,7 +371,7 @@ async function exportAB(): Promise<void> {
     const src = offAC.createBufferSource(); src.buffer = buf; src.connect(offAC.destination); src.start()
     const rendered = await offAC.startRendering()
     const blob = new Blob([bufToWav(rendered)], { type: 'audio/wav' })
-    const r = await saveFile(blob, 'gopractice_' + ed.item.name + '_cut.wav')
+    const r = await saveFile(blob, 'tempotune_' + ed.item.name + '_cut.wav')
     if (!r.ok) toast('저장 실패: ' + r.error)
   } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
 }
@@ -392,7 +392,7 @@ async function downloadWhole(): Promise<void> {
       const arrayBuf = await (await fetch(item.url)).arrayBuffer()
       const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf)
       const blob = new Blob([bufToWav(decoded)], { type: 'audio/wav' })
-      const r = await saveFile(blob, 'gopractice_' + item.name + '.wav')
+      const r = await saveFile(blob, 'tempotune_' + item.name + '.wav')
       if (!r.ok) toast('저장 실패: ' + r.error)
       return
     } catch (e) { toast('변환 실패: ' + (e instanceof Error ? e.message : String(e))); return }

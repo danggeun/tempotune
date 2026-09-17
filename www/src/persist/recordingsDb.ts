@@ -4,7 +4,8 @@
  *   meta:       {id, name?, bookmarks, ab, peaks, speed?}          — 편집 상태, 자주 바뀜 (blob 을 다시 쓰지 않게 분리)
  * v1(필드 없음) → v2(같은 행에 bookmarks/ab) → v3(meta 분리) 마이그레이션.
  */
-export const REC_DB = 'gopractice_rec', REC_STORE = 'recordings', META_STORE = 'meta'
+export const REC_DB = 'tempotune_rec', REC_STORE = 'recordings', META_STORE = 'meta'
+export const LEGACY_REC_DB = 'gopractice_rec' // v2.1.0 이름 변경 전. 버리고 간다 (persist/legacy.ts)
 export const REC_DB_VERSION = 3
 import { REC_TTL, expires } from '../core/recPolicy.ts'
 import { settingsStore } from '../state/index.ts'
