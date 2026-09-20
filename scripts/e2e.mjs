@@ -174,6 +174,32 @@ await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots
   await p.click('[data-ts="3"]'); await p.click('[data-sd="2"]'); await sleep(p, 150); assert.equal(await p.evaluate(() => document.querySelectorAll('#beat-vis .led').length), 9)
   await p.click('#metro-play-btn')
 })
+// M12: 재생 중 박자표를 바꾸면 마디가 다시 시작된다 — 그때 첫 박이 늘 **왼쪽 끝**이어야 한다(정지 후 새로 시작할 때와 같은 기준).
+// 전에는 화면의 스윕 방향이 리셋되지 않아 바꾸는 순간의 방향에 따라 좌/우가 갈렸다.
+await scenario('metro: 재생 중 박자를 바꿔도 첫 박은 왼쪽부터 (M12)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
+  await p.click('#metro-size-btn'); await sleep(p, 600); await p.click('#metro-size-btn'); await sleep(p, 700) // 전용 모드 (13칸 줄이 크게 보인다)
+  await p.click('#metro-play-btn'); await sleep(p, 300)
+  /** 다음 정박(hit-acc)이 몇 번 칸에서 나는지 */
+  const firstBeatCell = async () => p.evaluate(async () => {
+    const t0 = performance.now()
+    while (performance.now() - t0 < 6000) {
+      const l = [...document.querySelectorAll('#sweep-leds .led')]
+      const i = l.findIndex(d => d.classList.contains('hit-acc'))
+      if (i >= 0) return i
+      await new Promise(r => setTimeout(r, 4))
+    }
+    return -1
+  })
+  for (const ts of ['2', '3', '4', '3']) {
+    await p.click(`[data-ts="${ts}"]`); await sleep(p, 120)
+    assert.equal(await firstBeatCell(), 0, `${ts}/4 로 바꾼 뒤 첫 박은 왼쪽 끝(0번 칸)`)
+  }
+  // 세분을 바꿔도 같다
+  await p.click('[data-sd="2"]'); await sleep(p, 120)
+  assert.equal(await firstBeatCell(), 0, '세분을 바꿔도 첫 박은 왼쪽 끝')
+  await p.click('#metro-play-btn')
+})
 await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다 (K3)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 600)
   await p.click('[data-ts="1"]')

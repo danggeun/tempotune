@@ -62,6 +62,13 @@ function litBeat(tick: number): void {
     hitTimers.push(t) // 정지 시 한꺼번에 지우려고 들고 있다 — 발화하면 스스로 빠지므로 오래 재생해도 안 자란다
   }
 }
+/**
+ * 마디를 다시 시작할 때 스윕도 처음으로 (v2.3.2 M12).
+ * 박자표·세분을 바꾸면 audio/metronome.ts 가 restartBar() 로 마디를 0 틱부터 다시 시작하는데, 화면의 방향(swDir)은
+ * 그대로라 **바꾸는 순간의 방향에 따라 새 첫 박이 왼쪽에도 오른쪽에도** 갔다. 정지 후 새로 시작할 때와 같은 기준으로 맞춘다:
+ * −1 로 두면 다음 박 시작에서 +1 로 뒤집혀 **왼쪽 끝**부터 쓸고 간다.
+ */
+function sweepResetDir(): void { swDir = -1 }
 function sweepStop(): void {
   if (swRaf != null) { cancelAnimationFrame(swRaf); swRaf = null }
   hitTimers.splice(0).forEach(clearTimeout)
@@ -162,13 +169,14 @@ export function mountMetro(): void {
   onDialChange(setBPM)
   settingsStore.select(s => s.metroVol, v => { volMain.value = String(v); volPad.value = String(v) }, { immediate: true })
   settingsStore.select(s => s.timeSig, ts => {
+    sweepResetDir() // 마디가 다시 시작되므로 스윕도 왼쪽부터 (M12)
     qsa('[data-ts]').forEach(b => b.classList.toggle('on', +b.dataset.ts! === ts))
     const is68 = ts === 6; const sd = q('sd-grid')
     sd.style.opacity = is68 ? '.3' : '1'; sd.style.pointerEvents = is68 ? 'none' : 'auto'
     q('sd-grid').classList.toggle('compound', is68) // 6/8: 세분 1 을 8분음표로 표시 (CSS 가 깃발을 보여준다)
     buildBeatVis()
   }, { immediate: true })
-  settingsStore.select(s => s.subDiv, sd => { qsa('[data-sd]').forEach(b => b.classList.toggle('on', b.dataset.sd === String(sd))); buildBeatVis() }, { immediate: true })
+  settingsStore.select(s => s.subDiv, sd => { sweepResetDir(); qsa('[data-sd]').forEach(b => b.classList.toggle('on', b.dataset.sd === String(sd))); buildBeatVis() }, { immediate: true })
 
   metroStore.select(s => s.playing, playing => {
     const btn = q('metro-play-btn')
