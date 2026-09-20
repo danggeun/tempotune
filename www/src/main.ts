@@ -94,9 +94,13 @@ onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopI
 on(q('hdr-mic-btn'), 'click', () => tryOpenMic(true).then(ok => { if (ok) toast('마이크가 켜졌어요') })) // 직접 누른 것이므로 차단이면 안내한다
 settingsStore.select(s => s.wakeLock, syncWake)
 // ── 생명주기 매트릭스 (설계서 §B7, v2.0.3 P1 개정) ──
-// 숨김: **마이크를 놓는다** — 숨겨진 동안 튜너는 볼 수 없으니 쥐고 있을 이유가 없고, 쥐고 있으면 안드로이드에서
-//       다른 앱(폰 녹음기 등)이 마이크를 못 쓰거나 묵음 스트림을 받는다(실측: 사용자 녹음 34초 중 4초만 소리, 나머지는 정확히 0).
-//       메트로놈은 오디오 스레드에서 계속(마이크와 무관). 웹에서 녹음 중이면 놓지 않는다(녹음은 마이크 스트림을 쓴다).
+// 숨김: **마이크를 놓고 메트로놈도 멈춘다.**
+//   · 마이크 — 숨겨진 동안 튜너는 볼 수 없으니 쥐고 있을 이유가 없고, 쥐고 있으면 안드로이드에서 다른 앱(폰 녹음기 등)이
+//     마이크를 못 쓰거나 묵음 스트림을 받는다(실측: 사용자 녹음 34초 중 4초만 소리, 나머지는 정확히 0). 웹에서 녹음 중이면 놓지 않는다.
+//   · 메트로놈 — v2.3.1 까지는 그냥 뒀다. 오디오 워클릿은 화면과 무관하게 도는 게 설계이고 "플랫폼이 알아서 멈추겠지" 라고 봤는데,
+//     **안드로이드 웹앱 실측에서 앱을 나가도 계속 울렸다**(v2.3.2 M11). 나간 앱이 계속 소리를 내는 건 사고지 기능이 아니다 —
+//     화면을 못 보는 동안 박을 맞출 수도 없다. 그래서 숨김과 함께 멈춘다. 돌아왔을 때 **자동으로 다시 켜지지는 않는다**(놀라게 하지 않는다).
+//     화면 잠금도 hidden 을 내지만, '화면 항상 켜짐'(기본 켜짐)이 연습 중 화면을 지켜 준다.
 // 복귀: 컨텍스트 재개 + 밀린 청크 폐기 + wake lock 재획득 + **놓았던 마이크를 다시 연다**(권한은 같은 세션이라 다시 묻지 않는다;
 //       못 열면 기존과 같은 '탭하여 시작' 안내).
 let micReleasedByHide = false
@@ -104,6 +108,7 @@ on(document, 'visibilitychange', () => {
   if (document.visibilityState !== 'visible') {
     // Android 는 백그라운드 앱의 마이크를 무음으로 만든다(포그라운드 서비스 없이는) → 녹음이 무음 파일이 되기 전에 저장 (리뷰 #2)
     if (isNative() && sessionStore.get().recording) { stopRec(); toast('앱이 뒤로 가서 녹음을 저장했어요') }
+    if (metroStore.get().playing) stopMetro() // M11: 나간 앱이 계속 딱딱거리지 않게
     if (A.micStream && !sessionStore.get().recording) {
       micReleasedByHide = true; releasingForHide = true
       tunerStore.set({ micReopening: true }) // closeMic 전에 — 닫히는 순간 renderEmpty 가 이 값을 본다 (L4)

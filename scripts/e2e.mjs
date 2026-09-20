@@ -818,17 +818,16 @@ await scenario('lifecycle: context suspended externally while metronome plays �
 })
 // ── P1: 숨김 시 마이크 해제 (v2.0.3) ──
 const setVisibility = (p, state) => p.evaluate(st => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => st }); document.dispatchEvent(new Event('visibilitychange')) }, state)
-await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고, 돌아오면 다시 연다 — 타이머·메트로놈은 계속 (P1)', 'violin_A4.wav', async p => {
+await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고 메트로놈도 멈춘다 — 타이머는 계속 (P1·M11)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await p.click('.menu-close-btn'); await sleep(p, 300)
   await p.click('#metro-size-btn'); await sleep(p, 500); await p.click('#metro-play-btn'); await sleep(p, 500)
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '시작: 마이크 열림')
-  // 숨김 → 마이크는 놓고, 타이머는 그대로 돌고, 메트로놈도 그대로
+  // 숨김 → 마이크는 놓고, **메트로놈은 멈추고**(M11: 안드로이드에서 나간 앱이 계속 울렸다), 타이머는 그대로 돈다
   await setVisibility(p, 'hidden'); await sleep(p, 400)
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), false, '숨김: 마이크를 놓아야 다른 앱이 쓸 수 있다')
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지', '숨김: 타이머는 멈추지 않는다 (연습이 끝난 게 아니다)')
-  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■', '숨김: 메트로놈은 계속')
-  assert.equal(await p.evaluate(() => window.__tt.stats().acState), 'running', '메트로놈이 돌고 있으니 컨텍스트는 살아 있다')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶', '숨김: 메트로놈은 멈춘다 (M11)')
   // 복귀 → 권한 창 없이 다시 열리고 음이 다시 뜬다.
   // 마이크 재개는 비동기(getUserMedia)다. 여기서 waitNote 로 기다리면 **숨기기 전에 남아 있던 음이름 텍스트**를
   // 보고 즉시 통과해 버려서 아무것도 기다리지 않는다 — 그래서 micOpen 을 직접 기다린다 (이 테스트가
@@ -839,6 +838,7 @@ await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고, 돌아오
   await waitUntil(p, () => window.__tt.stats().micOpen === true, 5000, '복귀: 마이크 다시 열림')
   await waitNote(p, t => t.note === '라', 5000)
   assert.equal(await p.evaluate(() => document.getElementById('tuner-note').textContent !== '탭하여 시작'), true, '복귀: 탭 안내 없이 바로')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶', '복귀: 메트로놈이 저절로 다시 켜지지는 않는다 (놀라게 하지 않는다)')
 })
 await scenario('lifecycle: 웹에서 녹음 중이면 숨겨져도 마이크를 놓지 않는다 (녹음이 끊기면 안 된다) (P1)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
