@@ -7,7 +7,7 @@
 ```
 www/src/
   main.ts      조립만 — 모듈 연결과 시작 시퀀스 (마이크 자동 시도, 권한 팝업, SW 등록, 뒤로가기, 진단 훅 window.__tt)
-  ui/          카드별 DOM 바인딩: tuner, refDrum, metro, dial(전용 모드 다이얼), swipeBack(가장자리 뒤로), refPanel(기준음 버튼), menu, settings, timer,
+  ui/          카드별 DOM 바인딩: tuner, refDrum, metro, dial(전용 모드 다이얼), swipeBack(가장자리 뒤로), swipeStep(카드를 아래로 밀어 한 단계), refPanel(기준음 버튼), menu, settings, timer,
                micPopup, recHeader, recList, editor, toast. mount*() 가 바인딩 + 스토어 구독
   audio/       Web Audio 어댑터: engine(단일 AudioContext·마이크 세션), analysis(+worker), capture.worklet,
                metronome(+metro.worklet), refTone, recorder, messages(메시지 타입)
