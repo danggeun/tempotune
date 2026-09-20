@@ -84,6 +84,9 @@ function applyFull(): void {
 let flashTimer: ReturnType<typeof setTimeout> | null = null
 function flashBeat(tick: number): void {
   const card = q('metro-card'); card.classList.remove('flash-strong', 'lit-weak')
+  // 전용 모드에서는 카드가 곧 화면 전체 — 정박마다 화면이 28 % 빨강으로 번쩍였다. 세이코식 LED 줄만으로 박 인식이
+  // 충분하다는 게 실사용 결론이라, 이 번쩍임은 정보를 더하지 않고 자극만 더한다. 접힌/펼친 화면은 그대로(작은 띠라 유효) (v2.3.1 L6-a)
+  if (metroStore.get().full) return
   if (isPhoneLayout()) {
     const th = q('tuner-hdr'); th.classList.remove('beat-flash', 'beat-flash-weak'); reflow(th)
     th.classList.add(tick === 0 ? 'beat-flash' : 'beat-flash-weak')
