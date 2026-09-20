@@ -191,13 +191,16 @@ button{font-family:inherit;color:inherit;}
 #app.metro-full #hdr-mic-btn{display:none !important;}
 #metro-card.full{flex:1;min-height:0;display:flex;flex-direction:column;}
 #metro-card.full #metro-body-wrap{flex:1;min-height:0;grid-template-rows:1fr;}
-#metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow-y:auto;}
+#metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow:hidden;} /* 스크롤 없음 (L7) — 연주 중엔 스크롤할 손이 없다. 넘치지 않게 짜는 게 아래 규칙 */
 #metro-card.full #metro-collapse-btn{display:none;}
 #metro-card.full #beat-vis{display:none;} /* 전용 모드의 박 표시는 아래 세이코식 트랙이 맡는다 */
 /* ── 전용 모드 배치 (v2.3.0) — 접힌 화면을 키운 게 아니라 이 화면을 위해 짠 것.
-   위에서부터: LED 줄 → 다이얼(가운데 BPM·용어) → [− ▶ +] → 음량 → 박자표 → 분할. 새 기능 0, 크기·자리만. */
-#metro-card.full #metro-body{height:auto;min-height:100%;justify-content:flex-start;gap:var(--s4);padding:var(--s3) var(--s4) var(--s4);}
-#metro-card.full #sweep{margin-top:auto;} #metro-card.full #metro-grids-wrap{margin-bottom:auto;} /* 남으면 가운데, 넘치면 위부터 스크롤 (safe center 의 구식 브라우저 대체) */
+   위에서부터: LED 줄 → 다이얼(가운데 BPM·용어) → [− ▶ +] → 음량 → 박자표 → 분할. 새 기능 0, 크기·자리만.
+   L7(v2.3.1): **어떤 화면에서도 스크롤이 없다.** 조작 요소(LED·버튼·음량·pill)는 터치 최소 크기로 고정(flex:0 0 auto)하고,
+   **다이얼이 남는 높이를 전부 흡수**한다(flex:1 + aspect-ratio). 전에는 다이얼이 폭 기준(min(100%,300px))이라 세로가 짧은 폰에서
+   반드시 넘쳤고 overflow-y:auto 가 조용히 잘라 스크롤로 밀었다 — 아이폰 미니에서 리듬 줄이 화면 밖으로. 화면을 조이는 축은 높이다. */
+#metro-card.full #metro-body{height:100%;min-height:0;justify-content:flex-start;gap:var(--s3);padding:var(--s3) var(--s4) var(--s4);}
+#metro-card.full #sweep,#metro-card.full #metro-bpm-row,#metro-card.full #metro-vol-pad,#metro-card.full #metro-grids-wrap{flex:0 0 auto;margin:0;}
 #metro-card.full #metro-bpm-wrap{display:none;}                    /* 숫자는 다이얼 가운데로 갔다 */
 #metro-card.full #metro-bpm-row{justify-content:center;gap:0;}
 #metro-card.full #metro-adj-col{flex:0 0 auto;}
@@ -225,9 +228,11 @@ button{font-family:inherit;color:inherit;}
 #metro-card.full #sweep{display:block;}
 #sweep-leds{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 2px;}
 #sweep-leds .led{width:20px;height:20px;}
-/* ── 다이얼 (v2.3.0) — ui/dial.ts 가 그린다. 색은 전부 토큰: 트랙 line, 채움 text-2, 바늘 흰색, 글자 deco */
-#dial{display:none;position:relative;width:min(100%,300px);aspect-ratio:1;margin:0 auto;touch-action:none;user-select:none;cursor:grab;}
-#metro-card.full #dial{display:block;}
+/* ── 다이얼 (v2.3.0) — ui/dial.ts 가 그린다. 색은 전부 토큰: 트랙 line, 채움 text-2, 바늘 흰색, 글자 text-3 */
+#dial{display:none;position:relative;touch-action:none;user-select:none;cursor:grab;}
+/* 크기는 남는 높이가 정한다 (L7). align-self:center 가 핵심 — 없으면 열 flex 의 stretch 가 폭을 먼저 정해 aspect-ratio 와 싸운다.
+   min 150 은 안전장치(실측 최소는 217, 360×640 + 헤더 접힘), max 320 은 큰 화면에서 다이얼이 화면을 삼키지 않게 */
+#metro-card.full #dial{display:block;flex:1 1 auto;align-self:center;width:auto;height:auto;min-height:150px;max-width:min(100%,320px);aspect-ratio:1;margin:0;}
 #dial:active{cursor:grabbing;}
 #dial-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
 .dial-track{fill:none;stroke:var(--line-strong);stroke-width:7;stroke-linecap:round;}
@@ -235,10 +240,15 @@ button{font-family:inherit;color:inherit;}
 .dial-needle{fill:#fff;stroke:var(--surface);stroke-width:3;}
 .dial-tick{stroke:var(--line-strong);stroke-width:1.5;stroke-linecap:round;}
 .dial-tick.major{stroke:var(--text-3);stroke-width:2;}
-.dial-num{fill:var(--text-3);font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:-.02em;}
-.dial-name{fill:var(--deco);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;}
+/* 글자 — SVG 의 font-size 는 viewBox user unit 이라 다이얼이 줄면 같이 준다(217 px 에서 숫자 7 px). 그래서 **렌더 크기를 고정**한다:
+   ui/dial.ts 가 ResizeObserver 로 다이얼 px 를 재서 core/metro/dial.ts dialTypography() 의 user unit 값을 --dial-*-units 로 준다 (L7 2단계).
+   용어는 호 길이에 갇혀 무한정 키울 수 없다 — 상한(NAME_MAX_UNITS)에 걸리면 .no-names 로 아예 뺀다(정확한 용어는 가운데 숫자 밑에 있다).
+   L1: 용어 색 --deco(2.8:1) → --text-3(5.3:1). "안 거슬리게" 와 "안 보이게" 는 다르다. */
+.dial-num{fill:var(--text-3);font-family:'DM Mono',monospace;font-size:calc(var(--dial-num-units,10.5) * 1px);letter-spacing:-.02em;}
+.dial-name{fill:var(--text-3);font-size:calc(var(--dial-name-units,8.5) * 1px);letter-spacing:.09em;text-transform:uppercase;}
+#dial.no-names .dial-name{display:none;}
 #dial-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:2px;}
-#dial-bpm{font-family:'DM Mono',monospace;font-size:64px;font-weight:var(--fw-md);line-height:1;color:var(--text);letter-spacing:-.02em;}
+#dial-bpm{font-family:'DM Mono',monospace;font-size:clamp(44px,calc(var(--dial-px,320) * .2px),64px);font-weight:var(--fw-md);line-height:1;color:var(--text);letter-spacing:-.02em;} /* 다이얼에 비례, 44~64 */
 #dial-name{font-size:var(--fs-sm);color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;}
 /* 접기/펼치기: grid-template-rows 0fr↔1fr (v1 의 .55 s 느긋한 전이 유지) */
 #metro-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--t-slow) ease;}
@@ -264,7 +274,7 @@ input[type=range]::-moz-range-track{height:4px;background:var(--line);border-rad
 input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--text);border:2px solid var(--surface);cursor:pointer;}
 .m-grid{display:flex;gap:var(--s2);}
 #metro-grids-wrap{display:flex;flex-direction:column;gap:8px;}
-.m-seg{flex:1;height:var(--h-seg);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-family:'DM Mono',monospace;font-size:var(--fs-base);font-weight:var(--fw-md);gap:2px;cursor:pointer;text-align:center;transition:border-color .1s,color .1s,background .1s;display:flex;align-items:center;justify-content:center;}
+.m-seg{flex:1;min-width:0;height:var(--h-seg);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-family:'DM Mono',monospace;font-size:var(--fs-base);font-weight:var(--fw-md);gap:2px;cursor:pointer;text-align:center;transition:border-color .1s,color .1s,background .1s;display:flex;align-items:center;justify-content:center;}
 .m-seg.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 
 /* ── 기준음 패널 ── */
@@ -420,6 +430,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 @media (min-width: 700px){
   #hdr,#main-body{max-width:680px;}
   #main-body{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:1;min-height:0;width:100%;}
+  #main-body.metro-full{grid-template-columns:1fr;} /* 전용 모드에서 튜너가 숨으면 메트로놈이 두 칸을 다 쓴다 — 왼쪽 반 칸에 갇히지 않게 (L7, 태블릿 실측) */
   .bd.beat{width:17px;height:17px;}.bd.subdiv{width:9px;height:9px;}
   #beat-vis{gap:8px;height:24px;}
   #metro-bpm-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}

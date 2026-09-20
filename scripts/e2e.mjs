@@ -230,6 +230,38 @@ await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝
   assert.deepEqual(xs, ['−', 'metro-play-btn', '+'])
   await p.click('#metro-full-btn')
 })
+// ── 화면 크기 행렬 (v2.3.1, L7) — 전용 모드는 어떤 화면에서도 스크롤·넘침이 없고 글자가 읽혀야 한다.
+// 기기별 땜빵이 아니라 규칙(다이얼이 남는 높이를 흡수, 글자는 렌더 크기 고정)으로 닫고, 이 행렬이 회귀를 잡는다.
+// Chromium 은 env(safe-area-inset-*) 가 0 이라 노치·홈 인디케이터를 #app padding 으로 흉내 낸다(근사 — 실기기 1회 확인).
+const LAYOUT_MATRIX = [
+  ['Android 소형', 360, 640, 12, 12], ['iPhone SE', 375, 667, 12, 12], ['iPhone 13 mini', 375, 812, 59, 46],
+  ['iPhone 15', 393, 852, 59, 46], ['Pixel', 412, 915, 36, 30], ['iPhone Pro Max', 430, 932, 59, 46], ['태블릿', 768, 1024, 24, 20],
+]
+for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전용 모드 ${name} ${w}×${h} — 스크롤·넘침 0, 글자 렌더 크기 유지`, 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
+  await p.addStyleTag({ content: `#app{padding-top:${top}px!important;padding-bottom:${bot}px!important}` })
+  if (w < 700) { await p.click('#metro-collapse-btn'); await sleep(p, 300) } // 넓은 화면은 접기 버튼이 없다(항상 펼침)
+  await p.click('#metro-full-btn'); await sleep(p, 500)
+  const r = await p.evaluate(() => {
+    const clip = document.getElementById('metro-body-clip'), card = document.getElementById('metro-card').getBoundingClientRect()
+    const dial = document.getElementById('dial').getBoundingClientRect()
+    const segs = Array.from(document.querySelectorAll('#metro-card.full .m-seg')).map(e => e.getBoundingClientRect())
+    const glyphs = Array.from(document.querySelectorAll('#metro-card.full #sd-grid .m-seg')).map(b => { const g = b.querySelector('.note-glyph').getBoundingClientRect(), r = b.getBoundingClientRect(); return Math.max(r.left - g.left, g.right - r.right) })
+    const num = document.querySelector('#dial-svg .dial-num').getBoundingClientRect()
+    const names = Array.from(document.querySelectorAll('#dial-svg .dial-name')).filter(n => getComputedStyle(n).display !== 'none').length
+    const last = document.getElementById('sd-grid').getBoundingClientRect()
+    return { overflowY: clip.scrollHeight - clip.clientHeight, segOverflow: Math.max(0, ...segs.map(s => s.right - card.right)), glyphOverflow: Math.max(0, ...glyphs),
+      dial: dial.width, numBoxH: num.height, names, lastRowInside: last.bottom <= card.bottom + 0.5 && last.bottom <= window.innerHeight }
+  })
+  assert.ok(r.overflowY <= 0, `세로 넘침 ${r.overflowY}px — 스크롤이 필요하면 안 된다`)
+  assert.ok(r.segOverflow <= 0.5, `pill 가로 넘침 ${r.segOverflow}px`)
+  assert.ok(r.glyphOverflow <= 0.5, `음표 글리프가 버튼 밖으로 ${r.glyphOverflow}px`)
+  assert.ok(r.lastRowInside, '리듬 줄이 카드·화면 안에 있어야 한다')
+  assert.ok(r.dial >= 150 && r.dial <= 320.5, `다이얼 ${r.dial}px`)
+  assert.ok(r.numBoxH >= 11, `숫자 렌더 크기 유지 (bbox ${r.numBoxH}px, 10px 글자면 ≈13)`)
+  assert.equal(r.names, r.dial >= 226 ? 4 : 0, `용어는 226px 이상에서만 (다이얼 ${r.dial})`)
+  await p.click('#metro-full-btn'); await sleep(p, 300)
+}, { viewport: { width: w, height: h } })
 await scenario('metro: works without mic (permission denied) + spacebar', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
   assert.equal(await p.evaluate(() => document.getElementById('mic-popup-bg').classList.contains('show')), true, 'mic popup shown')

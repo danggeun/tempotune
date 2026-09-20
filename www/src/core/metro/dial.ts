@@ -67,3 +67,20 @@ export function tempoName(bpm: number): string {
 export const ARC_LABELS: ReadonlyArray<readonly [string, number, number]> = [
   ['Largo', 40, 60], ['Andante', 76, 108], ['Allegro', 120, 168], ['Presto', 168, 200],
 ]
+
+/**
+ * 글자 크기 (v2.3.1, L7 2단계). SVG 의 font-size 는 viewBox(320) user unit 이라 다이얼이 작아지면 글자도 같이 준다 —
+ * 360×640 폰에서 다이얼 217 px 이면 숫자가 7 px 로 안 읽힌다. 그래서 **렌더 픽셀을 고정**하고 user unit 을 반비례로 준다.
+ *
+ *   · 숫자 목표 10 px. 솎지 않는다 — 인접 숫자(20 BPM = 27°)는 반지름 133 에서 호 약 63 unit, 세 자리 글자는 ~30 unit 이라 여유가 두 배.
+ *   · 용어 목표 9.5 px. 그러나 용어는 **호 길이에 갇힌다** — 제일 좁은 Largo(27°)가 반지름 94 에서 호 약 44 unit.
+ *     user unit 이 NAME_MAX_UNITS 를 넘으면 글자가 호를 넘쳐 잘리므로(v2.3.0 의 "Adagio → DAGI"), 그때는 용어를 통째로 뺀다.
+ *     정확한 용어는 어차피 가운데 숫자 밑에 있다. 실측: 244 px(iPhone SE) 에서 4개 다 온전, 217 px 에서 빠진다.
+ */
+export const DIAL_VIEWBOX = 320
+export const NUM_TARGET_PX = 10, NAME_TARGET_PX = 9.5, NAME_MAX_UNITS = 13.5
+export function dialTypography(dialPx: number): { numUnits: number; nameUnits: number; showNames: boolean } {
+  const k = DIAL_VIEWBOX / Math.max(1, dialPx)
+  const nameUnits = NAME_TARGET_PX * k
+  return { numUnits: NUM_TARGET_PX * k, nameUnits: Math.min(nameUnits, NAME_MAX_UNITS), showNames: nameUnits <= NAME_MAX_UNITS }
+}

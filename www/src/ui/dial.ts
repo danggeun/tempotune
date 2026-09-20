@@ -5,14 +5,18 @@
  * 그림 (viewBox 320, 중심 160):
  *   r 112  링(트랙) + 시작~현재의 채움 호 + 현재 위치의 바늘점
  *   r 119~ 눈금: 5 BPM 마다 짧게, 20 BPM 마다 길게. 숫자는 눈금 끝 바깥쪽으로 정렬(outwardAnchor) — 겹치지 않는다
- *   r 94   템포 이름 — 링 안쪽, 이정표 넷만, 흐리게 (ARC_LABELS 의 이유 참고)
+ *   r 94   템포 이름 — 링 안쪽, 이정표 넷만 (ARC_LABELS 의 이유 참고)
  * 가운데의 숫자·용어는 HTML(#dial-bpm, #dial-name) — 글꼴이 앱과 같아야 해서 SVG text 를 안 쓴다.
+ *
+ * 크기 (v2.3.1, L7): 다이얼은 전용 모드에서 **남는 높이**를 먹으므로 폰마다 다르다(217~320 px). SVG 글자는 user unit 이라
+ * 같이 줄어들기 때문에, ResizeObserver 로 실제 px 를 재서 dialTypography() 가 준 user unit 을 CSS 변수로 넣는다 → 렌더 크기 고정.
+ * 용어가 호에 안 들어가는 크기면 .no-names 로 감춘다. 관찰은 buildDial 에서 한 번만 건다(한 번 만든 SVG 를 계속 쓴다).
  *
  * 조작: 링 어디든 누르고 **돌린 만큼**만 변한다(상대 회전). 잡는 순간 값이 튀지 않는다.
  *   1.35°/BPM (20~220 이 270°) — 반지름 118 에서 약 2.8 px/BPM. 세로 ↕ 드래그(2 px/BPM)와 비슷한 손맛.
  *   −/+ 버튼은 ±1 미세 조정으로 그대로 둔다.
  */
-import { bpmToAngle, degPerBpm, angleDelta, pointToAngle, polar, arcPath, tempoName, ARC_LABELS } from '../core/metro/dial.ts'
+import { bpmToAngle, degPerBpm, angleDelta, pointToAngle, polar, arcPath, tempoName, ARC_LABELS, dialTypography } from '../core/metro/dial.ts'
 import { CFG } from '../state/index.ts'
 import { q, on } from './dom.ts'
 
@@ -71,7 +75,23 @@ export function buildDial(): void {
   fill = el('path', { d: '', class: 'dial-fill' }); svg.appendChild(fill)
   needle = el('circle', { cx: C, cy: C, r: 8, class: 'dial-needle' }); svg.appendChild(needle)
 
-  attachRotate(q('dial'))
+  const host = q('dial')
+  attachRotate(host)
+  attachTypography(host)
+}
+
+/** 다이얼의 실제 px → 글자 user unit (L7 2단계). observe() 직후 현재 크기로 한 번 불리고, 회전·모드 전환에도 따라온다 */
+function attachTypography(host: HTMLElement): void {
+  const apply = (px: number): void => {
+    if (!(px > 0)) return // display:none 인 순간(전용 모드 밖)은 0 — 마지막 값을 유지
+    const t = dialTypography(px)
+    host.style.setProperty('--dial-px', px.toFixed(1))
+    host.style.setProperty('--dial-num-units', t.numUnits.toFixed(2))
+    host.style.setProperty('--dial-name-units', t.nameUnits.toFixed(2))
+    host.classList.toggle('no-names', !t.showNames)
+  }
+  if (typeof ResizeObserver === 'undefined') { apply(host.getBoundingClientRect().width); return } // 아주 옛 브라우저 — 한 번만
+  new ResizeObserver(entries => { for (const e of entries) apply(e.contentRect.width) }).observe(host)
 }
 
 /** BPM → 바늘·채움·숫자·용어 */
