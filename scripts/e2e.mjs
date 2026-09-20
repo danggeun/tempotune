@@ -189,8 +189,10 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
   assert.ok(seen.size >= 6, `불이 여러 칸을 지나가야 한다: ${[...seen]}`)
   assert.ok(hits.has(0) || hits.has(12), `정박은 양 끝 칸에서: ${[...hits]}`)
   assert.ok([...hits].some(h => h === 's6'), `2분할은 가운데 칸(6)에서: ${[...hits]}`)
-  // 나가면 튜너와 마이크가 돌아온다
-  await p.click('#metro-full-btn'); await sleep(p, 500)
+  // 나가면 튜너와 마이크가 돌아온다 — 그리고 다시 여는 0.2~0.5 초 동안 "MIC 를 켜면 시작해요" 가 한 프레임도 뜨지 않는다 (L4)
+  await p.click('#metro-full-btn')
+  const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 3000) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; if (window.__tt.stats().micOpen) break; await new Promise(r => setTimeout(r, 16)) } return hint })
+  assert.equal(seenHint, false, '자동 재개 중엔 "켜라" 고 말하지 않는다 (L4)')
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'flex')
   await waitUntil(p, () => window.__tt.stats().micOpen, 4000, '전용 모드를 나가면 마이크가 돌아온다')
 })
@@ -756,6 +758,8 @@ await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고, 돌아오
   // 보고 즉시 통과해 버려서 아무것도 기다리지 않는다 — 그래서 micOpen 을 직접 기다린다 (이 테스트가
   // 2/3 확률로 실패하던 원인. 앱이 아니라 테스트가 너무 일찍 단정하고 있었다).
   await setVisibility(p, 'visible')
+  const hintOnReturn = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 3000) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; if (window.__tt.stats().micOpen) break; await new Promise(r => setTimeout(r, 16)) } return hint })
+  assert.equal(hintOnReturn, false, '복귀 재개 중에도 "켜라" 고 말하지 않는다 (L4)')
   await waitUntil(p, () => window.__tt.stats().micOpen === true, 5000, '복귀: 마이크 다시 열림')
   await waitNote(p, t => t.note === '라', 5000)
   assert.equal(await p.evaluate(() => document.getElementById('tuner-note').textContent !== '탭하여 시작'), true, '복귀: 탭 안내 없이 바로')

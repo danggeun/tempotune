@@ -108,8 +108,9 @@ function clearDual(): void { dualUntil = 0; dualMidi = -1; const el = q('tuner-d
 // ── 음 표시 ──
 function renderEmpty(): void {
   const nEl = q('tuner-note')
-  // 마이크가 꺼져 있으면 '--' 대신 왜 아무것도 안 뜨는지 (빈 상태 카피). 켜져 있고 조용하면 '--'
-  const off = !tunerStore.get().micReady && !tapHandler
+  // 마이크가 꺼져 있으면 '--' 대신 왜 아무것도 안 뜨는지 (빈 상태 카피). 켜져 있고 조용하면 '--'.
+  // 앱이 스스로 다시 여는 중(micReopening)이면 사용자가 할 일이 없다 — "켜라" 고 말하지 않고 '--' (L4: 전용 모드에서 나올 때 문구가 깜빡였다)
+  const s = tunerStore.get(), off = !s.micReady && !s.micReopening && !tapHandler
   nEl.textContent = off ? 'MIC 를 켜면 시작해요' : '--'; nEl.className = off ? 'empty hint' : 'empty'
   q('tuner-oct').textContent = ''; q('tuner-cents').textContent = ''; q('tuner-enharmonic').textContent = ''; q('tuner-acc').textContent = ''
   hzReadout.reset(); q('tuner-hz').textContent = ''
@@ -169,6 +170,8 @@ export function mountTuner(): void {
     q('rec-hdr-btn').style.opacity = ready ? '1' : '.35'
     if (!ready) renderEmpty()
   })
+  // 자동 재개가 실패로 끝났을 때만 그제야 "켜면 시작" 을 보여준다 (분석 루프가 안 도니 여기서 직접 다시 그린다)
+  tunerStore.select(s => s.micReopening, v => { if (!v && !tunerStore.get().micReady) renderEmpty() })
   // 초기 렌더 (v1: 200 ms 후)
   setTimeout(() => drawHistory(false), 200)
 }

@@ -56,6 +56,8 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
  */
 const tryOpenMic = async (popupOnDenied = false): Promise<boolean> => {
   const r = await openMic()
+  // 자동 재개가 끝났다(성공이든 실패든). 'busy' 는 여는 도중 또 숨겨진 것 — 다음 복귀에서 재시도되므로 재개 중 상태를 유지한다 (L4)
+  if (r.ok || r.error !== 'busy') tunerStore.set({ micReopening: false })
   if (!r.ok && r.error !== 'busy') {
     if (!isPermissionError(r.error)) toast(r.error)
     else if (popupOnDenied) showMicPopup(true)
@@ -104,6 +106,7 @@ on(document, 'visibilitychange', () => {
     if (isNative() && sessionStore.get().recording) { stopRec(); toast('앱이 뒤로 가서 녹음을 저장했어요') }
     if (A.micStream && !sessionStore.get().recording) {
       micReleasedByHide = true; releasingForHide = true
+      tunerStore.set({ micReopening: true }) // closeMic 전에 — 닫히는 순간 renderEmpty 가 이 값을 본다 (L4)
       try { closeMic() } finally { releasingForHide = false }
     }
     return
@@ -131,6 +134,7 @@ let micReleasedByEditor = false
     const open = page.classList.contains('open') || metro.classList.contains('full')
     if (open && A.micStream && !sessionStore.get().recording) {
       micReleasedByEditor = true; releasingForEditor = true
+      tunerStore.set({ micReopening: true }) // 편집기·전용 모드를 나오면 스스로 다시 연다 — 그 0.2~0.5 초 동안 "켜라" 고 하지 않는다 (L4)
       try { closeMic() } finally { releasingForEditor = false }
     } else if (!open && micReleasedByEditor) {
       micReleasedByEditor = false

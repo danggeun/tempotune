@@ -77,6 +77,8 @@ export const settingsStore = createStore<Settings>({
 // ── 튜너 (고빈도) ──
 export interface TunerState {
   micReady: boolean
+  /** 앱이 스스로 마이크를 놓았다가 다시 여는 중 (숨김·편집기·전용 모드에서 복귀) — 이 동안은 "켜면 시작" 이라고 말하지 않는다 (v2.3.1 L4) */
+  micReopening: boolean
   /** 마이크 분석 루프 동작 중 */
   running: boolean
   /** 매 분석 프레임 증가 — 값이 같아도 구독자가 매 프레임 알림을 받게 함 (히스토리 스크롤) */
@@ -100,7 +102,7 @@ export interface TunerState {
   lastActivityMs: number
 }
 export const tunerStore = createStore<TunerState>({
-  micReady: false, running: false, frame: 0, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, held: 0, dualMidi: -1, dualCents: 0, sampleRate: 44100, playing: false, lastActivityMs: Date.now(),
+  micReady: false, micReopening: false, running: false, frame: 0, hz: -1, midi: -1, cents: 0, inTune: false, conf: 0, held: 0, dualMidi: -1, dualCents: 0, sampleRate: 44100, playing: false, lastActivityMs: Date.now(),
 })
 
 // ── 메트로놈 ──
