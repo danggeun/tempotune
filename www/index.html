@@ -88,8 +88,12 @@
         <div id="beat-vis"></div>
         <div id="metro-hdr-right">
           <button id="metro-play-hdr-btn" aria-label="메트로놈 정지">■</button>
-          <button id="metro-full-btn" aria-label="메트로놈 전용 화면"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 4H16v4.5M8.5 16H4v-4.5M16 4l-5 5M4 16l5-5"/></svg></button>
-          <button id="metro-collapse-btn" aria-label="메트로놈 접기/펼치기"><svg class="nav-glyph chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg></button>
+          <!-- 크기 버튼 하나 (v2.3.2 M10): 접힘 → 펼침 → 전용 → 접힘 순환. 글리프는 **다음 목적지**를 보여준다.
+               내려가는 길은 카드를 아래로 미는 스와이프가 맡는다(ui/swipeStep.ts) -->
+          <button id="metro-size-btn" aria-label="메트로놈 펼치기">
+            <svg class="nav-glyph chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
+            <svg class="nav-glyph expand" viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 4H16v4.5M8.5 16H4v-4.5M16 4l-5 5M4 16l5-5"/></svg>
+          </button>
         </div>
       </div>
       <div id="metro-body-wrap"><div id="metro-body-clip">
