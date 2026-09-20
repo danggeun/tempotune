@@ -162,10 +162,10 @@ await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots
   await p.click('.m-adj:nth-child(2)'); assert.equal(await bpm(), 81)
   await p.click('.m-adj:nth-child(1)'); await p.click('.m-adj:nth-child(1)'); assert.equal(await bpm(), 79)
   assert.equal(await p.evaluate(() => document.getElementById('metro-hdr-bpm').textContent), '79')
-  for (let i = 0; i < 70; i++) await p.click('.m-adj:nth-child(1)'); assert.equal(await bpm(), 20, 'clamp min')
+  for (let i = 0; i < 70; i++) await p.click('.m-adj:nth-child(1)'); assert.equal(await bpm(), 40, 'clamp min (M7: 40~200)')
   const box = await p.locator('#metro-bpm-wrap').boundingBox()
   await p.mouse.move(box.x + 30, box.y + 40); await p.mouse.down(); await p.mouse.move(box.x + 30, box.y + 40 - 100, { steps: 10 }); await p.mouse.up()
-  assert.equal(await bpm(), 70, 'drag 100px = +50 bpm')
+  assert.equal(await bpm(), 90, 'drag 100px = +50 bpm')
   await p.click('[data-ts="6"]'); assert.equal(await p.evaluate(() => document.getElementById('sd-grid').style.pointerEvents), 'none')
   assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector('[data-sd="1"] .flag')).display), 'block', '6/8 shows eighth-note flag')
   // K5: 헤더는 세이코식 LED 9칸 **고정** — 전에는 틱 수만큼 점을 만들어 4/4·3분할이면 12개로 폰에서 넘쳤다
@@ -248,9 +248,9 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
 await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝에서 멈춤, 용어·눈금 (v2.3.0)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
   await p.click('#metro-size-btn'); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 700) // 접힘 → 펼침 → 전용
-  // 그림: 20~220 을 5 마다 눈금(41), 20 마다 숫자(11), 이정표 용어 4(Largo 부터), 점 줄은 없다
+  // 그림: 40~200 을 5 마다 눈금(33), 20 마다 숫자(9: 40·60·…·200), 이정표 용어 4(Largo 부터), 점 줄은 없다 (M7)
   const n = await p.evaluate(() => ({ tick: document.querySelectorAll('#dial-svg .dial-tick').length, num: document.querySelectorAll('#dial-svg .dial-num').length, name: document.querySelectorAll('#dial-svg .dial-name').length, beats: document.getElementById('sweep-beats') }))
-  assert.deepEqual(n, { tick: 41, num: 11, name: 4, beats: null })
+  assert.deepEqual(n, { tick: 33, num: 9, name: 4, beats: null })
   assert.equal(await p.evaluate(() => document.getElementById('dial-bpm').textContent), '80')
   assert.equal(await p.evaluate(() => document.getElementById('dial-name').textContent), 'Andante')
   // 링을 돌린다: 중심 기준 각도를 +27° 만큼 (= 20 BPM) 시계 방향으로, 여러 번에 나눠서
@@ -262,20 +262,20 @@ await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝
     for (let i = 1; i <= steps; i++) { a = deg * i / steps; const q = at(a); await p.mouse.move(q.x, q.y) }
     await p.mouse.up()
   }
-  await rot(27); await sleep(p, 100)
+  await rot(33.75); await sleep(p, 100) // 1.6875°/BPM (40~200 이 270°) → +20 BPM
   let bpm = await p.evaluate(() => +document.getElementById('dial-bpm').textContent)
-  assert.ok(Math.abs(bpm - 100) <= 1, `+27° 는 +20 BPM: ${bpm}`)
+  assert.ok(Math.abs(bpm - 100) <= 1, `+33.75° 는 +20 BPM: ${bpm}`)
   assert.equal(await p.evaluate(() => document.getElementById('metro-bpm').textContent), String(bpm), '펼침 화면 숫자와 같은 값')
   assert.equal(await p.evaluate(() => document.getElementById('dial-name').textContent), 'Andante')
-  await rot(-54); await sleep(p, 100)                                      // −40 → 60 Larghetto
+  await rot(-67.5); await sleep(p, 100)                                    // −40 → 60 Larghetto
   bpm = await p.evaluate(() => +document.getElementById('dial-bpm').textContent)
-  assert.ok(Math.abs(bpm - 60) <= 1, `−54° 는 −40 BPM: ${bpm}`)
+  assert.ok(Math.abs(bpm - 60) <= 1, `−67.5° 는 −40 BPM: ${bpm}`)
   assert.equal(await p.evaluate(() => document.getElementById('dial-name').textContent), 'Larghetto')
-  await rot(-200, 30); await sleep(p, 100)                                 // 끝을 넘겨 돌려도 20 에서 멈춘다
-  assert.equal(await p.evaluate(() => document.getElementById('dial-bpm').textContent), '20')
+  await rot(-200, 30); await sleep(p, 100)                                 // 끝을 넘겨 돌려도 40 에서 멈춘다
+  assert.equal(await p.evaluate(() => document.getElementById('dial-bpm').textContent), '40')
   await rot(20, 10); await sleep(p, 100)                                   // 되감을 필요 없이 바로 올라간다
   bpm = await p.evaluate(() => +document.getElementById('dial-bpm').textContent)
-  assert.ok(bpm >= 33 && bpm <= 36, `끝에서 되돌리면 즉시 반응: ${bpm}`)
+  assert.ok(bpm >= 50 && bpm <= 53, `끝에서 되돌리면 즉시 반응: ${bpm}`)
   // 배치: 위에서부터 LED → 다이얼 → [− ▶ +] → 음량 → 박자표 → 분할, 재생이 가운데
   const ys = await p.evaluate(() => ['sweep-leds', 'dial', 'metro-play-btn', 'metro-vol-pad', 'ts-grid', 'sd-grid'].map(id => document.getElementById(id).getBoundingClientRect().top))
   for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1], `순서: ${ys}`)

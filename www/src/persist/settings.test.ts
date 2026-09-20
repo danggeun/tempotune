@@ -38,8 +38,11 @@ describe('parseStored', () => {
 
 describe('parseStored hardening', () => {
   test('bpm clamped and rounded', () => {
-    expect(parseStored(JSON.stringify({ v: 2, bpm: -5 })).bpm).toBe(20)
-    expect(parseStored(JSON.stringify({ v: 2, bpm: 999 })).bpm).toBe(220)
+    // 범위는 CFG.metro (v2.3.2 M7: 40~200). 옛 저장값이 범위 밖이면 여기서 끌어들인다
+    expect(parseStored(JSON.stringify({ v: 2, bpm: -5 })).bpm).toBe(40)
+    expect(parseStored(JSON.stringify({ v: 2, bpm: 999 })).bpm).toBe(200)
+    expect(parseStored(JSON.stringify({ v: 2, bpm: 20 })).bpm).toBe(40) // 옛 범위(20~220)로 저장된 값도 새 범위로 끌어들인다
+    expect(parseStored(JSON.stringify({ v: 2, bpm: 220 })).bpm).toBe(200)
     expect(parseStored(JSON.stringify({ bpm: 80.6 })).bpm).toBe(81)
     expect(parseStored(JSON.stringify({ v: 2, bpm: 'x' })).bpm).toBeUndefined()
   })

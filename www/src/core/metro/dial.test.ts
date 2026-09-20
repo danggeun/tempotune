@@ -63,15 +63,17 @@ describe('다이얼 — 템포 용어', () => {
 describe('다이얼 — 글자 크기 (L7 2단계)', () => {
   test('렌더 크기 고정: user unit 은 다이얼 px 에 반비례', () => {
     const a = dialTypography(320), b = dialTypography(160)
-    expect(a.numUnits).toBeCloseTo(10); expect(b.numUnits).toBeCloseTo(20)
-    // 320 은 설계 크기 — 예전 고정값(10.5 / 8.5)과 거의 같다
-    expect(a.nameUnits).toBeCloseTo(9.5)
+    expect(a.numUnits).toBeCloseTo(11); expect(b.numUnits).toBeCloseTo(22)
+    expect(a.nameUnits).toBeCloseTo(10.5)
   })
-  test('용어는 상한(13.5 unit)까지만 커지고, 넘으면 감춘다 — 실측 경계: 244 px 표시, 217 px 숨김', () => {
+  test('숫자가 늘 용어보다 크다 — 값이 주인공, 용어는 이정표', () => {
+    for (const px of [320, 308, 244, 217]) { const t = dialTypography(px); expect(t.numUnits).toBeGreaterThan(t.nameUnits) }
+  })
+  test('용어는 상한(15 unit)까지만 커지고, 넘으면 감춘다 — 경계 224 px', () => {
     expect(dialTypography(244).showNames).toBe(true)
     expect(dialTypography(217).showNames).toBe(false)
-    expect(dialTypography(217).nameUnits).toBe(13.5) // 감춰도 값은 상한에 고정 (다시 커지면 바로 쓸 수 있게)
-    const edge = (9.5 * 320) / 13.5 // ≈ 225.2
+    expect(dialTypography(217).nameUnits).toBe(15) // 감춰도 값은 상한에 고정 (다시 커지면 바로 쓸 수 있게)
+    const edge = (10.5 * 320) / 15 // = 224
     expect(dialTypography(edge + 0.5).showNames).toBe(true)
     expect(dialTypography(edge - 0.5).showNames).toBe(false)
   })

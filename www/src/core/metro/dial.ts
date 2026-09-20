@@ -78,7 +78,12 @@ export const ARC_LABELS: ReadonlyArray<readonly [string, number, number]> = [
  *     정확한 용어는 어차피 가운데 숫자 밑에 있다. 실측: 244 px(iPhone SE) 에서 4개 다 온전, 217 px 에서 빠진다.
  */
 export const DIAL_VIEWBOX = 320
-export const NUM_TARGET_PX = 10, NAME_TARGET_PX = 9.5, NAME_MAX_UNITS = 13.5
+/**
+ * 목표 크기 (v2.3.2 M6 에서 한 단 키움: 숫자 10 → 11, 용어 9.5 → 10.5). 숫자가 늘 용어보다 크다 — 값이 주인공이고 용어는 이정표다.
+ * NAME_MAX_UNITS 는 **제일 좁은 용어 구간의 호 길이**가 정한다: Largo(40~60) 는 반지름 94 에서 호 약 55 unit(범위가 40~200 으로
+ * 좁아지며 44 → 55 로 늘었다), "LARGO" 5 글자는 자간 포함 약 3.55 × font — 그래서 15.5 근처가 한계라 **15** 로 둔다(실측으로 확인).
+ */
+export const NUM_TARGET_PX = 11, NAME_TARGET_PX = 10.5, NAME_MAX_UNITS = 15
 export function dialTypography(dialPx: number): { numUnits: number; nameUnits: number; showNames: boolean } {
   const k = DIAL_VIEWBOX / Math.max(1, dialPx)
   const nameUnits = NAME_TARGET_PX * k
