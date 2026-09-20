@@ -214,16 +214,19 @@ button{font-family:inherit;color:inherit;}
 #metro-card.full #metro-vol-pad{display:flex!important;padding:0 var(--s2);}
 #metro-card.full #metro-vol-pad input{flex:1;}
 #metro-card.full #metro-grids-wrap{gap:var(--s3);}
-#metro-card.full .m-seg{height:52px;font-size:17px;color:var(--text-2);}
-/* L6-b: 전용 모드의 선택 표시는 색이 아니라 **밝기 3단**(면 한 단·글자·테두리가 전부 "선택 = 더 밝다"). 빨강은 세 가지 일(선택·실행·액센트)을 겸하고
-   있었는데, 화면에 메트로놈뿐인 전용 모드에선 셋이 한꺼번에 소리쳤다. 여기선 빨강을 '실행(▶)' 과 '액센트 박(세분)' 둘에만 남긴다 */
-#metro-card.full .m-seg.on{border-color:var(--text-3);color:var(--text);background:var(--surface-2);}
+#metro-card.full .m-seg{height:52px;font-size:17px;}
+/* 선택 표시 = **밝기 3단 + 얇은 빨간 테두리** (v2.3.1 L6-b → v2.3.2 M3·M9).
+   빨강이 세 가지 일(선택·실행·액센트)을 겸해 전용 모드에서 한꺼번에 소리쳤으므로 면·글자는 밝기로 옮겼는데,
+   완전히 무채색으로 두니 '선택됨' 이 너무 조용했다 → 테두리만 액센트로 되돌린다(면적이 작아 총량은 거의 안 는다).
+   전용 모드에만 두지 않고 **펼침에도** 적용한다 — 같은 카드가 크기만 다를 뿐 같은 화면이다 (M9) */
+#metro-grids-wrap .m-seg{color:var(--text-2);}
+#metro-grids-wrap .m-seg.on{border-color:var(--accent);color:var(--text);background:var(--surface-2);}
 #metro-card.full #sd-grid .note-glyph{transform:scale(1.15);}
 /* ── 세이코식 LED 줄 (K5) ──
    세이코 SQ100 의 LED 줄 그대로: 칸 수는 **고정**(분할이 많아져도 안 넘친다), 불이 한 박에 끝→끝으로 쓸고 간다.
    양 끝 = 정박 → 초록으로 탁. 사이 분할 자리 = 액센트색으로 탁. 첫 박은 더 크게. */
 .led{border-radius:50%;background:var(--line);flex-shrink:0;transition:background .05s,transform .05s,box-shadow .05s;}
-.led.mv{background:var(--deco);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. --text-2(L* 69)는 박(L* 70)과 밝기가 같아 연속 운동이 순간 섬광을 이겼다 → L* 44 (v2.3.1 L11) */
+.led.mv{background:var(--line-strong);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. L* 69(박과 동급) → 44 → **36**(v2.3.2 M4). 꺼진 점(25)과 11 차이라 위치는 읽히되 더 물러난다 */
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
 .led.hit-acc{background:var(--text);transform:scale(1.7);box-shadow:0 0 16px rgba(223,227,232,.9);} /* 첫 박만 흰색 (L2): 크기(1.4 vs 1.7)만으로는 거리에서 구분이 안 됐다. 밝기 차이는 거리·각도에 강하고 색맹에도 안전. 세이코·Matrix 도 위치가 아니라 색으로 구분한다 */
@@ -233,6 +236,11 @@ button{font-family:inherit;color:inherit;}
 #metro-card.full #sweep{display:block;}
 #sweep-leds{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 2px;}
 #sweep-leds .led{width:20px;height:20px;}
+/* 전용 줄만 히트를 한 단 키운다 (M5) — 점 20 px·간격 24.4 px 라 여유가 있다. 헤더 줄(점 10·간격 17)은 1.7 에서 이미 이웃에 닿아 그대로 둔다.
+   한 번에 한 칸만 켜지므로 이웃을 덮을 일은 없다 */
+#sweep-leds .led.hit-sub{transform:scale(1.4);}
+#sweep-leds .led.hit-beat{transform:scale(1.6);}
+#sweep-leds .led.hit-acc{transform:scale(1.9);}
 /* ── 다이얼 (v2.3.0) — ui/dial.ts 가 그린다. 색은 전부 토큰: 트랙 line, 채움 text-2, 바늘 흰색, 글자 text-3 */
 #dial{display:none;position:relative;touch-action:none;user-select:none;cursor:grab;}
 /* 크기는 남는 높이가 정한다 (L7). align-self:center 가 핵심 — 없으면 열 flex 의 stretch 가 폭을 먼저 정해 aspect-ratio 와 싸운다.

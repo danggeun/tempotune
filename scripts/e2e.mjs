@@ -193,10 +193,11 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none', '튜너 카드 숨김')
   await waitUntil(p, () => !window.__tt.stats().micOpen, 3000, '전용 모드는 마이크를 놓는다 (K6)')
   assert.equal(await p.evaluate(() => document.querySelectorAll('#sweep-leds .led').length), 13)
-  // L6-b: 선택 pill 은 액센트색이 아니다 (밝기로 구분). L11: 쓸고 가는 불은 --deco
-  const colors = await p.evaluate(() => { const on = document.querySelector('#metro-card.full .m-seg.on'); return { onBorder: getComputedStyle(on).borderColor, onColor: getComputedStyle(on).color } })
-  assert.notEqual(colors.onBorder, 'rgb(241, 95, 84)', '전용 모드 선택 pill 테두리는 빨강이 아니다 (L6-b)')
-  assert.notEqual(colors.onColor, 'rgb(241, 95, 84)', '전용 모드 선택 pill 글자는 빨강이 아니다 (L6-b)')
+  // M3: 선택 pill = 밝기(면·글자) + 얇은 빨간 테두리. 글자까지 빨갛던 옛 방식으로는 돌아가지 않는다
+  const colors = await p.evaluate(() => { const on = document.querySelector('#metro-card.full .m-seg.on'); const cs = getComputedStyle(on); return { border: cs.borderTopColor, color: cs.color, bg: cs.backgroundColor } })
+  assert.equal(colors.border, 'rgb(241, 95, 84)', '선택 pill 테두리는 액센트 (M3)')
+  assert.equal(colors.color, 'rgb(223, 227, 232)', '글자는 밝기로 (--text)')
+  assert.equal(colors.bg, 'rgb(46, 51, 60)', '면도 한 단 (--surface-2)')
   await p.click('[data-sd="2"]'); await p.click('#metro-play-btn')
   const seen = new Set(), hits = new Set(); let flashed = false
   for (let i = 0; i < 40; i++) {
@@ -208,7 +209,12 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
   assert.equal(flashed, false, '전용 모드에서는 카드가 박마다 번쩍이지 않는다 (L6-a)')
   // L11: 쓸고 가는 불의 색 — 재생 중엔 .mv 가 칸을 옮겨 다니며 늘 전이 중이라, 정지 후 한 칸에 붙여 놓고 잰다
   const mvColor = await p.evaluate(async () => { const d = document.querySelectorAll('#sweep-leds .led')[3]; d.classList.add('mv'); await new Promise(r => setTimeout(r, 150)); const c = getComputedStyle(d).backgroundColor; d.classList.remove('mv'); return c })
-  assert.equal(mvColor, 'rgb(97, 105, 116)', '쓸고 가는 불은 --deco (L11): ' + mvColor)
+  assert.equal(mvColor, 'rgb(77, 85, 96)', '쓸고 가는 불은 --line-strong (M4): ' + mvColor)
+  // M5: 전용 줄에서만 히트가 한 단 크다
+  const scales = await p.evaluate(async () => { const out = {}; const d = document.querySelectorAll('#sweep-leds .led')[5]
+    for (const c of ['hit-sub', 'hit-beat', 'hit-acc']) { d.classList.add(c); await new Promise(r => setTimeout(r, 120)); out[c] = getComputedStyle(d).transform; d.classList.remove(c) } return out })
+  assert.match(scales['hit-acc'], /^matrix\(1\.9/, '첫 박 1.9 배 (M5): ' + scales['hit-acc'])
+  assert.match(scales['hit-beat'], /^matrix\(1\.6/, '박 1.6 배 (M5)')
   assert.ok(seen.size >= 6, `불이 여러 칸을 지나가야 한다: ${[...seen]}`)
   assert.ok(hits.has(0) || hits.has(12), `정박은 양 끝 칸에서: ${[...hits]}`)
   assert.ok([...hits].some(h => h === 's6'), `2분할은 가운데 칸(6)에서: ${[...hits]}`)
@@ -227,13 +233,17 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
   assert.equal(seenHint, false, '자동 재개 중엔 "켜라" 고 말하지 않는다 (L4)')
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'flex')
   await waitUntil(p, () => window.__tt.stats().micOpen, 4000, '전용 모드를 나가면 마이크가 돌아온다')
-  // 전용 모드 밖에서는 박 번쩍임이 그대로 있다 — 작은 카드에선 유효한 신호 (L6-a 의 범위)
-  // 순환 버튼으로 전용에서 나오면 '접힘' 이다(M10) → 본체 재생 버튼을 쓰려면 한 번 펼친다
-  await p.click('#metro-size-btn'); await sleep(p, 700)
-  await p.click('#metro-play-btn'); let flashedOut = false
-  for (let i = 0; i < 30; i++) { if (await p.evaluate(() => { const c = document.getElementById('metro-card').classList; return c.contains('flash-strong') || c.contains('lit-weak') })) { flashedOut = true; break } await sleep(p, 40) }
+  // M9: 화면을 칠하는 박 표시는 **접혔을 때만**. 순환 버튼으로 전용에서 나오면 바로 접힘이다(M10)
+  const flashesWhile = async () => { let f = false; for (let i = 0; i < 30; i++) { if (await p.evaluate(() => { const c = document.getElementById('metro-card').classList; return c.contains('flash-strong') || c.contains('lit-weak') })) { f = true; break } await sleep(p, 40) } return f }
+  // 접힌 채 재생 — 접혀 있으면 본체 버튼이 안 보이므로 Space 로. 방금 누른 버튼에 포커스가 남아 있으면
+  // Space 가 그 버튼의 것이 되므로(C1 규칙) 먼저 포커스를 뗀다
+  await p.evaluate(() => document.activeElement && document.activeElement.blur())
+  await p.keyboard.press('Space'); await sleep(p, 400)
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■', 'Space 로 재생 시작')
+  assert.equal(await flashesWhile(), true, '접혔을 때는 카드가 박마다 칠해진다 — 띠 하나뿐이라 이게 원거리 신호다')
+  await p.click('#metro-size-btn'); await sleep(p, 700) // 펼침
+  assert.equal(await flashesWhile(), false, '펼치면 LED 줄이 박을 말하므로 화면은 칠하지 않는다 (M9)')
   await p.click('#metro-play-btn')
-  assert.equal(flashedOut, true, '펼친 화면에서는 박 번쩍임이 남아 있다')
 })
 await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝에서 멈춤, 용어·눈금 (v2.3.0)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})

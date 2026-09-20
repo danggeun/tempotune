@@ -83,9 +83,10 @@ function applyFull(): void {
 let flashTimer: ReturnType<typeof setTimeout> | null = null
 function flashBeat(tick: number): void {
   const card = q('metro-card'); card.classList.remove('flash-strong', 'lit-weak')
-  // 전용 모드에서는 카드가 곧 화면 전체 — 정박마다 화면이 28 % 빨강으로 번쩍였다. 세이코식 LED 줄만으로 박 인식이
-  // 충분하다는 게 실사용 결론이라, 이 번쩍임은 정보를 더하지 않고 자극만 더한다. 접힌/펼친 화면은 그대로(작은 띠라 유효) (v2.3.1 L6-a)
-  if (metroStore.get().full) return
+  // 화면을 칠해서 박을 알리는 건 **접혀서 LED 줄만 보일 때**뿐이다 (v2.3.1 L6-a → v2.3.2 M9).
+  // 펼침·전용에서는 세이코식 LED 줄이 이미 박을 또렷이 말하고, 카드가 크니 28 % 빨강이 화면을 덮어 자극만 더한다.
+  // 접힘은 카드가 화면 맨 아래 띠 하나라, 거기서는 이 번쩍임이 유일한 원거리 신호라서 남긴다.
+  if (!isCollapsedNow()) return
   if (isPhoneLayout()) {
     const th = q('tuner-hdr'); th.classList.remove('beat-flash', 'beat-flash-weak'); reflow(th)
     th.classList.add(tick === 0 ? 'beat-flash' : 'beat-flash-weak')
@@ -104,9 +105,14 @@ function attachDrag(el: HTMLElement): void {
   on(window, 'touchend', () => { sw = false })
 }
 
+/** 지금 실제로 접혀 보이는가 — 넓은 화면·전용 모드에서는 collapsed 상태값과 무관하게 펼쳐져 있다 */
+function isCollapsedNow(): boolean {
+  const { collapsed, full } = metroStore.get()
+  return isPhoneLayout() && collapsed && !full
+}
 function applyCollapse(): void {
-  const { collapsed, playing } = metroStore.get()
-  const effective = isPhoneLayout() && collapsed && !metroStore.get().full // 접힘은 오직 사용자가 정한다 (U1). 전용 모드(K10)에서는 항상 펼쳐진다
+  const { playing } = metroStore.get()
+  const effective = isCollapsedNow() // 접힘은 오직 사용자가 정한다 (U1). 전용 모드(K10)에서는 항상 펼쳐진다
   q('metro-body-wrap').classList.toggle('collapsed', effective)
   q('metro-card').classList.toggle('bar', effective && playing) // 접힌 채 재생: 헤더 점을 키워 원거리에서 박이 보이게
   if (effective) clearDots()
