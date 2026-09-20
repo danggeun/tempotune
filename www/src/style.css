@@ -178,7 +178,9 @@ button{font-family:inherit;color:inherit;}
 .bd.lit-a{background:var(--accent);transform:scale(1.5);box-shadow:0 0 10px var(--accent);}
 .bd.lit-b{background:var(--accent);transform:scale(1.25);box-shadow:0 0 5px var(--accent);}
 .bd.lit-s{background:var(--accent);opacity:.75;transform:scale(1.1);}
-#metro-hdr-right{display:flex;align-items:center;gap:6px;}
+/* grid 세 번째 칸에 **고정**한다 (v2.3.2 M8). 전용 모드에서는 #beat-vis 가 display:none 이라 grid 항목이 둘로 줄고,
+   그러면 버튼 묶음이 1fr 칸(옛 beat-vis 자리)의 왼쪽에 붙어 ♩80 바로 옆에 와 버렸다(실측 left 95 px, 카드 오른쪽 363 px) */
+#metro-hdr-right{display:flex;align-items:center;gap:6px;grid-column:3;justify-self:end;}
 #metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 #metro-collapse-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-collapse-btn::after{content:'';position:absolute;inset:-6px;}
