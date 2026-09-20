@@ -100,7 +100,9 @@ await scenario('ref drum: A=415 (baroque) → 440 Hz input reads 라♯4 ≈ 0¢
 })
 await scenario('settings: note names C D E — tuner shows A with 라 as secondary; ref buttons relabel', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  await p.click('#menu-btn'); await p.click('#settings-open-btn'); await p.click('#notenames-steps .step-btn[data-v="1"]'); await p.click('#settings-back-btn')
+  await p.click('#menu-btn'); await p.click('#settings-open-btn')
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('fullscreen-row')).display), 'flex', '브라우저(비 standalone)에서는 전체화면 행이 보인다 (L10)')
+  await p.click('#notenames-steps .step-btn[data-v="1"]'); await p.click('#settings-back-btn')
   assert.equal(await p.evaluate(() => document.querySelector('#menu-overlay .ref-note-btn[data-note="라"]').textContent), 'A')
   await p.click('.menu-close-btn')
   const t = await waitNote(p, t => t.note === 'A'); assert.equal(t.oct, '4')
@@ -251,8 +253,10 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
     const names = Array.from(document.querySelectorAll('#dial-svg .dial-name')).filter(n => getComputedStyle(n).display !== 'none').length
     const last = document.getElementById('sd-grid').getBoundingClientRect()
     return { overflowY: clip.scrollHeight - clip.clientHeight, segOverflow: Math.max(0, ...segs.map(s => s.right - card.right)), glyphOverflow: Math.max(0, ...glyphs),
-      dial: dial.width, numBoxH: num.height, names, lastRowInside: last.bottom <= card.bottom + 0.5 && last.bottom <= window.innerHeight }
+      dial: dial.width, numBoxH: num.height, names, lastRowInside: last.bottom <= card.bottom + 0.5 && last.bottom <= window.innerHeight,
+      hdr: getComputedStyle(document.getElementById('hdr')).display, logo: document.getElementById('logo') }
   })
+  assert.equal(r.hdr, 'none', '전용 모드는 헤더 줄을 접는다 (L10)'); assert.equal(r.logo, null, '워드마크는 없다 (L10)')
   assert.ok(r.overflowY <= 0, `세로 넘침 ${r.overflowY}px — 스크롤이 필요하면 안 된다`)
   assert.ok(r.segOverflow <= 0.5, `pill 가로 넘침 ${r.segOverflow}px`)
   assert.ok(r.glyphOverflow <= 0.5, `음표 글리프가 버튼 밖으로 ${r.glyphOverflow}px`)
@@ -261,6 +265,7 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
   assert.ok(r.numBoxH >= 11, `숫자 렌더 크기 유지 (bbox ${r.numBoxH}px, 10px 글자면 ≈13)`)
   assert.equal(r.names, r.dial >= 226 ? 4 : 0, `용어는 226px 이상에서만 (다이얼 ${r.dial})`)
   await p.click('#metro-full-btn'); await sleep(p, 300)
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('hdr')).display), 'flex', '나가면 헤더가 돌아온다')
 }, { viewport: { width: w, height: h } })
 await scenario('metro: works without mic (permission denied) + spacebar', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)

@@ -164,7 +164,10 @@ onBackButton(() => {
   if (q('mic-popup-bg').classList.contains('show')) { closeMicPopup(); return true }
   return false
 })
-on(q('logo'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 홈 화면에 추가하면 전체화면으로 사용할 수 있어요')))
+// 전체화면 토글 (L10: 워드마크 탭에서 설정으로). 설치 앱·홈 화면 웹앱은 이미 전체화면이라 행을 숨긴다 — 안 되는 버튼을 보여주지 않는다
+const fsRow = q('fullscreen-row')
+if (isNative() || matchMedia('(display-mode: standalone)').matches) fsRow.style.display = 'none'
+on(q('fullscreen-btn'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 홈 화면에 추가하면 전체화면으로 사용할 수 있어요')))
 
 // ── 시작 시퀀스 ──
 // U2: 튜너에 마이크가 필요한 건 자명하다. 우리가 한 번 더 묻지 않는다 — 들어오면 바로 연다.

@@ -31,10 +31,10 @@
 </div>
 
 <div id="app">
+  <!-- 헤더 (v2.3.1, L10): 워드마크를 뺐다 — 앱이 자기 이름을 상시 띄우는 건 웹 페이지 관습이지 앱 관습이 아니다.
+       이름은 홈 화면 아이콘·앱 전환기 제목·설정 화면에 이미 있다. 화면의 모든 요소는 상태이거나 입력이어야 한다.
+       워드마크 탭 = 전체화면 토글이던 숨은 기능은 설정 페이지로 옮겼다. 전용 모드에서는 헤더 줄 자체를 접는다(CSS). -->
   <div id="hdr">
-    <div>
-      <div id="logo">TempoTune</div>
-    </div>
     <div id="hdr-right">
       <button id="hdr-mic-btn" class="compact-btn caps">
         <span id="hdr-mic-dot"></span>MIC
@@ -282,6 +282,13 @@
         <button class="step-btn on" data-v="1">켜짐</button>
         <button class="step-btn" data-v="0">꺼짐</button>
       </div>
+    </div>
+
+    <!-- 전체화면 (v2.3.1, L10) — 워드마크 탭에 숨어 있던 기능. 브라우저 탭에서 쓸 때만 뜻이 있다(설치 앱·홈 화면 웹앱은 이미 전체화면 → main.ts 가 숨긴다) -->
+    <div class="setting-row" id="fullscreen-row">
+      <span class="setting-lbl">전체화면</span>
+      <span class="setting-desc">브라우저에서 쓸 때 주소창을 숨겨요. 홈 화면에 추가했으면 이미 전체화면이에요</span>
+      <button class="menu-btn-sm" id="fullscreen-btn">전체화면 켜기/끄기</button>
     </div>
 
     <!-- 녹음 보관 -->
