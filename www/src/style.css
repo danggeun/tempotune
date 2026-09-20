@@ -189,7 +189,6 @@ button{font-family:inherit;color:inherit;}
 #metro-card.full{flex:1;min-height:0;display:flex;flex-direction:column;}
 #metro-card.full #metro-body-wrap{flex:1;min-height:0;grid-template-rows:1fr;}
 #metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow:hidden;} /* 스크롤 없음 (L7) — 연주 중엔 스크롤할 손이 없다. 넘치지 않게 짜는 게 아래 규칙 */
-#metro-card.full #metro-collapse-btn{display:none;}
 #metro-card.full #beat-vis{display:none;} /* 전용 모드의 박 표시는 아래 세이코식 트랙이 맡는다 */
 /* ── 전용 모드 배치 (v2.3.0) — 접힌 화면을 키운 게 아니라 이 화면을 위해 짠 것.
    위에서부터: LED 줄 → 다이얼(가운데 BPM·용어) → [− ▶ +] → 음량 → 박자표 → 분할. 새 기능 0, 크기·자리만.
@@ -221,7 +220,7 @@ button{font-family:inherit;color:inherit;}
 .led.mv{background:var(--deco);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. --text-2(L* 69)는 박(L* 70)과 밝기가 같아 연속 운동이 순간 섬광을 이겼다 → L* 44 (v2.3.1 L11) */
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
-.led.hit-acc{background:var(--ok);transform:scale(1.7);box-shadow:0 0 16px rgba(var(--ok-rgb),1);}
+.led.hit-acc{background:var(--text);transform:scale(1.7);box-shadow:0 0 16px rgba(223,227,232,.9);} /* 첫 박만 흰색 (L2): 크기(1.4 vs 1.7)만으로는 거리에서 구분이 안 됐다. 밝기 차이는 거리·각도에 강하고 색맹에도 안전. 세이코·Matrix 도 위치가 아니라 색으로 구분한다 */
 #beat-vis .led{width:10px;height:10px;}
 #metro-card.bar #beat-vis .led{width:13px;height:13px;} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
 #sweep{display:none;padding:4px 0 0;}

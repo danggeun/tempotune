@@ -197,6 +197,13 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
   assert.ok(seen.size >= 6, `불이 여러 칸을 지나가야 한다: ${[...seen]}`)
   assert.ok(hits.has(0) || hits.has(12), `정박은 양 끝 칸에서: ${[...hits]}`)
   assert.ok([...hits].some(h => h === 's6'), `2분할은 가운데 칸(6)에서: ${[...hits]}`)
+  // L3: 전용 모드에도 ∨ 가 있고(회전 없음 = 아래), 누르면 한 단계 내려가 '펼침' 이 된다 — 접힘까지 건너뛰지 않는다
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('metro-collapse-btn')).display), 'flex', '전용 모드에도 ∨ 버튼')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-collapse-btn').classList.contains('collapsed')), false, '전용 모드의 꺾쇠는 ∨ (데려가는 쪽)')
+  await p.click('#metro-collapse-btn'); await sleep(p, 500)
+  assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), false, '∨ → 전용 모드 해제')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed')), false, '∨ → 펼침 (접힘까지 안 간다)')
+  await p.click('#metro-full-btn'); await sleep(p, 500) // 다시 들어가서 ⤢ 로도 나가는지
   // 나가면 튜너와 마이크가 돌아온다 — 그리고 다시 여는 0.2~0.5 초 동안 "MIC 를 켜면 시작해요" 가 한 프레임도 뜨지 않는다 (L4)
   await p.click('#metro-full-btn')
   const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 3000) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; if (window.__tt.stats().micOpen) break; await new Promise(r => setTimeout(r, 16)) } return hint })

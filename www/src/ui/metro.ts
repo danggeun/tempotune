@@ -131,7 +131,8 @@ export function mountMetro(): void {
   attachDrag(q('metro-bpm-wrap')); attachDrag(q('metro-hdr-label'))
   on(q('metro-play-hdr-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
   on(q('metro-play-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
-  on(q('metro-collapse-btn'), 'click', () => metroStore.set({ collapsed: !metroStore.get().collapsed }))
+  // 꺾쇠는 '데려가는 쪽' 을 가리킨다 — 전용 모드에서는 **한 단계 내려가기**(전용 → 펼침). 접힘까지 건너뛰지 않는다 (v2.3.1 L3)
+  on(q('metro-collapse-btn'), 'click', () => { const s = metroStore.get(); if (s.full) metroStore.set({ full: false, collapsed: false }); else metroStore.set({ collapsed: !s.collapsed }) })
   on(q('metro-full-btn'), 'click', () => metroStore.set({ full: !metroStore.get().full }))
   qsa('.m-adj, .m-adj-pad').forEach(b => on(b, 'click', () => adjBPM(b.textContent === '−' ? -1 : 1)))
   const volMain = q<HTMLInputElement>('metro-vol'), volPad = q<HTMLInputElement>('metro-vol-pad-input')
@@ -176,10 +177,17 @@ export function mountMetro(): void {
     if (resizeT) clearTimeout(resizeT)
     resizeT = setTimeout(() => { const phone = isPhoneLayout(); if (phone !== lastPhone) { lastPhone = phone; syncLayout() } }, 150)
   })
-  metroStore.select(s => s.collapsed, collapsed => { q('metro-collapse-btn').classList.toggle('collapsed', collapsed); syncLayout() }) // 헤더 재생 버튼이 접힘에 달려 있다
-  metroStore.select(s => s.full, applyFull)
+  metroStore.select(s => s.collapsed, () => { syncChevron(); syncLayout() }) // 헤더 재생 버튼이 접힘에 달려 있다
+  metroStore.select(s => s.full, () => { applyFull(); syncChevron() })
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
   // 초기 상태 (v1): 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션
-  if (isPhoneLayout()) setTimeout(() => { applyCollapse(); q('metro-collapse-btn').classList.add('collapsed') }, 250)
+  if (isPhoneLayout()) setTimeout(() => { applyCollapse(); syncChevron() }, 250)
+}
+
+/** 꺾쇠 방향 = 이 버튼이 데려가는 쪽. 접힘이면 ∧(펼치기), 펼침이면 ∨(접기), 전용 모드면 항상 ∨(한 단계 내려가기) — 접힘 상태와 무관 (L3) */
+function syncChevron(): void {
+  const { collapsed, full } = metroStore.get(), btn = q('metro-collapse-btn')
+  btn.classList.toggle('collapsed', collapsed && !full)
+  btn.setAttribute('aria-label', full ? '전용 화면에서 펼침으로' : collapsed ? '메트로놈 펼치기' : '메트로놈 접기')
 }
