@@ -35,7 +35,7 @@ const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-
 // 화면 시나리오: 이름 → 준비 동작. 애니메이션이 끝날 시간을 준다.
 const SCENES = {
   main: async p => {},
-  metro_open: async p => { await p.click('#metro-collapse-btn'); await p.waitForTimeout(600) },
+  metro_open: async p => { await p.click('#metro-size-btn'); await p.waitForTimeout(600) }, // v2.3.2 M10: 크기 버튼 하나로 순환
   menu: async p => { await p.click('#menu-btn'); await p.waitForTimeout(600) },
   settings: async p => { await p.click('#menu-btn'); await p.waitForTimeout(400); await p.click('#settings-open-btn'); await p.waitForTimeout(500) },
   editor: async p => { await p.evaluate(() => { const e = document.getElementById('editor-page'); e.style.display = 'flex'; e.classList.add('open') }); await p.waitForTimeout(300) },
