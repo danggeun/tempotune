@@ -87,8 +87,9 @@ button{font-family:inherit;color:inherit;}
 #app{height:100%;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + var(--s3)) var(--s3) max(var(--s3),env(safe-area-inset-bottom,0px));gap:var(--gap);} /* 엣지투엣지(Android 15+)에서 워드마크가 상태바 밑으로 들어가지 않게 */
 
 /* ── 헤더 ── */
-/* 워드마크 없음 (v2.3.1, L10) — 왼쪽이 비는 건 여백이지 결손이 아니다. 컨트롤은 오른쪽 정렬 그대로 */
-#hdr{display:flex;align-items:center;justify-content:flex-end;width:100%;max-width:400px;}
+/* 워드마크 없음(v2.3.1 L10) → 빈 왼쪽에 ☰ 를 옮기고 옛 ☰ 자리에 ⚙ 를 놓는다 (v2.3.2 M1).
+   양 끝에 같은 크기의 아이콘 버튼 하나씩 — 균형이 맞고, 설정이 '메뉴 → 설정' 두 단계에서 한 단계가 된다 */
+#hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
 #hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 #hdr-rec-time{display:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;letter-spacing:.04em;min-width:2.6em;text-align:right;}
 #hdr-rec-time.show{display:inline;}
@@ -97,7 +98,10 @@ button{font-family:inherit;color:inherit;}
 #hdr-mic-dot{background:var(--text);}
 #rec-hdr-btn.rec-on #rec-hdr-dot,.rec-live-dot{background:var(--accent);animation:pulse 1s infinite;}
 .rec-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;}
-#menu-btn{position:relative;width:44px;height:44px;margin-right:-12px;background:transparent;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* 44 px 터치 영역은 두고 글리프만 화면 모서리에 맞춘다 — 왼쪽으로 옮겼으므로 음수 마진도 왼쪽 (M1) */
+#menu-btn{position:relative;width:44px;height:44px;margin-left:-12px;background:transparent;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#settings-hdr-btn{position:relative;width:44px;height:44px;margin-right:-12px;background:transparent;border:none;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#settings-hdr-btn .nav-glyph{stroke-width:1.5;}
 
 /* ── 메인 ── */
 #main-body{display:flex;flex-direction:column;gap:var(--gap);width:100%;max-width:400px;flex:1;min-height:0;}
@@ -293,7 +297,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #menu-panel{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s6);max-width:480px;margin:0 auto;}
 .menu-top{display:flex;justify-content:space-between;align-items:center;padding:0 0 var(--s2);}
 .menu-title-txt{font-size:var(--fs-xl);font-weight:var(--fw-b);color:var(--text);}
-.menu-close-btn{width:44px;height:44px;margin-right:-12px;background:transparent;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.menu-close-btn,.settings-close{width:44px;height:44px;margin-right:-12px;background:transparent;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .menu-sec{display:flex;flex-direction:column;gap:var(--s3);}
 .menu-sec-title{font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-b);letter-spacing:.02em;padding-bottom:var(--s2);border-bottom:1px solid var(--line);}
 .timer-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);}
@@ -333,8 +337,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #settings-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:60;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
 #settings-page.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #settings-inner{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s3);max-width:480px;margin:0 auto;}
-.settings-top{display:flex;align-items:center;gap:6px;padding-bottom:var(--s2);}
-.settings-back{width:44px;height:44px;margin-left:-12px;background:none;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.settings-top{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-bottom:var(--s2);} /* 메뉴와 같은 배치 (M2) */
 .settings-title{font-size:var(--fs-xl);font-weight:var(--fw-b);color:var(--text);}
 .setting-row{display:flex;flex-direction:column;gap:var(--s3);padding:var(--s4);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);}
 .setting-lbl{font-size:var(--fs-lg);font-weight:var(--fw-b);color:var(--text);}

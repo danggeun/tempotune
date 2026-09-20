@@ -35,13 +35,14 @@
        이름은 홈 화면 아이콘·앱 전환기 제목·설정 화면에 이미 있다. 화면의 모든 요소는 상태이거나 입력이어야 한다.
        워드마크 탭 = 전체화면 토글이던 숨은 기능은 설정 페이지로 옮겼다. 전용 모드에서는 헤더 줄 자체를 접는다(CSS). -->
   <div id="hdr">
+    <button id="menu-btn" aria-label="메뉴"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
     <div id="hdr-right">
       <button id="hdr-mic-btn" class="compact-btn caps">
         <span id="hdr-mic-dot"></span>MIC
       </button>
       <span id="hdr-rec-time">0:00</span>
       <button id="rec-hdr-btn" class="compact-btn caps" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
-      <button id="menu-btn" aria-label="메뉴"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
+      <button id="settings-hdr-btn" aria-label="설정"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.2l1.3 2.1 2.4-.5.6 2.4 2.3.9-1.2 2.1 1.2 2.1-2.3.9-.6 2.4-2.4-.5L10 17.8l-1.3-2.1-2.4.5-.6-2.4-2.3-.9L4.6 10.8 3.4 8.7l2.3-.9.6-2.4 2.4.5z"/></svg></button>
     </div>
   </div>
 
@@ -224,9 +225,10 @@
 <!-- 설정 페이지 -->
 <div id="settings-page">
   <div id="settings-inner">
+    <!-- 메뉴와 같은 모양: 제목 왼쪽, 닫기 X 오른쪽 위 (v2.3.2 M2). 헤더에서 바로 열 수도 있어 '뒤로' 보다 '닫기' 가 맞다 -->
     <div class="settings-top">
-      <button class="settings-back" id="settings-back-btn" aria-label="뒤로"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3M9 4l-6 6 6 6"/></svg></button>
       <span class="settings-title">설정</span>
+      <button class="settings-close" id="settings-back-btn" aria-label="닫기"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
     </div>
 
     <!-- 허용 오차 -->

@@ -22,6 +22,7 @@ export function mountMenu(): void {
   on(q('menu-btn'), 'click', toggleMenu)
   on(qs('.menu-close-btn'), 'click', toggleMenu)
   on(q('settings-open-btn'), 'click', openSettings)
+  on(q('settings-hdr-btn'), 'click', openSettings) // 헤더에서 바로 (M1) — 메뉴를 거치지 않는다
   on(q('settings-back-btn'), 'click', closeSettings)
   // 가장자리 스와이프 = 뒤로 (v2.3.0): 메뉴 → 본화면, 설정 → 메뉴. 버튼은 그대로 있다
   attachSwipeBack(q('menu-overlay'), { onBack: hideMenu })

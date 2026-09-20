@@ -100,6 +100,12 @@ await scenario('ref drum: A=415 (baroque) → 440 Hz input reads 라♯4 ≈ 0¢
 })
 await scenario('settings: note names C D E — tuner shows A with 라 as secondary; ref buttons relabel', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  // v2.3.2 M1: 헤더 ⚙ 로 설정에 바로 (메뉴를 거치지 않는다). M2: 닫기는 메뉴와 같은 X
+  await p.click('#settings-hdr-btn'); await sleep(p, 400)
+  assert.equal(await p.evaluate(() => document.getElementById('settings-page').classList.contains('open')), true, '헤더 ⚙ → 설정 직행')
+  assert.equal(await p.evaluate(() => document.getElementById('menu-overlay').classList.contains('open')), false, '메뉴를 열지 않는다')
+  await p.click('#settings-back-btn'); await sleep(p, 400)
+  assert.equal(await p.evaluate(() => document.getElementById('settings-page').classList.contains('open')), false, 'X 로 닫힌다')
   await p.click('#menu-btn'); await p.click('#settings-open-btn')
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('fullscreen-row')).display), 'flex', '브라우저(비 standalone)에서는 전체화면 행이 보인다 (L10)')
   await p.click('#notenames-steps .step-btn[data-v="1"]'); await p.click('#settings-back-btn')
