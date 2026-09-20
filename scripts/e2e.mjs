@@ -67,7 +67,7 @@ await scenario('tuner: cello C2 → 도2 (Hz 는 두 자리여도 같은 폭)', 
 })
 await scenario('tuner: 도♯ shows ♯ + 레♭ enharmonic', 'violin_scale_Amaj.wav', async p => {
   await p.goto(URL_); const t = await waitNote(p, t => t.acc === '♯', 8000)
-  const enh = await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent); assert.match(enh, /♭/)
+  const enh = await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent); assert.match(enh, /^[A-G]♯\/[A-G]♭$/, '보조 줄 = 다른 체계 하나 + 그쪽 이명동음 (L8): ' + enh)
 })
 await scenario('tuner: silence → "--"', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500); const t = await tunerText(p); assert.equal(t.note, '--'); assert.equal(t.cents, '')

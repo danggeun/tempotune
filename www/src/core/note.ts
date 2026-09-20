@@ -10,11 +10,17 @@ export const ENHARMONIC: Readonly<Partial<Record<KrNote, string>>> = { '도♯':
 export const EN = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const
 export const EN_ENHARMONIC: Readonly<Record<string, string>> = { 'C♯': 'D♭', 'D♯': 'E♭', 'F♯': 'G♭', 'G♯': 'A♭', 'A♯': 'B♭' }
 export type NoteNames = 'ko' | 'en'
-/** 표시용 이름: 선택한 체계의 이름과, 보조 줄(다른 체계 + 이명동음) */
+/**
+ * 표시용 이름: 선택한 체계의 이름과, 보조 줄.
+ * 보조 줄 = **다른 체계의 이름 하나**. 그 체계에 이명동음이 있으면 '/' 로 붙인다(같은 음, 다른 표기 — '·' 는 나열로 읽힌다).
+ * 같은 체계의 이명동음은 넣지 않는다 — 가운데 큰 글씨와 중복이다. v2.3.0 까지는 "시♭ · A♯ · B♭" 처럼 세 토막(114 px, 화면 폭의 30 %)이었고
+ * 그 이유가 바로 한글을 두 번(가운데 라♯, 코너 시♭) 보여준 것이었다 (v2.3.1 L8). 결과는 항상 한 덩어리, 최대 5글자.
+ *   도레미: 솔→G · 라♯→A♯/B♭     ABC: G→솔 · A♯→라♯/시♭
+ */
 export function noteLabel(midi: number, system: NoteNames): { name: string; secondary: string } {
   const i = ((midi % 12) + 12) % 12, ko = KR[i]!, en = EN[i]!
-  if (system === 'en') return { name: en, secondary: [EN_ENHARMONIC[en], ko].filter(Boolean).join(' · ') }
-  return { name: ko, secondary: [ENHARMONIC[ko], en + (EN_ENHARMONIC[en] ? ' · ' + EN_ENHARMONIC[en] : '')].filter(Boolean).join(' · ') }
+  if (system === 'en') return { name: en, secondary: ko + (ENHARMONIC[ko] ? '/' + ENHARMONIC[ko] : '') }
+  return { name: ko, secondary: en + (EN_ENHARMONIC[en] ? '/' + EN_ENHARMONIC[en] : '') }
 }
 export const KR_MIDI: Readonly<Record<KrNote, number>> = { '도': 0, '도♯': 1, '레': 2, '레♯': 3, '미': 4, '파': 5, '파♯': 6, '솔': 7, '솔♯': 8, '라': 9, '라♯': 10, '시': 11 }
 
