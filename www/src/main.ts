@@ -131,15 +131,16 @@ on(document, 'visibilitychange', () => {
  * "튜너 사용에 무조건 문제가 없어야 한다" 가 이 항목의 상위 제약이다.
  * 녹음 중이면 건드리지 않는다(녹음이 끊기면 안 된다 — P1 과 같은 규칙).
  */
-/** 편집기(K6)와 메트로놈 전용 모드(K10) — 둘 다 '튜너가 없는 화면' 이라 같은 규칙으로 마이크를 놓았다 되돌린다 */
+/** 편집기(K6)만. 메트로놈 전용 모드도 v2.3.2 까지는 여기 묶여 있었지만(K10) v2.3.3(N1)부터 "펼침의 2단계" 라 마이크를 건드리지 않는다 —
+ *  헤더의 REC 가 그대로 살아 있는 화면에서 마이크를 놓으면, 녹음하려고 MIC 를 다시 켜는 탭이 생긴다. 편집기는 여전히 '듣는 화면' 이라 놓는다. */
 let micReleasedByEditor = false
 {
-  const page = q('editor-page'), metro = q('metro-card')
+  const page = q('editor-page')
   const sync = (): void => {
-    const open = page.classList.contains('open') || metro.classList.contains('full')
+    const open = page.classList.contains('open')
     if (open && A.micStream && !sessionStore.get().recording) {
       micReleasedByEditor = true; releasingForEditor = true
-      tunerStore.set({ micReopening: true }) // 편집기·전용 모드를 나오면 스스로 다시 연다 — 그 0.2~0.5 초 동안 "켜라" 고 하지 않는다 (L4)
+      tunerStore.set({ micReopening: true }) // 편집기를 나오면 스스로 다시 연다 — 그 0.2~0.5 초 동안 "켜라" 고 하지 않는다 (L4)
       try { closeMic() } finally { releasingForEditor = false }
     } else if (!open && micReleasedByEditor) {
       micReleasedByEditor = false
@@ -147,7 +148,6 @@ let micReleasedByEditor = false
     }
   }
   new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ['class'] })
-  new MutationObserver(sync).observe(metro, { attributes: true, attributeFilter: ['class'] })
 }
 // 전화·다른 앱 오디오 등으로 컨텍스트가 멈추면: 화면에 보일 때 재개를 시도하고, 그래도 안 되면 메트로놈을 멈추고 알린다
 let interruptedTimer: ReturnType<typeof setTimeout> | null = null

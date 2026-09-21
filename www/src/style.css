@@ -187,11 +187,11 @@ button{font-family:inherit;color:inherit;}
 #metro-size-btn::after{content:'';position:absolute;inset:-6px;}
 #metro-size-btn .expand{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:none;}
 #metro-size-btn.to-full .chev{display:none;} #metro-size-btn.to-full .expand{display:block;}
-/* ── 메트로놈 전용 모드 (K10) ──
-   "메트로놈 켜고 연습하고 싶은데 튜너가 자꾸 왔다갔다해서 거슬린다." 튜너 카드를 숨기고 메트로놈이 화면을 다 쓴다.
-   마이크도 놓는다(main.ts) — 튜너가 없으니 들을 이유가 없고, OS 마이크 표시도 그동안 사라진다(K6). */
+/* ── 메트로놈 전용 모드 (K10) = 펼침의 2단계 (v2.3.3 N1) ──
+   "메트로놈 켜고 연습하고 싶은데 튜너가 자꾸 왔다갔다해서 거슬린다." 튜너 카드를 숨기고 메트로놈이 그 자리까지 올라온다.
+   그 밖에는 **펼침과 똑같다**: 헤더(메뉴·REC·설정)는 그대로, 마이크도 그대로. v2.3.1(L10)에서 헤더까지 접어 52 px 을 다이얼에
+   줬었는데, 실사용에서 "화면이 확 덮인다" + 설정·REC 가 두 단계가 되는 쪽이 더 거슬렸다. 다이얼은 상한(320) 밑의 작은 폰에서만 그만큼 준다. */
 #main-body.metro-full #tuner-card{display:none;}
-#app.metro-full #hdr{display:none;} /* 전용 모드는 헤더 줄 자체를 접는다 (L10) — 52 px 이 전부 다이얼로. 출구는 ⤢ 와 ∨ */
 #metro-card.full{flex:1;min-height:0;display:flex;flex-direction:column;}
 #metro-card.full #metro-body-wrap{flex:1;min-height:0;grid-template-rows:1fr;}
 #metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow:hidden;} /* 스크롤 없음 (L7) — 연주 중엔 스크롤할 손이 없다. 넘치지 않게 짜는 게 아래 규칙 */

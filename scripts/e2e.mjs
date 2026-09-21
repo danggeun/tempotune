@@ -212,12 +212,16 @@ await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다 (K3)
   await p.click('#metro-play-btn')
   assert.equal(sawAccent, false, '정박 모드에서는 액센트가 없어야 한다')
 })
-await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀, LED 가 끝→끝으로 쓸고 양 끝에서 초록 (K10·K5)', 'violin_A4.wav', async p => {
+await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤더·마이크는 그대로 (N1), LED 가 끝→끝으로 쓸고 양 끝에서 초록 (K10·K5)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#metro-size-btn'); await sleep(p, 600); await p.click('#metro-size-btn'); await sleep(p, 700) // 접힘 → 펼침 → 전용 (순환, M10)
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true)
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none', '튜너 카드 숨김')
-  await waitUntil(p, () => !window.__tt.stats().micOpen, 3000, '전용 모드는 마이크를 놓는다 (K6)')
+  // N1: 펼침과 같다 — 헤더는 그대로, 마이크도 놓지 않는다 (v2.3.2 까지는 둘 다 접었다: L10·K10)
+  await sleep(p, 400)
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('hdr')).display), 'flex', '전용 모드에도 헤더는 그대로 (N1)')
+  assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '전용 모드는 마이크를 놓지 않는다 (N1)')
+  assert.equal(await p.evaluate(() => document.getElementById('rec-hdr-btn').style.opacity), '1', 'REC 는 바로 누를 수 있다 (N1)')
   assert.equal(await p.evaluate(() => document.querySelectorAll('#sweep-leds .led').length), 13)
   // M3: 선택 pill = 밝기(면·글자) + 얇은 빨간 테두리. 글자까지 빨갛던 옛 방식으로는 돌아가지 않는다
   const colors = await p.evaluate(() => { const on = document.querySelector('#metro-card.full .m-seg.on'); const cs = getComputedStyle(on); return { border: cs.borderTopColor, color: cs.color, bg: cs.backgroundColor } })
@@ -253,12 +257,12 @@ await scenario('metro: 전용 모드 — 튜너 숨김·마이크 해제·복귀
   await swipeDown(p) // 펼침 → 접힘
   assert.equal(await p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed')), true, '한 번 더 밀면 접힘')
   await p.click('#metro-size-btn'); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 500) // 접힘 → 펼침 → 전용
-  // 나가면 튜너와 마이크가 돌아온다 — 그리고 다시 여는 0.2~0.5 초 동안 "MIC 를 켜면 시작해요" 가 한 프레임도 뜨지 않는다 (L4)
+  // 나가면 튜너가 돌아온다. 마이크는 애초에 놓지 않았으니(N1) "MIC 를 켜면 시작해요" 가 뜰 일 자체가 없다 — 한 프레임도
   await p.click('#metro-size-btn')
-  const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 3000) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; if (window.__tt.stats().micOpen) break; await new Promise(r => setTimeout(r, 16)) } return hint })
-  assert.equal(seenHint, false, '자동 재개 중엔 "켜라" 고 말하지 않는다 (L4)')
+  const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 800) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; await new Promise(r => setTimeout(r, 16)) } return hint })
+  assert.equal(seenHint, false, '나가는 동안 "켜라" 고 말하지 않는다 (L4·N1)')
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'flex')
-  await waitUntil(p, () => window.__tt.stats().micOpen, 4000, '전용 모드를 나가면 마이크가 돌아온다')
+  assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '마이크는 내내 켜져 있다 (N1)')
   // M9: 화면을 칠하는 박 표시는 **접혔을 때만**. 순환 버튼으로 전용에서 나오면 바로 접힘이다(M10)
   const flashesWhile = async () => { let f = false; for (let i = 0; i < 30; i++) { if (await p.evaluate(() => { const c = document.getElementById('metro-card').classList; return c.contains('flash-strong') || c.contains('lit-weak') })) { f = true; break } await sleep(p, 40) } return f }
   // 접힌 채 재생 — 접혀 있으면 본체 버튼이 안 보이므로 Space 로. 방금 누른 버튼에 포커스가 남아 있으면
@@ -334,7 +338,7 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
       dial: dial.width, numBoxH: num.height, names, lastRowInside: last.bottom <= card.bottom + 0.5 && last.bottom <= window.innerHeight,
       hdr: getComputedStyle(document.getElementById('hdr')).display, logo: document.getElementById('logo') }
   })
-  assert.equal(r.hdr, 'none', '전용 모드는 헤더 줄을 접는다 (L10)'); assert.equal(r.logo, null, '워드마크는 없다 (L10)')
+  assert.equal(r.hdr, 'flex', '전용 모드에도 헤더는 그대로 (N1 — L10 의 헤더 접기는 되돌렸다)'); assert.equal(r.logo, null, '워드마크는 없다 (L10)')
   assert.ok(r.overflowY <= 0, `세로 넘침 ${r.overflowY}px — 스크롤이 필요하면 안 된다`)
   assert.ok(r.segOverflow <= 0.5, `pill 가로 넘침 ${r.segOverflow}px`)
   assert.ok(r.glyphOverflow <= 0.5, `음표 글리프가 버튼 밖으로 ${r.glyphOverflow}px`)
@@ -342,8 +346,6 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
   assert.ok(r.dial >= 150 && r.dial <= 320.5, `다이얼 ${r.dial}px`)
   assert.ok(r.numBoxH >= 11, `숫자 렌더 크기 유지 (bbox ${r.numBoxH}px, 10px 글자면 ≈13)`)
   assert.equal(r.names, r.dial >= 226 ? 4 : 0, `용어는 226px 이상에서만 (다이얼 ${r.dial})`)
-  await p.click('#metro-size-btn'); await sleep(p, 300)
-  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('hdr')).display), 'flex', '나가면 헤더가 돌아온다')
 }, { viewport: { width: w, height: h } })
 await scenario('metro: works without mic (permission denied) + spacebar', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)

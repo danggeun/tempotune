@@ -75,13 +75,13 @@ function sweepStop(): void {
   swDur = 0; swDir = -1
   clearDots()
 }
-// ── 메트로놈 전용 모드 (K10) ──
-// 3단계: 접힘 → 펼침 → 전용. 전용에서는 튜너 카드를 숨기고(#main-body.metro-full) 메트로놈이 화면을 다 쓴다.
-// 마이크 해제·복귀는 main.ts 가 #metro-card.full 을 보고 한다 (편집기와 같은 패턴).
+// ── 메트로놈 전용 모드 (K10) = 펼침의 2단계 (v2.3.3 N1) ──
+// 3단계: 접힘 → 펼침 → 전용. 전용에서는 튜너 카드만 숨기고(#main-body.metro-full) 메트로놈이 그 자리까지 올라온다.
+// 헤더·마이크는 펼침과 같다 — v2.3.2 까지는 헤더를 접고(L10) 마이크를 놓았지만(K10→main.ts) 그건 "화면이 확 덮이는" 느낌과
+// 설정·REC 두 단계를 만들었다. 이 화면은 별개의 모드가 아니라 펼침이 한 단 더 큰 것이다.
 function applyFull(): void {
   const { full } = metroStore.get()
   q('main-body').classList.toggle('metro-full', full)
-  q('app').classList.toggle('metro-full', full) // 헤더의 MIC 버튼을 숨긴다 — 튜너가 없는 화면에서 마이크를 켜라고 할 이유가 없다
   q('metro-card').classList.toggle('full', full)
   buildBeatVis(); if (!metroStore.get().playing) sweepStop()
   if (full) { buildDial(); setDialBpm(settingsStore.get().bpm) }
