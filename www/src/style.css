@@ -171,6 +171,8 @@ button{font-family:inherit;color:inherit;}
 #metro-hdr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:8px 12px 8px 16px;border-bottom:1px solid var(--line);gap:10px;min-height:52px;}
 #metro-hdr-label{position:relative;display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--text);font-weight:var(--fw-md);white-space:nowrap;cursor:ns-resize;touch-action:none;user-select:none;padding:8px 10px 8px 0;margin:-8px 0;}
 #metro-hdr-label .note-glyph{width:14px;height:20px;vertical-align:0;}
+#metro-hdr-title{display:none;font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 (N5) */
+#metro-card.full #metro-hdr-label{display:none;} #metro-card.full #metro-hdr-title{display:flex;}
 #beat-vis{display:flex;align-items:center;justify-content:center;gap:7px;height:22px;}
 .bd{border-radius:50%;background:var(--line);transition:background .04s,transform .04s,box-shadow .04s;flex-shrink:0;}
 .bd.beat{width:15px;height:15px;}.bd.subdiv{width:8px;height:8px;}
@@ -185,13 +187,16 @@ button{font-family:inherit;color:inherit;}
 /* 크기 버튼 하나 (M10) — 상태에 따라 글리프만 바꾼다: 접힘 ∧(펼치러) · 펼침 ⤢(전용으로) · 전용 ∨(접힘으로) */
 #metro-size-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-size-btn::after{content:'';position:absolute;inset:-6px;}
-#metro-size-btn .expand{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:none;}
-#metro-size-btn.to-full .chev{display:none;} #metro-size-btn.to-full .expand{display:block;}
+#metro-size-btn.to-full .nav-glyph.chev{transform:rotate(180deg);} /* 펼침 → 펼침2 도 '위로' — ∧ (N4) */
 /* ── 메트로놈 전용 모드 (K10) = 펼침의 2단계 (v2.3.3 N1) ──
    "메트로놈 켜고 연습하고 싶은데 튜너가 자꾸 왔다갔다해서 거슬린다." 튜너 카드를 숨기고 메트로놈이 그 자리까지 올라온다.
    그 밖에는 **펼침과 똑같다**: 헤더(메뉴·REC·설정)는 그대로, 마이크도 그대로. v2.3.1(L10)에서 헤더까지 접어 52 px 을 다이얼에
    줬었는데, 실사용에서 "화면이 확 덮인다" + 설정·REC 가 두 단계가 되는 쪽이 더 거슬렸다. 다이얼은 상한(320) 밑의 작은 폰에서만 그만큼 준다. */
 #main-body.metro-full #tuner-card{display:none;}
+/* 펼침 ↔ 펼침2 ↔ 접힘 전환 (N2·N3): display:none 은 애니메이션이 안 되므로 metro.ts 가 두 카드의 높이를 픽셀로 잡아 함께 움직인다.
+   .h-anim 이 붙어 있는 동안만 height 트랜지션 — 평소엔 flex 가 높이를 정해야 하니 inline height 는 끝나면 지운다 */
+#tuner-card.h-anim,#metro-card.h-anim{flex:none!important;transition:height var(--t-slow) var(--ease),margin-bottom var(--t-slow) var(--ease);overflow:hidden;}
+#metro-card.no-anim #metro-body-wrap,#metro-card.no-anim #metro-body-clip{transition:none!important;}
 #metro-card.full{flex:1;min-height:0;display:flex;flex-direction:column;}
 #metro-card.full #metro-body-wrap{flex:1;min-height:0;grid-template-rows:1fr;}
 #metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow:hidden;} /* 스크롤 없음 (L7) — 연주 중엔 스크롤할 손이 없다. 넘치지 않게 짜는 게 아래 규칙 */

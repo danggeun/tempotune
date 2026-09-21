@@ -222,6 +222,8 @@ await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤�
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('hdr')).display), 'flex', '전용 모드에도 헤더는 그대로 (N1)')
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '전용 모드는 마이크를 놓지 않는다 (N1)')
   assert.equal(await p.evaluate(() => document.getElementById('rec-hdr-btn').style.opacity), '1', 'REC 는 바로 누를 수 있다 (N1)')
+  assert.deepEqual(await p.evaluate(() => ({ title: getComputedStyle(document.getElementById('metro-hdr-title')).display, label: getComputedStyle(document.getElementById('metro-hdr-label')).display })), { title: 'flex', label: 'none' }, '펼침2 상단은 ♩80 대신 METRONOME (N5)')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-card').style.height + document.getElementById('metro-card').style.height), '', '애니메이션이 끝나면 인라인 높이를 지운다 (N2)')
   assert.equal(await p.evaluate(() => document.querySelectorAll('#sweep-leds .led').length), 13)
   // M3: 선택 pill = 밝기(면·글자) + 얇은 빨간 테두리. 글자까지 빨갛던 옛 방식으로는 돌아가지 않는다
   const colors = await p.evaluate(() => { const on = document.querySelector('#metro-card.full .m-seg.on'); const cs = getComputedStyle(on); return { border: cs.borderTopColor, color: cs.color, bg: cs.backgroundColor } })
@@ -325,6 +327,7 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
   await p.addStyleTag({ content: `#app{padding-top:${top}px!important;padding-bottom:${bot}px!important}` })
   // 크기 버튼은 순환이라, 넓은 화면(항상 펼침)과 폰은 전용까지 걸리는 횟수가 다르다 → 될 때까지 누른다 (M10)
   for (let i = 0; i < 3 && !(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full'))); i++) { await p.click('#metro-size-btn'); await sleep(p, 500) }
+  await sleep(p, 400) // N2: 높이 애니메이션(.55s)이 끝난 뒤 잰다
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true, '전용 모드 진입')
   const r = await p.evaluate(() => {
     const clip = document.getElementById('metro-body-clip'), card = document.getElementById('metro-card').getBoundingClientRect()

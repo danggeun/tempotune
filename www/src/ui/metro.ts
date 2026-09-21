@@ -81,11 +81,37 @@ function sweepStop(): void {
 // 설정·REC 두 단계를 만들었다. 이 화면은 별개의 모드가 아니라 펼침이 한 단 더 큰 것이다.
 function applyFull(): void {
   const { full } = metroStore.get()
+  const card = q('metro-card'), tuner = q('tuner-card'), wrap = q('metro-body-wrap')
+  // N2·N3: 펼침 ↔ 펼침2 ↔ 접힘이 접힘 ↔ 펼침처럼 스르륵 움직여야 한다. 튜너 카드는 CSS 로 display:none 이 되는데 그건 애니메이션이
+  // 안 되므로, 전환 전후의 두 카드 높이를 재서 픽셀로 함께 움직인다(합이 일정해 화면이 안 튄다). 폰 세로 배치에서만 — 태블릿은 옆으로 나란하다.
+  const anim = isPhoneLayout() && !matchMedia('(prefers-reduced-motion: reduce)').matches
+  const before = anim ? { t: tuner.offsetHeight, m: card.offsetHeight, collapsed: wrap.classList.contains('collapsed') } : null
+  card.classList.add('no-anim') // 최종 높이를 재려면 본체 접힘 트랜지션이 즉시 끝나 있어야 한다
   q('main-body').classList.toggle('metro-full', full)
-  q('metro-card').classList.toggle('full', full)
+  card.classList.toggle('full', full)
   buildBeatVis(); if (!metroStore.get().playing) sweepStop()
   if (full) { buildDial(); setDialBpm(settingsStore.get().bpm) }
   applyCollapse(); syncLayout()
+  if (!before) { card.classList.remove('no-anim'); return }
+  const after = { t: full ? 0 : tuner.offsetHeight, m: card.offsetHeight }
+  // 본체 접힘 트랜지션은 되살린다: 이전 값을 인라인으로 되돌려 놓고 no-anim 을 뗀 뒤 지우면 거기서부터 굴러간다
+  const nowCollapsed = wrap.classList.contains('collapsed')
+  if (nowCollapsed !== before.collapsed) { wrap.style.gridTemplateRows = before.collapsed ? '0fr' : '1fr'; q('metro-body-clip').style.opacity = before.collapsed ? '0' : '1' }
+  reflow(card); card.classList.remove('no-anim'); reflow(card)
+  wrap.style.gridTemplateRows = ''; q('metro-body-clip').style.opacity = ''
+  const gap = '-' + getComputedStyle(q('main-body')).gap // 튜너가 0 이 돼도 카드 사이 gap 은 남는다 → 그만큼 음수 margin 으로 같이 접는다
+  if (full) tuner.style.display = 'flex' // CSS 의 display:none 을 애니메이션 동안만 이긴다. 끝나면 지워서 none 으로
+  animHeight(tuner, before.t, after.t, full ? ['0px', gap] : [gap, '0px'])
+  animHeight(card, before.m, after.m, ['0px', '0px'])
+}
+const animTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>()
+/** 인라인 height 로 from → to. --t-slow(.55s) 뒤에 인라인을 전부 지워 flex 가 다시 높이를 정하게 한다. 도중에 또 누르면 현재 높이에서 이어간다 */
+function animHeight(el: HTMLElement, from: number, to: number, mb: [string, string]): void {
+  const t = animTimers.get(el); if (t) clearTimeout(t)
+  el.style.height = from + 'px'; el.style.marginBottom = mb[0]; el.classList.add('h-anim')
+  reflow(el)
+  el.style.height = to + 'px'; el.style.marginBottom = mb[1]
+  animTimers.set(el, setTimeout(() => { el.classList.remove('h-anim'); el.style.height = ''; el.style.marginBottom = ''; el.style.display = ''; animTimers.delete(el) }, 570))
 }
 let flashTimer: ReturnType<typeof setTimeout> | null = null
 function flashBeat(tick: number): void {
@@ -221,5 +247,5 @@ function syncSizeBtn(): void {
   const toExpand = !full && collapsed, toFull = !full && !collapsed
   btn.classList.toggle('to-expand', toExpand)
   btn.classList.toggle('to-full', toFull)
-  btn.setAttribute('aria-label', toExpand ? '메트로놈 펼치기' : toFull ? '메트로놈 전용 화면' : '메트로놈 접기')
+  btn.setAttribute('aria-label', toExpand ? '메트로놈 펼치기' : toFull ? '메트로놈 더 펼치기' : '메트로놈 접기')
 }

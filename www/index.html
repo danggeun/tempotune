@@ -85,14 +85,16 @@
     <div id="metro-card">
       <div id="metro-hdr" style="position:relative;">
         <span id="metro-hdr-label"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><span id="metro-hdr-bpm">80</span></span>
+        <!-- 펼침2(전용)에서는 다이얼 가운데가 이미 BPM 이라 ♩80 대신 카드 이름 — 튜너의 TUNER 와 같은 자리·같은 글씨 (v2.3.3 N5) -->
+        <span id="metro-hdr-title">METRONOME</span>
         <div id="beat-vis"></div>
         <div id="metro-hdr-right">
           <button id="metro-play-hdr-btn" aria-label="메트로놈 정지">■</button>
-          <!-- 크기 버튼 하나 (v2.3.2 M10): 접힘 → 펼침 → 전용 → 접힘 순환. 글리프는 **다음 목적지**를 보여준다.
-               내려가는 길은 카드를 아래로 미는 스와이프가 맡는다(ui/swipeStep.ts) -->
+          <!-- 크기 버튼 하나 (v2.3.2 M10): 접힘 → 펼침 → 펼침2 → 접힘 순환. 글리프는 **다음 목적지**의 방향 — 위로 가면 ∧, 아래로 가면 ∨.
+               펼침2 는 별개 모드가 아니라 펼침이 한 단 더 큰 것이라 ⤢ 같은 '전체화면' 아이콘을 쓰지 않는다 (v2.3.3 N4).
+               내려가는 길은 카드를 아래로 미는 스와이프도 맡는다(ui/swipeStep.ts) -->
           <button id="metro-size-btn" aria-label="메트로놈 펼치기">
             <svg class="nav-glyph chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
-            <svg class="nav-glyph expand" viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 4H16v4.5M8.5 16H4v-4.5M16 4l-5 5M4 16l5-5"/></svg>
           </button>
         </div>
       </div>
