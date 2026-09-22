@@ -231,6 +231,9 @@ button{font-family:inherit;color:inherit;}
    세이코 SQ100 의 LED 줄 그대로: 칸 수는 **고정**(분할이 많아져도 안 넘친다), 불이 한 박에 끝→끝으로 쓸고 간다.
    양 끝 = 정박 → 초록으로 탁. 사이 분할 자리 = 액센트색으로 탁. 첫 박은 더 크게. */
 .led{border-radius:50%;background:var(--line);flex-shrink:0;transition:background .05s,transform .05s,box-shadow .05s;}
+/* 히트는 **켜질 때 즉시**, 꺼질 때만 램프 (v2.3.3 N6). 위 .05s 램프가 켜질 때도 걸리면 불이 가장 커지는 순간이 소리보다 50 ms 늦다 —
+   박은 쓸고 가는 불의 방향 반전이 그 순간을 가려 주지만 세분박은 가릴 게 없어 "빨강이 늦다" 로 읽힌다. 빠른 템포(칸당 30 ms)에선 램프가 칸보다 길다 */
+.led.hit-sub,.led.hit-beat,.led.hit-acc{transition:none;}
 .led.mv{background:var(--line-strong);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. L* 69(박과 동급) → 44 → **36**(v2.3.2 M4). 꺼진 점(25)과 11 차이라 위치는 읽히되 더 물러난다 */
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
