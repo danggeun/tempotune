@@ -1,5 +1,4 @@
 // 실수 입력 radix-2 FFT (벤치마크/코어 공용). 의존성 없음.
-// 왜: AnalyserNode 없이 노드 환경에서 스펙트럼을 계산하고, 이후 core/로 옮겨 워커에서도 쓴다.
 export function makeFFT(n) {
   if ((n & (n - 1)) !== 0) throw new Error('FFT size must be power of 2')
   const levels = Math.log2(n) | 0

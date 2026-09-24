@@ -1,7 +1,6 @@
 /**
- * AudioWorkletProcessor — 마이크 입력을 1024 샘플 청크로 모아 워커에 직접 보낸다(메인 스레드 경유 없음).
- * 메인이 MessageChannel 의 한쪽 포트를 'port' 메시지로 넘겨주면 그쪽으로 보내고, 없으면 자기 포트로 보낸다.
- * 이 파일은 AudioWorkletGlobalScope 에서 실행된다 — DOM/모듈 import 없음.
+ * AudioWorkletProcessor — 마이크 입력을 1024 샘플 청크로 모아 워커 포트('port' 메시지)로 직접 보낸다.
+ * AudioWorkletGlobalScope 에서 실행 — DOM/모듈 import 없음.
  */
 declare const sampleRate: number
 declare const currentTime: number
@@ -14,9 +13,9 @@ class CaptureProcessor extends AudioWorkletProcessor {
   private buf: Float32Array<ArrayBuffer> = new Float32Array(CHUNK)
   private pos = 0
   private out: MessagePort | null = null
-  /** 워커가 반납한 버퍼 — 오디오 스레드에서 new 를 피한다 (GC 스캐빈지가 128-샘플 콜백을 넘기지 않게) */
+  /** 워커가 반납한 버퍼 — 오디오 스레드에서 new 를 피한다 (GC 가 128-샘플 콜백을 넘기지 않게) */
   private free: Float32Array<ArrayBuffer>[] = []
-  /** 'stop' 을 받으면 process 가 false 를 돌려 프로세서가 수거된다 — 입력 연결이 끊겨도 true 를 계속 돌리면 마이크 세션마다 좀비 프로세서가 남는다 (리뷰) */
+  /** 'stop' 후 process 가 false 를 돌려 프로세서를 수거 — 안 그러면 마이크 세션마다 좀비 프로세서가 남는다 */
   private stopped = false
   constructor() {
     super()

@@ -1,5 +1,4 @@
-// v2.0.3 ①: 메트로놈 클릭이 튜너에 음을 띄우나 — 앱과 같은 클릭·같은 분석기
-// 사용: npx tsx scripts/metro-blip.mjs — 「v2.0.3 후보 (조사 완료)」 M1 의 근거
+// 메트로놈 클릭이 튜너에 음을 띄우나 — 앱과 같은 클릭·같은 분석기. 사용: npx tsx scripts/metro-blip.mjs
 import { createSequencer, CLICK_DUR_S } from '../www/src/core/metro/sequencer.ts'
 import { createAnalyzer } from '../www/src/core/pitch/analyzer.ts'
 const SR=48000, WIN=4096, HOP=1024, REF=442

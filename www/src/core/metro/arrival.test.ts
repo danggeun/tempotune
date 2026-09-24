@@ -3,7 +3,7 @@ import { createArrival, DEFAULT_ARRIVAL } from './arrival.ts'
 import { createSequencer, CLICK_DUR_S } from './sequencer.ts'
 import { createAnalyzer } from '../pitch/analyzer.ts'
 
-// ── 순수 추정기 ──
+// 순수 추정기
 describe('arrival: 후보 합의 규칙', () => {
   function feed(a: ReturnType<typeof createArrival>, at: number, spikeAt: number | null): void {
     // 예상 시각 근처 0.4 초의 블록 에너지: 바닥 1e-6, 스파이크(있으면) 1e-3
@@ -38,7 +38,7 @@ describe('arrival: 후보 합의 규칙', () => {
   })
 })
 
-// ── 앱과 같은 흐름 (클릭 렌더 → 방 → 워커 규칙 → 분석기) ──
+// 앱과 같은 흐름 (클릭 렌더 → 방 → 워커 규칙 → 분석기)
 const SR = 48000, WIN = 4096, CH = 1024, BLK = 256
 function renderMetro(sec: number, bpm = 80) {
   const seq = createSequencer(SR, { bpm, timeSig: 4, subDiv: 1, volume: 1, muted: false }); seq.start(0)

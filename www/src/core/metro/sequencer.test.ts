@@ -54,7 +54,7 @@ describe('sequencer', () => {
     const seq = createSequencer(sr, { bpm: 120, timeSig: 4, subDiv: 1, volume: .7, muted: true }); seq.start()
     const { events, peak } = run(seq, 2); expect(events.length).toBe(4); expect(peak).toBe(0)
   })
-  // ── A-2 클릭 레벨 (v2.0.2) ───────────────────────────────────────────────
+  // 클릭 레벨
   /** 한 클릭만 렌더해 피크·RMS 를 잰다 (시작 오프셋 0, 블록 128) */
   function oneClick(volume: number, ticks: number) {
     const seq = createSequencer(sr, { bpm: 60, timeSig: 4, subDiv: 1, volume, muted: false }); seq.start(0)
@@ -126,8 +126,7 @@ describe('sequencer', () => {
     expect(first).toBe(100); expect(last - first).toBeLessThan(0.05 * sr)
   })
 
-  // K3 — 박자표 없음(정박만). 사용자 요청: "2/4 3/4 4/4 6/8 말고 그냥 정박만 딱딱".
-  // 전에는 tickKind 가 tick 0 에서 무조건 'accent' 를 내서 **어떤 설정으로도 균일하게 만들 수 없었다.**
+  // 정박 모드(timeSig 1)
   test('정박 모드는 첫 박 강세가 없다 — 모든 박이 같은 세기', () => {
     expect([0, 1, 2, 3].map(t => tickKind({ subDiv: 1, timeSig: 1 }, t))).toEqual(['beat', 'beat', 'beat', 'beat'])
   })

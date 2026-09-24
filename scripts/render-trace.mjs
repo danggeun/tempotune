@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 // 트레이스 비교 렌더 — 실제 앱, 실제 캔버스 크기, 합성 프레임 주입.
 // 사용: node scripts/render-trace.mjs [--dist dist] [--out test-assets/trace] [--port 4176]
-// 왜 (C1 · B11): "음 바뀔 때 흰 줄이 옆으로 팍팍" 과 "히스토리가 너무 길게 남는다" 를 그림으로 비교해
-//     (a) 고쳐졌음을 증명하고 (b) 창 길이를 취향으로 고를 수 있게 한다. 「v2.0.2 계획」에서 승격 약속한 스크립트.
-// 전/후 비교 방법: 같은 cents 열을 주입하면서 midi 를 **고정** 하면 세그먼트가 하나도 생략되지 않아
-//     v2.0.1 의 그림과 정확히 같아진다(가로줄 포함). midi 를 실제대로 주면 v2.0.2 의 그림이 된다.
+// '전' 그림 = 같은 cents 열을 midi 고정으로 주입(세그먼트 생략이 일어나지 않는다). midi 를 실제대로 주면 '후'
 import { chromium } from 'playwright'
 import { waitForServer } from './lib/wait-server.mjs'
 import { mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
@@ -25,9 +22,7 @@ if (!existsSync(join(SIG, 'silence_lowfloor.wav'))) execSync('node scripts/gen-s
 const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' })
 await waitForServer(`http://localhost:${PORT}/`)
 
-// ── 합성 프레임: 실제 연주의 통계를 쓴다 ──
-// 「실측 발견 — 확정 버그」: 한 음이 유지되는 길이 중앙값 6프레임(128 ms), 빠른 패시지는 초당 7~8회 전환.
-// 음 안에서는 프레임 간 변화 중앙 0.7 센트(이미 매끄럽다) + 비브라토 성분.
+// 합성 프레임 — 실측 통계: 한 음 유지 중앙값 6프레임(128 ms), 음 안에서 프레임 간 변화 중앙 0.7 센트 + 비브라토
 function frames({ fps = 46.875, seconds = 9, kind = 'fast' } = {}) {
   const n = Math.round(fps * seconds), out = []
   let midi = 69, cents = -35, i = 0
@@ -44,10 +39,7 @@ function frames({ fps = 46.875, seconds = 9, kind = 'fast' } = {}) {
 
 const exe = process.env.CHROMIUM_PATH || undefined
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${join(SIG, 'silence_lowfloor.wav')}%noloop`, '--autoplay-policy=no-user-gesture-required'] })
-/**
- * 패널마다 **새 컨텍스트**를 쓴다. 같은 페이지에서 연속으로 주입하면 살아 있는 분석기 프레임과 섞여
- * 가끔 캔버스가 비어 나온다 (렌더 하네스 문제. 실제 앱 동작과 무관).
- */
+/** 패널마다 새 컨텍스트 — 같은 페이지에서 연속 주입하면 살아 있는 분석기 프레임과 섞여 캔버스가 비어 나오기도 한다 */
 async function freshPage() {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'dark', permissions: ['microphone'] })
   const page = await ctx.newPage()
@@ -62,8 +54,7 @@ const diag0 = await first.page.evaluate(() => window.__tt.tuner.diag())
 console.log(`캔버스 실측 ${size.w}×${size.h} px · 기본 창 ${diag0.sec}초 = ${diag0.len}프레임 (sr ${diag0.sr}) → ${(diag0.len / size.h).toFixed(2)} 점/px`)
 await first.ctx.close()
 
-// ── 실제 분석기가 낸 스케일 (scripts/sim-scale.mjs 출력) 전/후 ──
-// '전' 은 midi 를 고정해 주입한다 → 경계 폐기도 끊기도 일어나지 않아 v2.0.1 의 그림과 같아진다.
+// 실제 분석기가 낸 스케일 (scripts/sim-scale.mjs 출력) 전/후
 const scaleRows = []
 for (const fx of ['scale-80bpm', 'scale-80bpm-outoftune']) {
   const file = join(ROOT, 'test-assets', 'trace', fx + '.json')
@@ -87,15 +78,15 @@ const rows = []
 for (const kind of ['fast', 'slow']) {
   const data = frames({ kind })
   for (const [label, sec, flatten] of [
-    ['v2.0.1_7.68s', 7.68, true],   // 전: 창 7.68초 + 가로줄 있음
-    ['v2.0.2_4.0s', 4.0, false],    // 후(기본값)
+    ['v2.0.1_7.68s', 7.68, true],
+    ['v2.0.2_4.0s', 4.0, false],
     ['variant_3.0s', 3.0, false],
     ['variant_5.0s', 5.0, false],
-    ['variant_4.0s_with_seam', 4.0, true], // 창만 줄이고 C1 을 안 했다면
+    ['variant_4.0s_with_seam', 4.0, true],
   ]) {
     const info = await page.evaluate(([data, sec, flatten]) => {
       window.__tt.tuner.setHistSec(sec)
-      const f = flatten ? data.map(d => ({ cents: d.cents, midi: 69 })) : data // midi 고정 = 세그먼트 생략이 절대 안 일어남 = v2.0.1 그림
+      const f = flatten ? data.map(d => ({ cents: d.cents, midi: 69 })) : data // midi 고정 = 세그먼트 생략 없음
       window.__tt.tuner.inject(f)
       return window.__tt.tuner.diag()
     }, [data, sec, flatten])

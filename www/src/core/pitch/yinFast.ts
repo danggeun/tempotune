@@ -1,11 +1,7 @@
 /**
- * FFT 기반 YIN — 차분 함수 d(τ) 를 O(N log N) 으로 계산하고 신뢰도를 함께 반환한다.
- *
- *   d(τ) = Σ_{j<W} (x[j] − x[j+τ])²  = Σ_{j<W} x[j]² + Σ_{j<W} x[j+τ]² − 2·r(τ),   r(τ) = Σ_{j<W} x[j]·x[j+τ]
- *
- * 첫 두 항은 누적합, r(τ) 는 길이 W 구간과 전체 창의 상호상관을 FFT(크기 2N, 순환 방지)로 얻는다.
- * 이후 CMND(누적 평균 정규화), 임계 탐색, 포물선 보간은 core/yin.ts(직접 계산)와 동일한 규칙.
- * 반환 conf = 1 − CMND(τ*) : 0(비주기) ~ 1(완전 주기). v1 은 이 값을 버렸다(설계서 §B3).
+ * FFT 기반 YIN — d(τ) = Σ_{j<W} x[j]² + Σ_{j<W} x[j+τ]² − 2·r(τ), r(τ) = Σ_{j<W} x[j]·x[j+τ] 를 O(N log N) 으로.
+ * 누적합 + 크기 2N FFT 상호상관(순환 방지). CMND·임계 탐색·포물선 보간은 core/yin.ts 와 같은 규칙.
+ * conf = 1 − CMND(τ*) : 0(비주기) ~ 1(완전 주기)
  */
 import { makeFFT, type FFT } from './fft.ts'
 
@@ -60,7 +56,7 @@ export function createYinFast(windowSize: number, opts: { threshold?: number; hz
       if (t === -1) {
         let mn = Infinity
         for (let tau = tauMin; tau < tauMax; tau++) { if (c[tau]! < mn) { mn = c[tau]!; t = tau } }
-        if (t === -1 || mn > 0.35) return NONE // 0.5 면 conf 가 정확히 confMin(0.5)이 되어 폴백 프레임이 항상 트래커에 들어간다 (리뷰)
+        if (t === -1 || mn > 0.35) return NONE // 0.5 면 conf 가 정확히 confMin(0.5)이 되어 폴백 프레임이 항상 트래커에 들어간다
       }
       const b = (t > 0 && t < W - 1) ? t + (c[t + 1]! - c[t - 1]!) / (2 * (2 * c[t]! - c[t - 1]! - c[t + 1]!)) : t
       if (b <= 0 || !isFinite(b)) return NONE

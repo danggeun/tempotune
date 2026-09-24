@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<!-- user-scalable=no: 튜너를 보면서 두 손가락이 닿아 확대되는 사고를 막는다 (악기 앱의 의도된 결정). viewport-fit=cover: 엣지투엣지 safe-area 값 제공 -->
+<!-- user-scalable=no: 튜너를 보면서 두 손가락이 닿아 확대되는 사고를 막는다. viewport-fit=cover: 엣지투엣지 safe-area 값 제공 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,10 +15,10 @@
 <meta property="og:title" content="TempoTune — 현악기 연습">
 <meta property="og:description" content="in time, in tune. — 튜너 · 메트로놈 · 기준음 · 녹음 편집을 한 화면에서.">
 <meta property="og:image" content="https://danggeun.github.io/tempotune/icons/icon-512.png">
-<meta name="theme-color" content="#181b21"><!-- 앱은 다크 고정 (style.css :root 주석 참고) -->
+<meta name="theme-color" content="#181b21"><!-- 앱은 다크 고정 -->
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"> <!-- 없으면 브라우저가 /favicon.ico 를 요청하고, 오프라인에선 그게 콘솔 오류가 된다 (감사) -->
-<!-- 한글은 시스템 글꼴(Noto Sans CJK / Apple SD Gothic / 맑은 고딕). 외부 글꼴 요청 없음 — 라틴 폰트만 fonts.css 에서 자체 호스팅 -->
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"> <!-- 없으면 브라우저가 /favicon.ico 를 요청하고, 오프라인에선 콘솔 오류가 된다 -->
+<!-- 한글은 시스템 글꼴. 외부 글꼴 요청 없음 — 라틴 폰트만 fonts.css 에서 자체 호스팅 -->
 </head>
 <body>
 
@@ -32,9 +32,7 @@
 </div>
 
 <div id="app">
-  <!-- 헤더 (v2.3.1, L10): 워드마크를 뺐다 — 앱이 자기 이름을 상시 띄우는 건 웹 페이지 관습이지 앱 관습이 아니다.
-       이름은 홈 화면 아이콘·앱 전환기 제목·설정 화면에 이미 있다. 화면의 모든 요소는 상태이거나 입력이어야 한다.
-       워드마크 탭 = 전체화면 토글이던 숨은 기능은 설정 페이지로 옮겼다. 전용 모드에서는 헤더 줄 자체를 접는다(CSS). -->
+  <!-- 헤더 — 워드마크 없음. 앱 이름은 홈 화면 아이콘·설정 화면에 있다 -->
   <div id="hdr">
     <button id="menu-btn" aria-label="메뉴"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
     <div id="hdr-right">
@@ -69,10 +67,9 @@
               <span id="tuner-acc"></span>
               <div id="tuner-oct"></div>
             </div>
-            <!-- 중음(더블스톱)일 때만 채워지는 둘째 성부 줄 (B17) -->
+            <!-- 중음(더블스톱)일 때만 채워지는 둘째 성부 줄 -->
             <div id="tuner-dual"></div>
-            <!-- 탭이 필요할 때만 (v2.3.3 N7): 앱의 주 동작 버튼과 같은 꼴. 별도 스플래시는 두지 않는다 — 앱은 자기 이름을 띄우지 않고(L10),
-                 아이폰은 이미 OS 실행 화면에 아이콘을 보여 준다. 사용자가 보는 건 실제 앱 화면 + 눌러야 할 것 하나뿐 -->
+            <!-- 마이크를 열 탭이 필요할 때만 보인다. 별도 스플래시 없음 -->
             <div id="tuner-start"><button id="tuner-start-btn">시작</button><div id="tuner-start-sub"></div></div>
           </div>
           <div id="tuner-left" aria-hidden="true"><span id="tuner-hz"></span></div>
@@ -89,14 +86,12 @@
     <div id="metro-card">
       <div id="metro-hdr" style="position:relative;">
         <span id="metro-hdr-label"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/></svg><span id="metro-hdr-bpm">80</span></span>
-        <!-- 펼침2(전용)에서는 다이얼 가운데가 이미 BPM 이라 ♩80 대신 카드 이름 — 튜너의 TUNER 와 같은 자리·같은 글씨 (v2.3.3 N5) -->
+        <!-- 펼침2(전용)에서는 다이얼 가운데가 이미 BPM 이라 ♩80 대신 카드 이름 -->
         <span id="metro-hdr-title">METRONOME</span>
         <div id="beat-vis"></div>
         <div id="metro-hdr-right">
           <button id="metro-play-hdr-btn" aria-label="메트로놈 정지">■</button>
-          <!-- 크기 버튼 하나 (v2.3.2 M10): 접힘 → 펼침 → 펼침2 → 접힘 순환. 글리프는 **다음 목적지**의 방향 — 위로 가면 ∧, 아래로 가면 ∨.
-               펼침2 는 별개 모드가 아니라 펼침이 한 단 더 큰 것이라 ⤢ 같은 '전체화면' 아이콘을 쓰지 않는다 (v2.3.3 N4).
-               내려가는 길은 카드를 아래로 미는 스와이프도 맡는다(ui/swipeStep.ts) -->
+          <!-- 크기 버튼 하나: 접힘 → 펼침 → 펼침2 → 접힘 순환. 글리프는 다음 목적지의 방향. 내려가는 길은 스와이프도 맡는다(ui/swipeStep.ts) -->
           <button id="metro-size-btn" aria-label="메트로놈 펼치기">
             <svg class="nav-glyph chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
           </button>
@@ -104,9 +99,9 @@
       </div>
       <div id="metro-body-wrap"><div id="metro-body-clip">
       <div id="metro-body">
-        <!-- 세이코식 LED 줄 (K5) — 전용 모드용 큰 줄. 헤더의 #beat-vis 와 같은 방식, 칸만 많다 -->
+        <!-- 세이코식 LED 줄 — 전용 모드용 큰 줄. 헤더의 #beat-vis 와 같은 방식, 칸만 많다 -->
         <div id="sweep" aria-hidden="true"><div id="sweep-leds"></div></div>
-        <!-- 전용 모드 다이얼 (v2.3.0) — 링을 돌려 BPM. 그림은 ui/dial.ts 가 채운다 -->
+        <!-- 전용 모드 다이얼 — 링을 돌려 BPM. 그림은 ui/dial.ts 가 채운다 -->
         <div id="dial" role="slider" aria-label="BPM 다이얼" aria-valuemin="40" aria-valuemax="200" aria-valuenow="80">
           <svg id="dial-svg" aria-hidden="true"></svg>
           <div id="dial-center"><div id="dial-bpm">80</div><div id="dial-name">Andante</div></div>
@@ -147,14 +142,13 @@
           <div class="m-grid" id="sd-grid">
             <!-- 세분 없음: 박 하나. 6/8(.compound)에서는 틱이 8분음표라 깃발이 보인다(CSS) -->
             <button class="m-seg on" data-sd="1" aria-label="세분 없음"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><path class="flag" d="M10.4 1.5c0 3.5 4 4.5 3.2 9.2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
-            <!-- 2분할 = 8분음표 둘을 **빔으로 연결**. 나란히 놓기만 하면 '4분음표 둘'(템포 절반)이라는 다른 뜻이 된다 -->
+            <!-- 2분할 = 8분음표 둘을 빔으로 연결. 나란히 놓기만 하면 '4분음표 둘' 이라는 다른 뜻이 된다 -->
             <button class="m-seg" data-sd="2" aria-label="2분할"><svg class="note-glyph g2" viewBox="0 0 26 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><ellipse cx="17" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 17 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="20.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="13.75" height="2.6" rx=".6"/></svg></button>
-            <!-- 3분할 = **셋잇단음표**. 빔 + 위에 숫자 3 이 있어야 세 개로 나눈 것이 된다 -->
+            <!-- 3분할 = 셋잇단음표. 빔 + 위에 숫자 3 이 있어야 세 개로 나눈 것이 된다 -->
             <button class="m-seg" data-sd="3" aria-label="3분할 (셋잇단음표)"><svg class="note-glyph g3" viewBox="0 0 38 23" aria-hidden="true"><text x="21.5" y="6" font-size="8.5" text-anchor="middle" fill="currentColor" font-family="DM Mono, monospace">3</text><ellipse cx="5" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 5 19)"/><ellipse cx="17" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 17 19)"/><ellipse cx="29" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 29 19)"/><rect x="8.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="20.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="32.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="8.7" y="8" width="25.75" height="2.6" rx=".6"/></svg></button>
-            <!-- 4분할 = 16분음표 넷, 빔 두 줄 (K10). v2.3.1 L5: 머리 간격 10→11·반지름 4.6→4.3 — 머리 사이 여백 0.8→2.4 (2·3분할의 2.8 과 같은 밀도) -->
+            <!-- 4분할 = 16분음표 넷, 빔 두 줄 -->
             <button class="m-seg" data-sd="4" aria-label="4분할 (16분음표)"><svg class="note-glyph g4" viewBox="0 0 48 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 5 16)"/><ellipse cx="16" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 16 16)"/><ellipse cx="27" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 27 16)"/><ellipse cx="38" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 38 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="19.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="30.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="41.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="34.75" height="2.6" rx=".6"/><rect x="8.7" y="5.1" width="34.75" height="2.6" rx=".6"/></svg></button>
-            <!-- 붓점 = **점8분 + 16분**. 4분음표에 점을 찍으면 '점4분음표' 라는 다른 음가다.
-                 둘째 음만 빔이 두 줄(16분) — 그래서 아래 빔은 뒤쪽만 걸친다 -->
+            <!-- 붓점 = 점8분 + 16분. 둘째 음만 빔이 두 줄이라 아래 빔은 뒤쪽만 걸친다 -->
             <button class="m-seg" data-sd="d" aria-label="붓점 리듬 (점8분＋16분)"><svg class="note-glyph gd" viewBox="0 0 31 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 5 16)"/><circle cx="12.4" cy="13.2" r="1.35"/><ellipse cx="22" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 22 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="25.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="18.75" height="2.6" rx=".6"/><rect x="20" y="5.1" width="7.45" height="2.6" rx=".6"/></svg></button>
           </div>
           </div>
@@ -235,7 +229,7 @@
 <!-- 설정 페이지 -->
 <div id="settings-page">
   <div id="settings-inner">
-    <!-- 메뉴와 같은 모양: 제목 왼쪽, 닫기 X 오른쪽 위 (v2.3.2 M2). 헤더에서 바로 열 수도 있어 '뒤로' 보다 '닫기' 가 맞다 -->
+    <!-- 메뉴와 같은 모양: 제목 왼쪽, 닫기 X 오른쪽 위. 헤더에서 바로 열 수도 있어 '뒤로' 가 아니라 '닫기' -->
     <div class="settings-top">
       <span class="settings-title">설정</span>
       <button class="settings-close" id="settings-back-btn" aria-label="닫기"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
@@ -296,7 +290,7 @@
       </div>
     </div>
 
-    <!-- 전체화면 (v2.3.1, L10) — 워드마크 탭에 숨어 있던 기능. 브라우저 탭에서 쓸 때만 뜻이 있다(설치 앱·홈 화면 웹앱은 이미 전체화면 → main.ts 가 숨긴다) -->
+    <!-- 전체화면 — 브라우저 탭에서 쓸 때만 뜻이 있다. 설치 앱·홈 화면 웹앱에서는 main.ts 가 숨긴다 -->
     <div class="setting-row" id="fullscreen-row">
       <span class="setting-lbl">전체화면</span>
       <span class="setting-desc">브라우저에서 쓸 때 주소창을 숨겨요. 홈 화면에 추가했으면 이미 전체화면이에요</span>

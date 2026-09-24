@@ -1,15 +1,10 @@
 #!/usr/bin/env node
-// 앱 아이콘 생성 — 원본 그림(resources/icon-src.png, 1024² 풀블리드)에서 플랫폼별 파일을 뽑는다.
-//
-// 원본은 베타 사용자가 만든 크림 바탕의 메트로놈+소리굽쇠다(2026-09-17). **그림은 손대지 않는다** —
-// 한 번 단순화해 봤다가 "또 클로드화됐다" 는 지적을 받았다. 여기서 하는 건 규격뿐이다:
-//   · iOS / PWA 'any':  풀블리드 그대로 (OS 가 스퀘어클로 깎는다 → 미리 둥글면 안 된다)
-//   · PWA maskable:     그림을 중앙 지름 80 % 원 안으로 (런처 마스크에 안 잘리게, 여유 4 %p)
+// 앱 아이콘 생성 — 원본 그림(resources/icon-src.png, 1024² 풀블리드)에서 플랫폼별 파일을 뽑는다. 그림은 손대지 않고 규격만 맞춘다.
+//   · iOS / PWA 'any':  풀블리드 그대로 (OS 가 스퀘어클로 깎는다 — 미리 둥글면 안 된다)
+//   · PWA maskable:     그림을 중앙 지름 80 % 원 안으로
 //   · Android adaptive: 전경은 그림을 중앙 66 % 안으로, 배경은 크림 단색. 밀도별로 직접 렌더
-//   · Android 13 테마:  그림 실루엣을 흰색으로 (단색 아이콘)
-// 원본에서 '그림' 은 크림과 충분히 다른 픽셀(ΔRGB 합 > 120)로 잡는다. 크림은 원본 모서리 색을 그대로 쓴다.
-//
-// 사용: node scripts/gen-icons.mjs [--out DIR]
+//   · Android 13 테마:  그림 실루엣을 흰색으로
+// '그림' 은 크림과 충분히 다른 픽셀(ΔRGB 합 > 120). 크림은 원본 모서리 색. 사용: node scripts/gen-icons.mjs [--out DIR]
 import { chromium } from 'playwright'
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -29,7 +24,7 @@ const PAGE = '<!doctype html><html><head><style>html,body{margin:0}</style></hea
 const drawFn = async (P) => {
   const img = document.getElementById('i'); img.src = P.src; await img.decode()
   const S = P.S, c = document.getElementById('c'); c.width = S; c.height = S; const x = c.getContext('2d')
-  // 1) 원본을 임시 캔버스에 그려 실측
+  // 원본을 임시 캔버스에 그려 그림 bbox 와 크림 색을 잰다
   const t = document.createElement('canvas'); t.width = img.width; t.height = img.height
   const tx = t.getContext('2d'); tx.drawImage(img, 0, 0); const d = tx.getImageData(0, 0, t.width, t.height).data
   const cr = [d[(3 * t.width + 3) * 4], d[(3 * t.width + 3) * 4 + 1], d[(3 * t.width + 3) * 4 + 2]]
@@ -52,7 +47,7 @@ const drawFn = async (P) => {
   else if (P.mode === 'background') { x.fillStyle = cream; x.fillRect(0, 0, S, S) }
   else if (P.mode === 'maskable') { x.fillStyle = cream; x.fillRect(0, 0, S, S); paintArt(fitCircle(P.circle)) }
   else if (P.mode === 'foreground') {
-    // 전경은 투명 배경 위 그림만 — 배경 레이어(크림)와 런처가 합성한다(시차 효과). 크림 픽셀은 잘라낸다
+    // 전경은 투명 배경 위 그림만 — 배경 레이어와 런처가 합성한다. 크림 픽셀은 잘라낸다
     paintArt(fitCircle(P.circle))
     const fd = x.getImageData(0, 0, S, S)
     for (let i = 0; i < fd.data.length; i += 4) {
@@ -94,7 +89,7 @@ writeFileSync(join(ROOT, 'www/public/icons/icon-192.png'), await render(192, 'fu
 writeFileSync(join(ROOT, 'www/public/icons/icon-maskable-512.png'), await render(512, 'maskable', { circle: MASKABLE_CIRCLE }))
 writeFileSync(join(ROOT, 'resources/icon-background.png'), await render(1024, 'background'))
 writeFileSync(join(ROOT, 'resources/icon-foreground.png'), await render(1024, 'foreground', { circle: ADAPTIVE_SAFE * 0.94 }))
-for (const [density, px] of Object.entries(ADAPTIVE_PX)) // 밀도별 정식 크기로 직접 렌더 (다운샘플이 아니라 그 크기로)
+for (const [density, px] of Object.entries(ADAPTIVE_PX)) // 밀도별 정식 크기로 직접 렌더
   writeFileSync(join(ROOT, `resources/android/ic_launcher_foreground-${density}.png`), await render(px, 'foreground', { circle: ADAPTIVE_SAFE * 0.94 }))
 writeFileSync(join(ROOT, 'resources/icon-monochrome.png'), await render(1024, 'mono', { circle: ADAPTIVE_SAFE * 0.94 }))
 await browser.close()

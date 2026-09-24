@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-// 합성 현악기 테스트 신호 생성기
-// 왜: 실제 녹음 없이 튜너/연주감지를 수치로 검증하기 위해. 순수 사인파는 실제 악기의
-//     어려움(배음, 비브라토, 활 잡음, 어택)을 재현하지 못하므로 물리적으로 그럴듯한 톤을 만든다.
+// 합성 현악기 테스트 신호 생성기 — 배음·비브라토·활 잡음·어택이 있는 물리적으로 그럴듯한 톤
 // 출력: test-assets/signals/<name>.wav (mono 16-bit 44.1k) + <name>.json (시간축 정답)
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -11,12 +9,12 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-assets', '
 mkdirSync(OUT, { recursive: true })
 const SR = 44100
 
-// ── 결정적 난수 (재현 가능) ──
+// 결정적 난수 (재현 가능)
 let seed = 12345
 const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000 }
 const randn = () => { let u = 0, v = 0; while (u === 0) u = rand(); while (v === 0) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) }
 
-// ── 기본 블록 ──
+// 기본 블록
 function silence(sec) { return new Float32Array(Math.round(sec * SR)) }
 function concat(...parts) {
   const n = parts.reduce((s, p) => s + p.length, 0); const out = new Float32Array(n); let o = 0
@@ -84,7 +82,7 @@ function mix(a, b, gainB = 1) { const n = Math.max(a.length, b.length); const ou
 function rms(x) { let s = 0; for (const v of x) s += v * v; return Math.sqrt(s / x.length) }
 function scaleToSnr(signal, noise, snrDb) { const g = rms(signal) / (rms(noise) * Math.pow(10, snrDb / 20)); return mix(signal, noise, g) }
 
-// ── WAV 쓰기 ──
+// WAV 쓰기
 function writeWav(name, x) {
   const n = x.length; const ab = Buffer.alloc(44 + n * 2)
   ab.write('RIFF', 0); ab.writeUInt32LE(36 + n * 2, 4); ab.write('WAVE', 8); ab.write('fmt ', 12)
@@ -99,12 +97,12 @@ function writeExpected(name, segments, meta = {}) {
   writeFileSync(join(OUT, name + '.json'), JSON.stringify({ sr: SR, ...meta, segments }, null, 2))
 }
 
-// ── 음 이름 도우미 ──
+// 음 이름 도우미
 const midiHz = m => 440 * Math.pow(2, (m - 69) / 12)
 const NOTE = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 }
 const n2m = s => { const m = s.match(/^([A-G]#?)(-?\d)$/); return NOTE[m[1]] + (parseInt(m[2]) + 1) * 12 }
 
-// ── 세트 1: 단음 (악기별 개방현 + 극단) ──
+// 세트 1: 단음 (악기별 개방현 + 극단)
 const single = [
   ['violin_G3', 'G3'], ['violin_D4', 'D4'], ['violin_A4', 'A4'], ['violin_E5', 'E5'], ['violin_E6_harmonic', 'E6'],
   ['viola_C3', 'C3'], ['cello_C2', 'C2'], ['cello_G2', 'G2'], ['cello_D3', 'D3'], ['cello_A3', 'A3'],
@@ -122,7 +120,7 @@ for (const [name, note] of single) {
   ], { kind: 'single', note })
 }
 
-// 비브라토 없음 / 강한 비브라토 / 느린 어택 변형 (A4)
+// 비브라토 없음 / 강한 비브라토 / 느린 어택 변형
 {
   const f = 440
   writeWav('violin_A4_novib', concat(silence(0.3), bowed(() => f, 2, { vibCents: 0 }), silence(0.3)))
@@ -139,7 +137,7 @@ for (const [name, note] of single) {
   }
 }
 
-// ── 세트 2: 스케일 (락 지연, 음 전환) ──
+// 세트 2: 스케일 (락 지연, 음 전환)
 {
   const notes = ['A4', 'B4', 'C#5', 'D5', 'E5', 'F#5', 'G#5', 'A5'] // A장조
   const dur = 0.5; const parts = [silence(0.3)]; const segs = [{ t0: 0, t1: 0.3, midi: null, playing: false }]
@@ -160,7 +158,7 @@ for (const [name, note] of single) {
   writeExpected('violin_gliss_A4_A5', [{ t0: 0, t1: .3, midi: null, playing: false }, { t0: .3, t1: 2.5, gliss: { hz0: 440, hz1: 880, t0: .3, t1: 2.3 }, playing: true }, { t0: 2.5, t1: 2.8, midi: null, playing: false }], { kind: 'gliss' })
 }
 
-// ── 세트 3: 방해 신호 (오검출) ──
+// 세트 3: 방해 신호 (오검출)
 {
   writeWav('noise_white', whiteNoise(Math.round(2 * SR), 0.3)); writeExpected('noise_white', [{ t0: 0, t1: 2, midi: null, playing: false }], { kind: 'noise' })
   writeWav('noise_pink', pinkNoise(Math.round(2 * SR), 1.5)); writeExpected('noise_pink', [{ t0: 0, t1: 2, midi: null, playing: false }], { kind: 'noise' })
@@ -199,7 +197,7 @@ for (const [name, note] of single) {
   writeWav('ref_sine_A4', sine); writeExpected('ref_sine_A4', [{ t0: 0, t1: 2, midi: 69, hz: 440, playing: true }], { kind: 'ref' })
 }
 
-// ── 세트 4: 리뷰에서 추가된 현실 시나리오 ──
+// 세트 4: 현실 시나리오
 {
   const seg = (m, playing = true) => ({ midi: m, hz: midiHz(m), playing })
   const single = (name, tone, m, meta = {}) => { writeWav(name, concat(silence(.3), tone, silence(.3))); writeExpected(name, [{ t0: 0, t1: .3, midi: null, playing: false }, { t0: .3, t1: .3 + tone.length / SR, ...seg(m) }, { t0: .3 + tone.length / SR, t1: .6 + tone.length / SR, midi: null, playing: false }], { kind: 'realistic', ...meta }) }

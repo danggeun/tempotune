@@ -1,13 +1,4 @@
-/**
- * 분석 워커 — 워클릿에서 청크를 받아 링버퍼에 쌓고, 청크마다(hop 1024) 최신 창(4096)을 분석기에 넣어 프레임을 메인에 보낸다.
- * 알고리즘은 전부 core/ (벤치마크와 동일 코드).
- *
- * 런타임 보호(리뷰 반영):
- *  - reset.afterT 이전 청크는 버린다 — 백그라운드에서 워클릿이 계속 쌓아둔 청크가 복귀 시 폭주하지 않게
- *  - 백프레셔: 청크 도착 지연(벽시계 − 오디오 시계)이 기준선보다 100 ms 이상 커지면 분석을 건너뛰고 링만 채운다
- *  - mute 구간(메트로놈 클릭)에 걸치는 창은 신뢰도를 낮춰 분석한다. 구간 위치는 **클릭의 실제 도착 시각**으로 보정한다 (M1)
- *  - 다 쓴 청크 버퍼는 워클릿에 반납한다
- */
+/** 분석 워커 — 워클릿 청크를 링버퍼에 쌓고, 청크마다(hop 1024) 최신 창(4096)을 분석기에 넣어 프레임을 메인에 보낸다. 알고리즘은 core/ */
 import { createAnalyzer, type Analyzer } from '../core/pitch/analyzer.ts'
 import { createArrival } from '../core/metro/arrival.ts'
 import type { WorkerIn, WorkerOut, ChunkMsg, RecycleMsg } from './messages.ts'
@@ -21,7 +12,7 @@ const win = new Float32Array(WINDOW)
 let dropBefore = -1
 let port: MessagePort | null = null
 const mutes: Array<{ from: number; until: number }> = []
-const arrival = createArrival() // 클릭 도착 시각 자가 보정 (M1)
+const arrival = createArrival() // 클릭 도착 시각 자가 보정
 const BLK = 256 // 차분 에너지 블록 (≈5 ms @48k) — 클릭 어택 스파이크를 찾는 해상도
 let minOffset = Infinity // 벽시계 − 오디오시계 의 최소값(기준선). 지연이 커지면 이보다 커진다
 let skipped = 0
@@ -33,7 +24,7 @@ function onChunk(e: MessageEvent<ChunkMsg>): void {
   const c = m.chunk
   const recycle = () => { const buf = c.buffer as ArrayBuffer; port?.postMessage({ type: 'recycle', buf } satisfies RecycleMsg, [buf]) }
   if (m.t < dropBefore) { recycle(); return }
-  // 클릭 도착 탐지용 차분 에너지 (블록마다). 링에 넣기 전에 계산 — 청크 경계의 직전 샘플은 링 끝에서 가져온다
+  // 클릭 도착 탐지용 차분 에너지 — 청크 경계의 직전 샘플은 링 끝에서 가져온다
   { let prev = filled > 0 ? ring[(ringPos - 1 + ring.length) % ring.length]! : 0
     for (let b = 0; b < c.length; b += BLK) { let e = 0; const n = Math.min(BLK, c.length - b)
       for (let i = 0; i < n; i++) { const v = c[b + i]!; const d = v - prev; e += d * d; prev = v }
@@ -42,14 +33,14 @@ function onChunk(e: MessageEvent<ChunkMsg>): void {
   filled = Math.min(ring.length, filled + c.length)
   recycle()
   if (filled < WINDOW) return
-  // 백프레셔
+  // 백프레셔: 도착 지연이 기준선보다 100 ms 이상 크면 분석을 건너뛰고 링만 채운다
   const offset = performance.now() - m.t * 1000
   if (offset < minOffset) minOffset = offset
   else minOffset += 0.5 // 기준선은 천천히 따라 올라간다 (시계 드리프트)
   if (offset - minOffset > 100) { skipped++; return }
-  // 뮤트 구간: 창 [t − WINDOW/sr, t] 가 클릭 구간과 겹치면 '클릭 섞임' 으로 표시 (버리지 않는다 — 버리면 120 bpm 세분에서 튜너가 얼어붙는다, 리뷰)
+  // 창이 클릭 구간과 겹치면 muted 로 분석 — 버리면 120 bpm 세분에서 튜너가 얼어붙는다
   const t0 = m.t - WINDOW / sr
-  arrival.update(m.t); const off = arrival.offset() // 실제 도착이 예상보다 늦은 만큼 구간을 민다 (합의 전에는 0 = 종전 동작)
+  arrival.update(m.t); const off = arrival.offset() // 실제 도착이 예상보다 늦은 만큼 구간을 민다 (합의 전 0)
   let muted = false
   for (let i = mutes.length - 1; i >= 0; i--) { const r = mutes[i]!; if (r.until + off < t0 - 1) mutes.splice(i, 1); else if (t0 < r.until + off && m.t > r.from + off) muted = true }
   // 최신 WINDOW 샘플을 선형 버퍼로

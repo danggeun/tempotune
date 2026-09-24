@@ -1,10 +1,6 @@
 /**
- * 세이코식 박 표시의 수학 (K5). 화면은 모른다 — ui/metro.ts 가 여기 값을 그린다.
- *
- * 구조는 사용자가 실물(SEIKO SQ100-77)에서 본 그대로다:
- *   "왼쪽 끝이 첫 박, 오른쪽 끝이 그다음 박, 리듬에 따라 그 사이 맞는 위치에서 띡."
- * 즉 막대는 **한 박에 한쪽 끝에서 반대쪽 끝까지** 직선으로 가고, 박은 **끝에서**, 분할은 **사이에서** 울린다.
- * 방향은 박마다 뒤집힌다(왼→오, 오→왼). 회전 진자가 아니다 — 그건 기계식 메트로놈이고, 이전에 잘못 만들었던 것.
+ * 세이코식 박 표시의 수학. 화면은 ui/metro.ts 가 그린다.
+ * 막대는 한 박에 한쪽 끝에서 반대쪽 끝까지 직선으로 가고(박마다 방향 반전), 박은 끝에서, 분할은 사이에서 울린다.
  */
 import type { Pattern } from './sequencer.ts'
 import { totalTicks } from './sequencer.ts'
@@ -25,11 +21,7 @@ export const ticksPerBeat = (p: Pick<Pattern, 'timeSig' | 'subDiv'>): number => 
 export const isBeatStart = (p: Pick<Pattern, 'timeSig' | 'subDiv'>, tick: number): boolean => tick % ticksPerBeat(p) === 0
 
 
-/**
- * 막대의 가로 위치 (0 = 왼쪽 끝, 1 = 오른쪽 끝).
- * phase 는 박이 온 뒤 지난 비율(0~1). dir 이 +1 이면 왼→오, −1 이면 오→왼.
- * 다음 박이 늦으면(phase ≥ 1) 끝에 머문다 — 되돌아오거나 튀지 않는다.
- */
+/** 막대의 가로 위치 (0 = 왼쪽 끝, 1 = 오른쪽 끝). phase = 박 이후 지난 비율, dir +1 왼→오. phase ≥ 1 이면 끝에 머문다 */
 export function sweepX(phase: number, dir: 1 | -1): number {
   const t = Math.min(1, Math.max(0, phase))
   return dir === 1 ? t : 1 - t

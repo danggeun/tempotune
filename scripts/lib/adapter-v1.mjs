@@ -1,8 +1,5 @@
-// v1 알고리즘 어댑터 — 현재 앱(main.js @ fd56de1)의 튜너/연주감지 로직을 DOM 없이 재현
-// 왜: 리팩토링 전 기준선 숫자를 남기기 위해. 로직은 main.js에서 그대로 옮겼고, 아래 항목만 근사:
-//  - AnalyserNode의 dB 스케일/Blackman 창 → Hann 창 + 스케일 보정(+24 dB), 0.88 지수 평활은 선형 크기에 적용
-//  - 앱은 rAF(≈60 Hz)마다 4096 창을 읽고 YIN은 4프레임에 1번 → 하네스는 hop 1024(≈43 Hz)에 매 프레임 실행.
-//    `skip` 옵션으로 4프레임 스킵을 흉내 낼 수 있음 (앱 체감치).
+// v1 알고리즘 어댑터 — 앱(main.js)의 튜너/연주감지 로직을 DOM 없이 재현. 기준선 측정용
+// 근사: AnalyserNode 대신 Hann 창 + 스케일 보정(+24 dB), hop 1024 매 프레임 실행 (`skip` 으로 4프레임 스킵 흉내)
 import { yin as yinPure } from '../../www/src/core/yin.ts'
 import { makeFFT } from './fft.mjs'
 

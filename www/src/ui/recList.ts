@@ -23,10 +23,10 @@ function getPlayer(idx: number): HTMLAudioElement {
   if (!a) {
     const item = recListStore.get().items[idx]!
     a = new Audio(item.url)
-    attachGain(a, item.peak) // 녹음 레벨 보정 (B12c). 게인이 1 이면 요소를 건드리지 않는다
+    attachGain(a, item.peak) // 녹음 레벨 보정. 게인이 1 이면 요소를 건드리지 않는다
     a.ontimeupdate = () => {
       const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, tm = document.getElementById('rec-time-' + idx)
-      if (sk && a!.duration) { sk.max = String(isFinite(a!.duration) ? a!.duration : item.dur); sk.value = String(a!.currentTime) } // 크로미움 WebM 은 duration 이 Infinity (crbug 642012) — 그러면 슬라이더가 100 기준으로 깨진다 (감사 B4)
+      if (sk && a!.duration) { sk.max = String(isFinite(a!.duration) ? a!.duration : item.dur); sk.value = String(a!.currentTime) } // 크로미움 WebM 은 duration 이 Infinity (crbug 642012) — 슬라이더가 100 기준으로 깨진다
       if (tm) tm.textContent = fmtT(a!.currentTime)
     }
     a.onended = () => {
@@ -43,24 +43,17 @@ function getPlayer(idx: number): HTMLAudioElement {
 function playPause(idx: number): void {
   const a = getPlayer(idx)
   for (const k of Object.keys(players)) { const i = +k; if (i !== idx && !players[i]!.paused) { players[i]!.pause(); afterStop(players[i]!); setPlayBtn(i, false) } }
-  if (a.paused) { beforePlay(a); setPlayBtn(idx, true); a.play().catch(() => { afterStop(a); setPlayBtn(idx, false); toast('재생할 수 없어요') }) } else { a.pause(); afterStop(a); setPlayBtn(idx, false) } // 위치를 유지하는 일시정지 → ❚❚ (편집기와 동일)
+  if (a.paused) { beforePlay(a); setPlayBtn(idx, true); a.play().catch(() => { afterStop(a); setPlayBtn(idx, false); toast('재생할 수 없어요') }) } else { a.pause(); afterStop(a); setPlayBtn(idx, false) }
 }
 function seek(idx: number): void { const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, a = getPlayer(idx); if (sk && a.duration) a.currentTime = +sk.value }
-/** Audio 요소를 놓을 때 src 도 비운다 — WebView 는 동시 미디어 플레이어 수에 상한이 있어 붙잡고 있으면 재생이 조용히 실패한다 (리뷰) */
 /** 옛 webm 녹음을 아이폰에서 열 수 있게 WAV 로 변환할 상한 (디코드 메모리: 48 kHz 모노 10분 ≈ 115 MB) */
 export const WAV_RESCUE_MAX_SEC = 600
-/**
- * 아이폰에서 파일을 건네는 공용 마무리 (감사 A3): 디코드·변환처럼 **await 를 거친 뒤**에는 탭의 활성화 창이 지나 공유 시트가 거부된다.
- * 그래서 준비가 끝나면 "탭해서 저장" 토스트를 띄우고, 그 탭 안에서 saveFile 을 부른다. 안드로이드·데스크톱은 바로 저장.
- */
+/** iOS: await 를 거친 뒤에는 탭의 활성화 창이 지나 공유 시트가 거부된다 → 토스트를 띄우고 그 탭 안에서 saveFile. 그 외는 바로 저장 */
 export function handOff(blob: Blob, name: string): void {
   const go = (): void => { void saveFile(blob, name).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }) }
   if (isIOS()) toast('준비됐어요 · 탭해서 저장', 8000, go); else go()
 }
-/**
- * 다운로드 — 편집기의 ⤓ 와 목록의 다운로드가 같은 경로 (감사 A4: 목록은 iOS webm 구제를 건너뛰어 아이폰이 못 여는 파일이 나갔다).
- * 보통은 원본 그대로. **아이폰 + 내용이 webm**(v2.0.2 이전 녹음)이면 WAV 로 변환해 건넨다 (B13 구제).
- */
+/** 다운로드 (편집기·목록 공용). 아이폰 + webm 녹음이면 WAV 로 변환해 건넨다 */
 export async function downloadRec(item: RecItem): Promise<void> {
   if (isIOS() && recExt(item) === 'webm') {
     if (item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 변환할 수 없어요 — 컴퓨터에서 열어주세요'); return }
@@ -74,31 +67,27 @@ export async function downloadRec(item: RecItem): Promise<void> {
   }
   const r = await saveFile(item.blob, recFileName(item)); if (!r.ok) toast('저장 실패: ' + r.error)
 }
+/** src 도 비운다 — WebView 는 동시 미디어 플레이어 수에 상한이 있어 붙잡고 있으면 재생이 조용히 실패한다 */
 export function releaseAudio(a: HTMLAudioElement): void { detachGain(a); try { a.pause(); a.removeAttribute('src'); a.load() } catch { /* */ } }
 export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { releaseAudio(a); delete players[idx] } }
 
-/**
- * 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고 — 열어 보기 전에 '어느 녹음인지' 알 수 있게 (UX 감사 B4). 없으면 줄 자체가 없다.
- * 마지막 요소가 `link` 면 탭할 수 있는 글자다(F2): 예고 중이면 '남기기', 남긴 뒤면 '자동 삭제 안 함'(탭하면 해제).
- * 자동 삭제 스위치는 버튼 줄(편집·다운로드·삭제 = 지금 하는 동작)에 두지 않는다 — 그건 항목의 상태라 범주가 다르고,
- * 30일 중 마지막 7일에만 뜻이 있는데 자리를 늘 차지한다. 상태가 사는 자리(예고문) 안에서만, 필요한 때만 나타난다.
- */
+/** 목록 메타 한 줄: 편집 흔적(북마크 n · A-B)과 삭제 예고. link 는 탭할 수 있는 꼬리('남기기' / '자동 삭제 안 함'), 없으면 null */
 export function itemMeta(item: RecItem, now = Date.now()): { text: string; link: string | null } {
   const parts: string[] = []
   if (item.bookmarks.length) parts.push(`북마크 ${item.bookmarks.length}`)
   if (item.ab) parts.push('A-B')
   const autoDelete = settingsStore.get().autoDelete
   let link: string | null = null
-  // 남긴 표시는 자동 삭제가 켜져 있을 때만 뜻이 있다 — 꺼져 있으면 숨긴다 (플래그는 남아 다시 켜면 되살아난다)
+  // 남긴 표시는 자동 삭제가 켜져 있을 때만 — 플래그는 남아 다시 켜면 되살아난다
   if (item.keep && autoDelete) link = '자동 삭제 안 함'
   else {
-    // 30일 자동 삭제 예고는 마지막 7일만 (정보는 있는 것만). 판정은 persist 와 같은 함수를 쓴다
+    // 30일 자동 삭제 예고는 마지막 7일만. 판정은 persist 와 같은 함수
     const d = warnDaysLeft(item.ts, item.keep, autoDelete, now)
     if (d !== null) { parts.push(d === 0 ? '오늘 삭제' : `${d}일 후 삭제`); link = '남기기' }
   }
   return { text: parts.join(' · '), link }
 }
-/** 메타 줄을 그린다 — 글자는 textContent 로, 탭 가능한 꼬리만 span (사용자 데이터 없음) */
+/** 메타 줄 — 글자는 textContent 로, 탭 가능한 꼬리만 span */
 function renderMeta(el: Element, item: RecItem, idx: number): void {
   const m = itemMeta(item)
   el.textContent = m.text
@@ -109,7 +98,7 @@ function renderMeta(el: Element, item: RecItem, idx: number): void {
   }
 }
 
-/** 남기기 토글 (F2). 풀 때 이미 삭제 기한이 지났다면 다음 실행에서 조용히 사라지므로 미리 알린다 */
+/** 남기기 토글. 풀 때 이미 기한이 지났다면 다음 실행에서 사라지므로 미리 알린다 */
 function toggleKeep(item: RecItem): void {
   const next = !item.keep
   const applied = patchRec(item, { keep: next })
@@ -179,7 +168,7 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
       case 'play': playPause(idx); break
       case 'edit': if (item) openEditor(item); break
       case 'keep': if (item) toggleKeep(item); break
-      case 'delete': { // 확인 대신 실행 취소 (텍스트 버튼 언어, 5 s 토스트)
+      case 'delete': { // 확인 대신 실행 취소 토스트
         if (!item) break
         beforeDelete(item); stopPlayer(idx)
         void deleteRec(item).then(ok => {
@@ -194,7 +183,7 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
   on(list, 'input', (e: Event) => { const t = e.target as HTMLElement; if (t.dataset.action === 'seek') seek(+t.dataset.idx!) })
   recListStore.select(s => s.rev, render)
   settingsStore.select(s => s.autoDelete, () => { const st = recListStore.get(); recListStore.set({ rev: st.rev + 1 }) }) // 보관 설정이 바뀌면 예고문 갱신
-  // 북마크/A-B 가 바뀌면(patchRec 은 items 배열만 교체) 메타 줄만 제자리 갱신 — 전체 재렌더는 펼침 상태와 미니 플레이어를 리셋한다
+  // patchRec(items 배열만 교체)에는 메타 줄만 제자리 갱신 — 전체 재렌더는 펼침 상태와 미니 플레이어를 리셋한다
   recListStore.select(s => s.items, items => {
     list.querySelectorAll<HTMLElement>('.rec-item[data-idx]').forEach(el => {
       const it = items[+el.dataset.idx!]; if (!it) return

@@ -1,7 +1,6 @@
 /**
  * 메트로놈 AudioWorkletProcessor — core/metro/sequencer 를 오디오 스레드에서 돌린다.
- * 메인 → 'pattern' | 'start' | 'stop', 프로세서 → 'click' {tick, kind, t(초, 컨텍스트 시계), dur}
- * 클릭 메시지는 렌더 시점에 보내므로 실제 재생보다 (출력 지연만큼) 먼저 도착한다 — 시각 피드백/튜너 뮤트 예약에 쓴다.
+ * 'click' 메시지는 렌더 시점에 보내므로 실제 재생보다 출력 지연만큼 먼저 도착한다.
  */
 import { createSequencer, CLICK_DUR_S, type Pattern } from '../core/metro/sequencer.ts'
 
@@ -18,7 +17,7 @@ class MetroProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (e: MessageEvent) => {
       const m = e.data
       if (m.type === 'pattern') this.seq.setPattern(m.pattern as Partial<Pattern>)
-      else if (m.type === 'start') this.seq.start(Math.round(0.05 * sampleRate)) // 50 ms 뒤 첫 클릭 (v1 과 동일)
+      else if (m.type === 'start') this.seq.start(Math.round(0.05 * sampleRate)) // 50 ms 뒤 첫 클릭
       else if (m.type === 'stop') this.seq.stop()
       else if (m.type === 'resetBar') this.seq.resetBar()
     }
@@ -27,10 +26,9 @@ class MetroProcessor extends AudioWorkletProcessor {
     const out = outputs[0]?.[0]; if (!out) return true
     out.fill(0)
     const events = this.seq.render(out, currentFrame)
-    if (events.length === 0) { const chs0 = outputs[0]!; for (let c = 1; c < chs0.length; c++) chs0[c]!.set(out); return true } // 블록마다 패턴 복사를 만들지 않는다 (오디오 스레드 GC, 감사)
+    if (events.length === 0) { const chs0 = outputs[0]!; for (let c = 1; c < chs0.length; c++) chs0[c]!.set(out); return true } // 블록마다 패턴 복사를 만들지 않는다 (오디오 스레드 GC)
     const muted = this.seq.getPattern().muted
     for (const ev of events) this.port.postMessage({ type: 'click', tick: ev.tick, kind: ev.kind, t: currentTime + (ev.sample - currentFrame) / sampleRate, dur: CLICK_DUR_S, muted })
-    // 다른 채널에 복사 (스테레오 출력)
     const chs = outputs[0]!; for (let c = 1; c < chs.length; c++) chs[c]!.set(out)
     return true
   }

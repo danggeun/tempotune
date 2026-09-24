@@ -1,14 +1,11 @@
-/**
- * 워커 프레임 → tunerStore. 메인 스레드는 결과만 받아 상태에 쓴다 (분석은 analysis.worker.ts / core).
- * 메트로놈 클릭 구간은 워커가 오디오 시계 기준으로 버린다(engine.muteAnalysis) — v1 의 벽시계 isClick 추정을 대체.
- */
+/** 워커 프레임 → tunerStore. 메인 스레드는 결과만 받아 상태에 쓴다 (분석은 analysis.worker.ts / core). */
 import { tunerStore } from '../state/index.ts'
 import { onWorkerMessage } from './engine.ts'
 import type { WorkerOut } from './messages.ts'
 
 let lastMs = 0, lastCalib = 0
 const msHist: number[] = []
-/** 메트로놈 클릭 도착 보정값(ms) — 실기기 진단용 (M1). 합의 전 0 */
+/** 메트로놈 클릭 도착 보정값(ms) — 진단용. 합의 전 0 */
 export const metroCalibMs = (): number => Math.round(lastCalib * 1000)
 /** 최근 ~10 s 워커 처리 시간의 p95 (ms) — 진단용 */
 export const lastFrameMs = (): number => { if (!msHist.length) return lastMs; const s = [...msHist].sort((a, b) => a - b); return s[Math.floor(s.length * 0.95)]! }

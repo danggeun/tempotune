@@ -15,10 +15,7 @@ export interface Spectrum {
   octaveCorrect(f0: number): number
   /** 특정 주파수 근처(±tol 비율)의 최대 크기(dB) */
   peakDbNear(hz: number, tolRatio?: number): number
-  /**
-   * 직전 octaveCorrect 가 **두 배음렬을 봤을 때** 그 두 기본음 (lo = 아래, up = 위, 없으면 -1).
-   * octaveCorrect 의 판단을 그대로 읽는 것뿐이고 반환 음높이에는 영향이 없다 (B17 중음 표시용).
-   */
+  /** 직전 octaveCorrect 가 두 배음렬을 봤을 때 그 두 기본음 (lo 아래, up 위, 없으면 -1). 중음 표시용 */
   voices(): { lo: number; up: number }
   /** 빈 폭 (Hz) */
   readonly binHz: number
@@ -33,15 +30,15 @@ export function createSpectrum(windowSize: number): Spectrum {
   const db = new Float64Array(H), lin = new Float64Array(H)
   let sr = 44100, binHz = sr / N, floorDb = -120, maxDb = -120
   let pairLo = -1, pairUp = -1 // 직전 프레임에서 본 두 성부 (없으면 -1). 표시 경로만 읽는다
-  let lastUpper = -1 // 마지막으로 확정한 위 성부(Hz). 검출은 엄격, 해제는 느슨하게 — 프레임마다 검출이 빠져 아래 음으로 떨어지는 흔들림 방지
-// 위 성부 탐색 비율 (위/아래), 오름차순. 정수(옥타브)는 배음과 구분 불가라 제외. 단2도(16/15)는 f0 피크 스커트와 겹쳐 제외.
+  let lastUpper = -1 // 마지막으로 확정한 위 성부(Hz). 검출은 엄격, 해제는 느슨하게
+// 위 성부 탐색 비율 (위/아래), 오름차순. 정수(옥타브)는 배음과 구분 불가, 단2도(16/15)는 f0 피크 스커트와 겹쳐 제외
 const UPPER_RATIOS = [9 / 8, 6 / 5, 5 / 4, 4 / 3, 7 / 5, 3 / 2, 8 / 5, 5 / 3, 9 / 5]
-const UPPER_DB = 24 // 위 성부 피크가 최대 피크보다 이만큼 아래여도 인정 (아래 음이 6배(15.6 dB) 커도 잡히게)
+const UPPER_DB = 24 // 위 성부 피크가 최대 피크보다 이만큼 아래여도 인정 (아래 음이 6배 = 15.6 dB 커도)
 const VETO_DB = 12 // 정합성 거부권을 가질 피크의 최소 세기 (최대 피크 대비)
-const K_MAX = 12 // f0 위로 조사할 배수 상한. 장2도(8:9)·단6도(5:8) 같은 중음까지 덮는다
-const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비 이 값 이내여야 함 (창 누설 피크 배제)
+const K_MAX = 12 // f0 위로 조사할 배수 상한. 장2도(8:9)·단6도(5:8) 중음까지 덮는다
+const REL_DB = 40 // 배음으로 인정할 프레임 최대 피크 대비 상한 (창 누설 피크 배제)
 
-  /** hz 근처(±max(1빈, tolRatio))에서 국소 최대(local max)인 빈. 이웃 피크의 창 누설 스커트는 단조 구간이라 제외된다. */
+  /** hz 근처(±max(1빈, tolRatio))의 국소 최대 빈. 이웃 피크의 창 누설 스커트는 단조 구간이라 제외된다 */
   function peakNear(hz: number, tolRatio: number): { db: number; bin: number } {
     const b = hz / binHz, half = Math.max(1, b * tolRatio)
     const lo = Math.max(1, Math.round(b - half)), hi = Math.min(H - 2, Math.round(b + half))
@@ -50,8 +47,7 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
     if (bb === -1) return { db: -Infinity, bin: Math.round(b) }
     return { db: best, bin: bb }
   }
-  /** 잡음 바닥 = 40–5000 Hz 밴드 dB 의 중앙값. 배음 신호에서는 대부분의 빈이 피크가 아니므로 배음 사이의 바닥이 된다.
-   *  (피크 주변 ±k 빈 평균은 저음에서 이웃 배음을 포함해 틀렸다 — C2 65 Hz 는 배음 간격이 6 빈) */
+  /** 잡음 바닥 = 40–5000 Hz 밴드 dB 의 중앙값 (피크 주변 평균은 저음에서 이웃 배음을 포함한다 — C2 는 배음 간격 6 빈) */
   let medianDb = -120
   const sortBuf = new Float64Array(H)
   function computeFloor(): void {
@@ -69,9 +65,7 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
 
   /** r 이 중음 간격(UPPER_RATIOS) 중 하나와 3 % 안에서 맞는가 */
   function isUpperRatio(r: number): boolean { return UPPER_RATIOS.some(u => Math.abs(r / u - 1) < 0.03) }
-  /** 후보 기본음을 실제 피크에 맞춘다: 기본음 자리에서 보간해 어느 피크인지 확정한 뒤(빈이 굵은 저음에서
-   *  f0×비율 은 이웃 피크를 가리킬 수 있다 — 4×C2=261.6 창에 B3 246.9 가 걸리던 것), 그 값의 가장 높은 존재
-   *  배음에서 다시 보간해 k 로 나눈다(상위 배음은 빈 대비 정밀). */
+  /** 후보 기본음을 실제 피크에 맞춘다: 기본음 자리에서 보간해 피크를 확정한 뒤, 가장 높은 존재 배음에서 다시 보간해 k 로 나눈다 */
   function settle(fCand: number): number {
     const f1 = refine(fCand)
     for (let k = 4; k >= 2; k--) { const fk = f1 * k; if (fk < sr / 2 && present(fk, 6)) return refine(fk) / k }
@@ -85,8 +79,7 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
     return (bin + d) * binHz
   }
 
-  /** 두 성부 기록 (B17). **기본음 자리만 포물선 보간**한다 — settle() 은 상위 배음으로 정밀도를 얻지만
-   *  중음에서는 두 음의 배음이 겹쳐(4도: 아래×4 = 위×3) 다른 음의 배음을 집어 크게 틀린다(실측 −23 ¢). */
+  /** 두 성부 기록. 기본음 자리만 포물선 보간 — 중음에서는 상위 배음이 겹쳐(4도: 아래×4 = 위×3) settle() 이 틀린다 */
   function setPair(lo: number, up: number): void { pairLo = refine(lo); pairUp = refine(up) }
 
   return {
@@ -113,45 +106,31 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
       return Math.exp(logSum / n) / (sum / n)
     },
     octaveCorrect(f0) {
-      pairLo = -1; pairUp = -1 // 이 프레임의 판단으로 다시 채운다
+      pairLo = -1; pairUp = -1
       const p0 = peakNear(f0, 0.03).db
-      // 한 옥타브 위로 틀린 경우: 진짜 기본음 f0/2 와 그 홀수 배음 3f0/2 가 f0 피크에 견줄 만큼(−15/−20 dB 이내) 존재한다.
-      // 레벨 조건이 없으면 공명하는 개방현(−20 dB 아래)만으로 옥타브가 떨어진다 (리뷰 지적).
+      // 한 옥타브 위로 틀린 경우: f0/2 와 3f0/2 가 f0 피크에 견줄 만큼(−15/−20 dB 이내) 있어야 한다 — 공명 개방현만으로 떨어지지 않게
       if (present(f0 / 2) && present(f0 * 1.5) && peakNear(f0 / 2, 0.03).db >= p0 - 15 && peakNear(f0 * 1.5, 0.03).db >= p0 - 20) return f0 / 2
 
-      // ── f0 위쪽 배수 자리 조사 ──
-      // YIN 은 시간축 주기성만 본다. 두 음이 겹치면(중음) 합성 신호의 주기가 두 주파수의 최대공약수에서
-      // 생기고, YIN 은 연주되지 않은 그 '가상 기본음' 을 높은 신뢰도로 보고한다. 실측(바이올린 중음 12종):
-      // 완전5도 → 아래 음의 한 옥타브 밑, 장3도 → 두 옥타브 밑, 장6도·완전4도 → 그 사이.
-      // 핵심: 가상 기본음은 두 음 모두의 하위 배음이므로 **실제 음은 그 정수배 자리에 있다.**
+      // f0 위쪽 배수 자리 조사. 중음이면 YIN 은 두 음의 최대공약수(가상 기본음)를 내고, 실제 음은 그 정수배 자리에 있다
       const S: number[] = []
       for (let k = 1; k <= K_MAX; k++) { if (f0 * k >= sr / 2) break; if (present(f0 * k, 6)) S.push(k) }
-      if (S.length === 0) return f0 // 아무 근거 없음 — 호출부가 신뢰도로 처리한다
+      if (S.length === 0) return f0 // 근거 없음 — 호출부가 신뢰도로 처리한다
       const m = S[0]!
       if (m === 1) {
-        // YIN 이 실제 음 하나를 직접 잡았다. 그 음이 아래 성부일 수 있다 — 개방현이 공명하거나 먼저 시작해
-        // 아래 음이 크면 YIN 은 가상 기본음 대신 아래 음을 낸다(실측: 아래 음이 6배 크면 100 % 아래 음 표시).
-        // 단음의 배음은 정수배 자리에만 있으므로, f0 위쪽 **비정수 단순 비율** 자리의 강한 피크는 다른 음의 기본음이다.
-        // 가장 낮은 것이 그 음의 기본음(그 위는 그 음의 배음). 찾으면 위 성부를 돌려준다.
-        // 저음에서는 빈(11.7 Hz)이 굵어 이웃 비율(G3 의 6/5 와 5/4 는 10 Hz 차)이 같은 빈에 잡힌다.
-        // 그래서 '먼저 걸리는 비율' 이 아니라 **배음렬(2·3·4배)이 가장 잘 맞는 비율** 을 고른다 — 상위 배음은 빈 간격
-        // 대비 충분히 벌어져 구분된다. 주파수도 존재하는 가장 높은 배음에서 포물선 보간해 k 로 나눠 정밀도를 얻는다.
+        // YIN 이 실제 음 하나를 잡았고 그것이 아래 성부일 수 있다. f0 위쪽 비정수 단순 비율 자리의 강한 피크는 다른 음의 기본음.
+        // 저음은 빈이 굵어 이웃 비율이 같은 빈에 잡히므로, 먼저 걸리는 비율이 아니라 배음렬(2·3·4배)이 가장 잘 맞는 비율을 고른다
         let bestF = -1, bestScore = 0
         for (const r of UPPER_RATIOS) {
           const f = f0 * r; if (f >= sr / 2) break
           if (!present(f, 6)) continue
           const pf = peakNear(f, 0.03).db
           if (pf < maxDb - UPPER_DB) continue
-          // 후보가 다른 음의 배음이면 안 된다: YIN 이 *위* 음을 잡은 경우 아래 음의 2·3배음이 비정수 비율 자리에
-          // 나타난다(D4+A4 에서 f0=A4 면 D4 의 2배음 587 Hz 가 4/3 자리). 후보의 절반·⅓ 자리에 그에 견줄 피크가
-          // 있으면 후보는 배음이므로 건너뛴다. 진짜 위 성부의 절반 자리(아래 음보다 낮은 곳)에는 에너지가 없다.
+          // 후보의 절반·⅓ 자리에 견줄 피크가 있으면 후보는 아래 음의 배음이다 (YIN 이 위 음을 잡은 경우)
           if (peakNear(f / 2, 0.03).db >= pf - 6 || peakNear(f / 3, 0.03).db >= pf - 6) continue
-          // 저음에서는 ±1빈 창이 f0 자체나 그 옥타브 배음을 잡을 수 있다(C2 65 Hz 의 9/5 자리 창에 C3 130 Hz 가 걸림).
-          // 실제 피크로 보간한 값이 f0 의 정수배면 그것은 f0 의 배음이지 다른 음이 아니다 → 기각.
+          // 보간한 실제 피크가 f0 의 정수배면 f0 의 배음이지 다른 음이 아니다 (저음에서 ±1빈 창이 옥타브 배음을 잡는다)
           const fr = refine(f), kr = Math.round(fr / f0)
           if (kr >= 1 && Math.abs(fr / f0 - kr) < 0.03 * kr) continue
-          // 배음렬 점수. 단, 아래 음(f0)의 배음과 겹치는 자리는 증거가 못 되므로 뺀다 —
-          // 4/3 후보의 3배음(784 Hz)이 G3 의 4배음과 겹쳐 점수가 부풀던 것(실측: G3+B3 → C4 오답).
+          // 배음렬 점수. f0 의 배음과 겹치는 자리는 증거가 못 되므로 뺀다
           let score = 1
           for (let k = 2; k <= 4; k++) {
             const fk = f * k; if (fk >= sr / 2) break
@@ -162,31 +141,19 @@ const REL_DB = 40 // 배음으로 인정하려면 프레임 최대 피크 대비
           if (score > bestScore) { bestScore = score; bestF = f }
         }
         if (bestF > 0) { lastUpper = settle(bestF); setPair(f0, bestF); return lastUpper }
-        // 검출 실패. 직전에 확정한 위 성부가 아직 **약하게라도** 있으면(6 dB 문턱만) 유지한다 — 비브라토·활 바꿈으로
-        // 한두 프레임 UPPER_DB 아래로 내려가도 화면이 아래 음으로 떨어지지 않게. 완전히 사라지면 해제.
+        // 검출 실패: 직전 위 성부가 약하게라도(6 dB) 남아 있으면 유지 — 비브라토·활 바꿈에 아래 음으로 떨어지지 않게
         if (lastUpper > f0 * 1.04 && lastUpper < f0 * 1.96 && present(lastUpper, 6)) { setPair(f0, lastUpper); return settle(lastUpper) }
         lastUpper = -1
         return f0
       }
-      // 두 번째 배음렬 후보: m 의 배수가 아니면서 **m 과의 비율이 실제 중음 간격(옥타브 이내 단순 비율)** 인 자리.
-      // 이 제한이 없으면 우연히 걸린 높은 k(예: E3 기준 G3 의 6배음이 k=7 에 2 % 오차로 걸림 → 7/2 = 옥타브+5도)가
-      // 가짜 '두 번째 음' 이 되어 D6 같은 엉뚱한 음을 낸다. 10도 이상 벌어진 중음은 드물고, 그때는 아래 음을 보여준다.
+      // 두 번째 배음렬 후보: m 의 배수가 아니면서 m 과의 비율이 중음 간격(옥타브 이내 단순 비율)인 자리 — 우연한 높은 k 배제
       const other = S.find(k => k % m !== 0 && isUpperRatio(k / m))
-      // S 가 전부 m 의 배수 = 배음렬 하나 = 단음. 진짜 기본음은 m·f0 다.
-      // (m=1 이면 그대로. m=2 는 기존의 '한 옥타브 아래로 틀린 경우' 를 포함한다 —
-      //  기본음이 약한 저음현은 3f0 도 존재하므로 S 에 홀수가 들어가 여기 걸리지 않고 아래로 간다.)
+      // S 가 전부 m 의 배수 = 배음렬 하나 = 단음. 진짜 기본음은 m·f0
       if (other === undefined) { lastUpper = -1; return f0 * m }
-      // 정합성: 정당한 중음이라면 S 의 모든 자리가 m 또는 other 의 배수여야 한다.
-      // 그렇지 않은 자리(예: 5·7)가 있으면 이것은 두 배음렬이 아니라 f0 자체의 배음렬 —
-      // 기본음이 마이크 롤오프 등으로 6 dB 문턱 아래로 떨어진 **단음**이다(첼로 C2, 베이스 E1).
-      // 이 경우 f0 를 그대로 돌려준다(v2.0.0 동작 보존). 리뷰가 잡은 회귀: 이 검사가 없으면 C2 → G3.
-      // 단, 거부권은 **강한** 피크에만 준다(최대 피크 −VETO_DB 이내). 실제 중음에는 활 잡음·공명으로
-      // 문턱(6 dB)을 겨우 넘는 잡스러운 피크가 흔해서, 약한 피크까지 세면 실제 중음의 절반이 기각된다
-      // (실측: 가짜음 3.1 % → 8.1 % 로 역행). 약한 기본음 단음의 5·7배음은 진짜 배음이라 강하다.
+      // 정합성: m·other 의 배수가 아닌 강한 피크(최대 −VETO_DB 이내)가 있으면 기본음이 약한 단음의 배음렬이다 (첼로 C2) → f0 유지.
+      // 약한 피크까지 세면 활 잡음·공명 탓에 실제 중음의 절반이 기각된다
       if (S.some(k => k % m !== 0 && k % other !== 0 && peakNear(f0 * k, 0.03).db >= maxDb - VETO_DB)) { lastUpper = -1; return f0 }
-      // m 의 배수가 아닌 자리가 있다 = 배음렬이 둘 = 두 음이 겹쳤다. **위 성부(멜로디)** 를 돌려준다.
-      // 현악 중음에서 멜로디는 거의 항상 위쪽이고, 공명하는 개방현이 섞였을 때도 연주자가 보고 싶은 것은 위 음이다.
-      // m=1 경로도 같은 정책이므로 YIN 이 어느 쪽을 잡든 출력이 같다 — 그래서 별도의 '붙잡기' 상태가 필요 없다.
+      // 배음렬이 둘 = 두 음이 겹쳤다. 위 성부(멜로디)를 돌려준다 — m=1 경로와 같은 정책
       lastUpper = settle(f0 * other)
       setPair(f0 * m, f0 * other)
       return lastUpper

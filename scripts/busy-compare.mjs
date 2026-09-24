@@ -4,8 +4,6 @@
 //   npx tsx scripts/busy-compare.mjs --save  base.json          # 변경 전 기준 저장
 //   npx tsx scripts/busy-compare.mjs --compare base.json        # 변경 후 비교 (나빠진 칸에 ▲)
 //   옵션: --rec <dir>  실녹음 wav 폴더(리포 밖, 사용자 녹음) · --v1  리팩토링 전 v1 어댑터도 같이
-// 왜 (v2.0.3 계획 §0 G3): 한 자료에서 좋아 보인 수정이 다른 자료에서 나빠진 일이 있었다(H1-b).
-//     합성 7종 + 실녹음(있으면)을 **전부** 돌려 하나라도 나빠지면 채택하지 않는다.
 // 지표: 표시율 · 라벨 변화/초 · 0.1초 미만 스침/초 · 낼 수 없는 음(바이올린 솔3 미만) % · 트레이스에 그려지는 비율 %
 import { createAnalyzer } from '../www/src/core/pitch/analyzer.ts'
 import { TRACE_HELD_MAX } from '../www/src/core/trace.ts'
@@ -15,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, arr) => a.startsWith('--') ? [a.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true] : []).filter(Boolean))
-const WIN = 4096, HOP = 1024, REF = 442, RMS_MIN = .005 // v2.0.2 기본 감도('보통')
+const WIN = 4096, HOP = 1024, REF = 442, RMS_MIN = .005 // 기본 감도('보통')
 
 function readWav(p) {
   const d = readFileSync(p); let i = 12, sr = 48000, bits = 16, fmt = 1, ch = 1
@@ -64,7 +62,7 @@ const items = synth.map(n => ({ name: n, path: join(SIG, n + '.wav') }))
 if (typeof args.rec === 'string' && existsSync(args.rec)) {
   for (const f of readdirSync(args.rec).filter(f => /\.wav$/i.test(f) && !/^hum/.test(f))) {
     const p = join(args.rec, f)
-    // 긴 파일은 앞 60초만 (레전드 412초 전체는 너무 느리다 — 「작업 효율 규칙」)
+    // 긴 파일은 앞 60초만
     items.push({ name: 'rec:' + basename(f, '.wav').replace(/^[0-9a-f]{8}-_+/, ''), path: p, limitSec: 60 })
   }
 }
@@ -93,4 +91,4 @@ for (const [name, m] of Object.entries(result)) {
   console.log(`| ${name} | ${cells.join(' | ')} |`)
 }
 if (typeof args.save === 'string') { writeFileSync(args.save, JSON.stringify(result, null, 1)); console.log('\n저장:', args.save) }
-if (base) { console.log(worse ? `\n▲ 나빠진 칸 ${worse}개 — 채택 불가 (v2.0.3 계획 §0 G3)` : '\n회귀 없음 ✅'); process.exitCode = worse ? 1 : 0 }
+if (base) { console.log(worse ? `\n▲ 나빠진 칸 ${worse}개 — 채택 불가` : '\n회귀 없음 ✅'); process.exitCode = worse ? 1 : 0 }

@@ -1,9 +1,6 @@
 #!/usr/bin/env node
-// 메트로놈 클릭 레벨 실측 — v2.0.1 대 현재(v2.0.2). 앱과 **같은 코드**(core/metro/sequencer.ts)를 돌린다.
-// 사용: node scripts/click-level.mjs [--sr 48000]
-// 왜: "메트로놈이 작다"(실사용 피드백 A-2)를 고친 뒤, 얼마나 커졌는지 숫자로 남기기 위해.
-//     피크는 v2.0.1 도 이미 천장에 붙어 있었으므로 실제 이득은 **에너지(RMS)** 와 **고역 비중** 에서 온다.
-//     '고역강조 RMS' = 1차 차분 후 RMS — 저역을 거의 못 내는 폰 스피커의 체감에 대한 거친 근사.
+// 메트로놈 클릭 레벨 실측 — v2.0.1 클릭 대 현재 코드(core/metro/sequencer.ts). 사용: node scripts/click-level.mjs [--sr 48000]
+// '고역강조 RMS' = 1차 차분 후 RMS — 저역을 거의 못 내는 폰 스피커의 체감에 대한 거친 근사
 import { createSequencer, CLICK_DUR_S } from '../www/src/core/metro/sequencer.ts'
 import { softClip } from '../www/src/core/softclip.ts'
 

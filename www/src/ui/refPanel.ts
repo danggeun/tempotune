@@ -1,4 +1,4 @@
-/** 기준음 버튼(메뉴) + 튜너 헤더의 'A 듣기' — refToneStore 를 구독해 on 상태와 옥타브 숫자를 그린다. 라벨은 음이름 표기 설정을 따른다 */
+/** 기준음 버튼(메뉴) + 튜너 헤더의 'A 듣기'. 라벨은 음이름 표기 설정을 따른다 */
 import { refToneStore, settingsStore } from '../state/index.ts'
 import { toggleRefNote, adjRefOctave, toggleRefA } from '../audio/refTone.ts'
 import { KR, EN, type KrNote } from '../core/note.ts'

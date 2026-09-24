@@ -1,8 +1,6 @@
 /**
- * 메트로놈 — AudioWorklet 안에서 샘플 단위로 클릭을 생성한다 (설계서 §B6).
- * 메인 스레드는 패턴을 보내고 클릭 이벤트를 받을 뿐이다: 화면이 꺼져도, 백그라운드여도 박자가 흔들리지 않는다.
- * BPM/볼륨 변경은 다음 틱부터 반영(재시작 없음). 박자·세분 변경은 마디를 처음부터 다시 센다.
- * UI(접힘, 버튼, 비트 표시)는 ui/metro.ts 가 metroStore 를 구독해 처리한다.
+ * 메트로놈 — AudioWorklet 안에서 샘플 단위로 클릭을 생성한다. 메인 스레드는 패턴을 보내고 클릭 이벤트를 받을 뿐.
+ * BPM/볼륨 변경은 다음 틱부터 반영, 박자·세분 변경은 마디를 처음부터 다시 센다.
  */
 import { metroStore, sessionStore, settingsStore, CFG, type SubDiv, type TimeSig } from '../state/index.ts'
 import { totalTicks as _totalTicks } from '../core/metro/sequencer.ts'
@@ -28,19 +26,15 @@ async function ensureNode(): Promise<AudioWorkletNode> {
     const n = new AudioWorkletNode(ac, 'gp-metro', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] })
     n.port.onmessage = (e: MessageEvent) => {
       const m = e.data; if (m?.type !== 'click' || !metroStore.get().playing) return
-      if (m.t < ac.currentTime - 0.1) return // 백그라운드에서 밀린 과거 이벤트는 버림 (복귀 시 플래시 폭주 방지)
-      // 시각 피드백은 실제 스피커 재생 시각에 맞춘다: Android 는 outputLatency(40–100 ms) ≫ baseLatency
+      if (m.t < ac.currentTime - 0.1) return // 백그라운드에서 밀린 과거 이벤트는 버림
+      // 시각 피드백은 실제 스피커 재생 시각에 맞춘다 — Android 는 outputLatency(40–100 ms) ≫ baseLatency
       const outLat = (ac as AudioContext & { outputLatency?: number }).outputLatency || ac.baseLatency || 0
       const delay = Math.max(0, (m.t - ac.currentTime + outLat) * 1000)
       setTimeout(() => { if (metroStore.get().playing) metroStore.set({ lastTick: { tick: m.tick, n: ++tickN } }) }, delay)
-      // 클릭이 스피커→마이크로 누설되는 구간을 워커에 알린다 (해당 창은 신뢰도를 낮춰 처리). 클릭이 마이크에 닿는 시각(t + 출력지연)부터
-      // 클릭 길이 + 여유(60 ms)까지 — 창 겹침 93 ms 가 더해지므로 여유를 크게 주면 빠른 템포에서 모든 창이 걸린다.
-      // **입력 지연**(마이크 쪽, 표준 API 없음)은 여기서 모른다 — 워커가 실제 도착 시각을 재서 구간을 그만큼 민다 (M1, core/metro/arrival.ts)
+      // 클릭 누설 구간 = 마이크 도착 시각(t + 출력지연) ~ 클릭 길이 + 60 ms. 여유를 더 주면 빠른 템포에서 모든 창이 걸린다
       if (micOpen() && !m.muted) { const at = m.t + outLat; muteAnalysis(at - 0.01, at + m.dur + 0.06, at) }
     }
-    // 소프트 리미터를 한 단 둔다 (A-2). 클릭을 키우면 세분음 꼬리와 다음 박이 겹치는 순간, 그리고 어택
-    // 트랜지언트에서 합이 1.0 을 넘을 수 있다 — 하드 클리핑은 폰 스피커에서 유난히 거칠게 들린다.
-    // 무릎(0.7) 아래는 완전한 항등 함수라 평소 음색은 그대로다.
+    // 소프트 리미터 — 클릭 꼬리 겹침·어택에서 합이 1.0 을 넘을 수 있다. 무릎(0.7) 아래는 항등
     const shaper = ac.createWaveShaper(); shaper.curve = softClipCurve(); shaper.oversample = '2x'
     n.connect(shaper); shaper.connect(ac.destination)
     n.port.postMessage({ type: 'pattern', pattern: pattern() })

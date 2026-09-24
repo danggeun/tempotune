@@ -2,7 +2,6 @@
 // UX 후보 비교 캡처 — 여러 dist(디자인 후보)를 같은 시나리오(마이크 WAV 주입)로 찍어 나란히 비교한다.
 // 사용: node scripts/ux-compare.mjs --out /tmp/ux --variant cur=dist-cur --variant v1=dist-v1 --variant v2=dist-v1:/tmp/v2.css
 //   variant 형식: 이름=dist경로[:오버라이드CSS경로]  (오버라이드는 페이지에 <style> 로 주입)
-// 왜: 색·경계·크기 후보를 말로 비교하지 않고 실제 화면(음 맞음/틀림, 녹음 목록, 편집기, 설정)으로 본다.
 import { chromium } from 'playwright'
 import { waitForServer } from './lib/wait-server.mjs'
 import { mkdirSync, existsSync, readFileSync } from 'node:fs'

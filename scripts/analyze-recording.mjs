@@ -1,12 +1,7 @@
 #!/usr/bin/env node
-// 라벨 없는 실제 녹음 진단 — 합성 신호로는 드러나지 않는 실패를 잡기 위한 도구.
-//
-// 왜 별도 도구인가: bench.mjs 는 정답(JSON 라벨)이 있어야 점수를 낸다. 실제 연주 녹음에는 라벨이 없다.
-// 대신 "물리적으로 불가능한 출력" 과 "스펙트럼에 없는 음" 은 라벨 없이도 판정할 수 있다.
-// 이 도구가 바이올린 더블스톱에서 가짜음 23.7 % 를 찾아냈다 (docs 실측 발견 B1·B2).
-//
+// 라벨 없는 실제 녹음 진단 — "물리적으로 불가능한 출력" 과 "스펙트럼에 없는 음" 은 라벨 없이도 판정할 수 있다.
 // 사용: node --experimental-strip-types scripts/analyze-recording.mjs <wav> [--lo G3] [--hi E7] [--json out.json]
-//   --lo/--hi  악기의 물리적 음역. 이 밖의 출력은 무조건 오류다. 생략하면 음역 검사를 건너뛴다.
+//   --lo/--hi  악기의 물리적 음역. 생략하면 음역 검사를 건너뛴다.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createYinFast } from '../www/src/core/pitch/yinFast.ts'
 import { createSpectrum } from '../www/src/core/pitch/spectrum.ts'

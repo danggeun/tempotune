@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-// 중음(더블스톱) 표시 전/후 렌더 — 실제 앱·실제 카드에 프레임을 주입해 그림으로 비교한다 (B17).
+// 중음(더블스톱) 표시 전/후 렌더 — 실제 앱·실제 카드에 프레임을 주입해 그림으로 비교한다.
 // 사용: node scripts/render-dual.mjs [--dist dist] [--out test-assets/dual] [--port 4177]
-// 왜: "아래 음을 28 ¢ 틀리게 짚었는데 화면이 0 ¢ · 초록으로 완벽이라 말한다" 를 전/후 그림으로 증명한다.
-//     '전'(v2.0.1) 은 같은 소리에서 둘째 성부를 주입하지 않은 화면 = 그때의 실제 화면과 같다.
 import { chromium } from 'playwright'
 import { waitForServer } from './lib/wait-server.mjs'
 import { mkdirSync, existsSync, writeFileSync } from 'node:fs'
@@ -24,7 +22,7 @@ await waitForServer(`http://localhost:${PORT}/`)
 
 const exe = process.env.CHROMIUM_PATH || undefined
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${join(SIG, 'silence_lowfloor.wav')}%noloop`, '--autoplay-policy=no-user-gesture-required'] })
-/** 패널마다 새 컨텍스트 — 살아 있는 분석기 프레임과 섞이지 않게 (render-trace.mjs 와 같은 이유) */
+/** 패널마다 새 컨텍스트 — 살아 있는 분석기 프레임과 섞이지 않게 */
 async function shot(name, frames) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: 'dark', permissions: ['microphone'] })
   const page = await ctx.newPage()

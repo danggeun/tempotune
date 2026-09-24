@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // 튜너 벤치마크 — test-assets/signals/*.wav 를 알고리즘 어댑터에 흘려 지표를 낸다.
 // 사용: node scripts/bench.mjs [--adapters v1,v1skip4] [--out test-assets/bench/result.md] [--json out.json]
-// 왜: "다운그레이드 없음"을 수치로 증명하기 위해. 매 PR에서 이 표를 비교한다.
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +15,7 @@ const ADAPTERS = {
   v1: sr => createV1({ sampleRate: sr }),
   v1skip4: sr => createV1({ sampleRate: sr, skip: 4 }),
 }
-// 이후 단계에서 등록: v2 (core/pitch)
+// v2 (core/pitch) 어댑터는 있을 때만 등록
 try { const m = await import('./lib/adapter-v2.mjs'); Object.assign(ADAPTERS, m.adapters) } catch (e) { if (!/Cannot find module/.test(e.message)) throw e }
 
 const HOP = 1024, STEADY_SKIP = 0.15 // 온셋 후 0.15 s 이후를 정상 상태로 간주
@@ -50,8 +49,7 @@ function runFile(adapterFactory, wavPath) {
   // 지표
   const centsErr = [], falseNote = [], playTP = [], playFP = [], playFN = [], ms = []
   const harmKinds = new Map() // 어떤 배음 관계로 틀렸는지 (진단용)
-  // 정상상태 프레임을 세 갈래로 분할한다 (합 = steadyN): 맞음(centsErr) · 배음 오류(harmN) · 표시 없음(missN).
-  // 세 비율이 같은 분모를 쓰지 않으면 배음 오류가 늘 때 누락률이 함께 부풀어 오독을 부른다.
+  // 정상상태 프레임을 세 갈래로 분할한다 (합 = steadyN): 맞음(centsErr) · 배음 오류(harmN) · 표시 없음(missN) — 세 비율은 같은 분모
   let steadyN = 0, harmN = 0, missN = 0
   const lockLat = []; let nonPlayFrames = 0
   for (const s of exp.segments) {
@@ -63,7 +61,7 @@ function runFile(adapterFactory, wavPath) {
         const ok = k => fs[i + k].hz > 0 && hzToMidi(fs[i + k].hz) === hzToMidi(expectedHz(s, fs[i + k].t))
         if (ok(0) && ok(1) && ok(2)) { lat = fs[i].t - s.t0; break }
       }
-      if (!s.gliss) lockLat.push(lat == null ? (s.t1 - s.t0) : lat) // 글리산도는 '락' 정의가 무의미 (리뷰)
+      if (!s.gliss) lockLat.push(lat == null ? (s.t1 - s.t0) : lat) // 글리산도는 '락' 정의가 무의미
     }
   }
   for (const f of frames) {
@@ -75,8 +73,7 @@ function runFile(adapterFactory, wavPath) {
       if (f.t - s.t0 >= STEADY_SKIP) {
         steadyN++
         if (shown) {
-          // 배음/하위배음 관계 오류는 '센트 오차' 가 아니라 별도 종류의 실패다 (실측 발견 B3).
-          // 이전에는 ±1옥타브만 셌고 나머지(2옥타브·⅓ 등)가 −2400 ¢ 같은 값으로 센트 통계를 오염시켰다.
+          // 배음/하위배음 관계 오류는 센트 통계에서 제외한다
           const rel = harmonicRel(f.hz, eh)
           if (rel) { harmN++; harmKinds.set(rel, (harmKinds.get(rel) ?? 0) + 1) }
           else centsErr.push(1200 * Math.log2(f.hz / eh))
@@ -107,10 +104,10 @@ function runFile(adapterFactory, wavPath) {
 
 const f = v => Number.isNaN(v) ? '—' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1))
 function summarize(rows) {
-  // 종류(kind)별 중앙값을 먼저 구하고 그 중앙값들의 중앙값 — 2초 단음 파일 20개가 요약을 지배하지 않도록 (리뷰)
+  // 종류(kind)별 중앙값을 먼저 구하고 그 중앙값들의 중앙값 — 단음 파일 수가 요약을 지배하지 않도록
   const kinds = [...new Set(rows.map(r => r.kind))]
   const by = k => kinds.map(kind => median(rows.filter(r => r.kind === kind).map(r => r[k]).filter(v => !Number.isNaN(v)))).filter(v => !Number.isNaN(v))
-  // 파일 간 요약은 중앙값 (snr0 같은 극단 스트레스 파일이 평균을 지배하지 않도록). 표는 파일별 상세를 그대로 보여준다.
+  // 파일 간 요약은 중앙값 — 극단 스트레스 파일이 평균을 지배하지 않도록
   return { centsBiasAbs: median(by('centsBias').map(Math.abs)), centsP90: median(by('centsP90')), missingPct: median(by('missingPct')), harmPct: median(by('harmPct')), falseNotePct: median(by('falseNotePct')), lockMs: median(by('lockMs')), playF1: median(by('playF1')), timeErrPct: median(by('timeErrPct')), msP95: pct(by('msP95'), .95) }
 }
 

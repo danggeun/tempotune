@@ -1,24 +1,13 @@
-/**
- * 설정 영속화 (localStorage). 스키마 v2 + v1 마이그레이션.
- * 결정: v1의 7일 TTL(bpm/박자 초기화)은 근거가 없어 제거 (진행 상태 문서 결정 로그 2026-09-05).
- */
+/** 설정 영속화 (localStorage). 스키마 v2 + v1 마이그레이션 */
 import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, V201_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
 
 export const SETTINGS_KEY = 'tempotune_settings_v1'
-export const LEGACY_SETTINGS_KEYS = ['gopractice_settings_v1', 'gp_mic_intro'] // v2.1.0 이름 변경 전. 버리고 간다 (persist/legacy.ts)
+export const LEGACY_SETTINGS_KEYS = ['gopractice_settings_v1', 'gp_mic_intro'] // 이름 변경 전 키 — persist/legacy.ts 가 지운다
 
 type StoredV2 = { v: 2 } & Settings
 interface StoredV1 { cents?: number; rms?: number; smooth?: number; wakelock?: boolean; bpm?: number; timeSig?: number; subDiv?: number | string; refHz?: number; vol?: number; savedAt?: number }
 
-/**
- * 저장된 감도 값 → 현재 단계 값. **숫자가 아니라 '사용자가 고른 단계'를 옮긴다** (B8).
- * 이전 코드는 현재 값 목록과 0.001 안에서만 맞춰 걸렀는데, 그러면 옛 값이 전부 버려져 기본값으로 리셋됐고
- * `.015` 만 부동소수 오차(|.014 − .015| = 0.0009999…)로 통과해 **단계에 없는 값**이 들어왔다.
- *
- * ★ 어느 표를 볼지는 **저장 키**로 정한다. v1 의 `rms` 와 v2 의 `rmsMin` 은 값 범위가 겹치기 때문이다 —
- *   `.005` 는 v1 의 '높음' 이면서 v2.0.2 의 '보통' 이고, `.010` 은 v1 의 '보통' 이면서 v2.0.2 의 '낮음' 이다.
- *   키를 무시하고 값만 보면 단계가 한 칸씩 밀린다.
- */
+/** 저장된 감도 값 → 현재 단계 값. 숫자가 아니라 단계(인덱스)를 옮긴다. 표는 저장 키로 고른다 — v1 rms 와 v2 rmsMin 은 값 범위가 겹친다 */
 function rmsStep(v: unknown, tables: ReadonlyArray<ReadonlyArray<number>>): number | null {
   if (typeof v !== 'number' || !isFinite(v)) return null
   for (const table of tables) {
@@ -31,9 +20,9 @@ function rmsStep(v: unknown, tables: ReadonlyArray<ReadonlyArray<number>>): numb
 const V2_TABLES = [RMS_LEVELS, V201_RMS_LEVELS]
 /** v1 키(`rms`): v1 값만 */
 const V1_TABLES = [V1_RMS_LEVELS]
-function isTimeSig(v: unknown): v is TimeSig { return v === 1 || v === 2 || v === 3 || v === 4 || v === 6 } // 1 = 정박 모드(K3) — 빠지면 새로고침에 풀린다
+function isTimeSig(v: unknown): v is TimeSig { return v === 1 || v === 2 || v === 3 || v === 4 || v === 6 } // 1 = 정박 모드 — 빠지면 새로고침에 풀린다
 function isSubDiv(v: unknown): v is SubDiv { return v === 1 || v === 2 || v === 3 || v === 4 || v === 'd' }
-const clampBpm = (v: number) => Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, Math.round(v))) // v1 은 setBPM 이 클램프했다; 음수 BPM 은 스케줄러 무한루프
+const clampBpm = (v: number) => Math.max(CFG.metro.bpmMin, Math.min(CFG.metro.bpmMax, Math.round(v))) // 음수 BPM 은 스케줄러 무한루프
 
 /** 저장된 값 → Settings 부분 객체. 알 수 없는/깨진 값은 무시(기본값 유지). */
 export function parseStored(raw: string | null): Partial<Settings> {
@@ -42,7 +31,7 @@ export function parseStored(raw: string | null): Partial<Settings> {
   try { d = JSON.parse(raw) } catch { return {} }
   if (!d || typeof d !== 'object') return {}
   const out: Partial<Settings> = {}
-  // 값 범위도 검증한다 — 손상된 저장값(refHz 1000 등)이 분석기 전체를 틀리게 하지 않게 (리뷰)
+  // 값 범위도 검증한다 — 손상된 저장값(refHz 1000 등)이 분석기 전체를 틀리게 하지 않게
   const num = (v: unknown, lo: number, hi: number): number | null => typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : null
   const tol = (v: unknown): number | null => (typeof v === 'number' && [5, 10, 15, 20, 25].includes(v)) ? v : null
   if ((d as StoredV2).v === 2) {
@@ -58,16 +47,12 @@ export function parseStored(raw: string | null): Partial<Settings> {
     { const v = num(s.metroVol, 0, 1); if (v !== null) out.metroVol = v }
     if (s.noteNames === 'ko' || s.noteNames === 'en') out.noteNames = s.noteNames
     if (typeof s.autoDelete === 'boolean') out.autoDelete = s.autoDelete
-    if (out.timeSig === 6) out.subDiv = 1 // 6/8 은 세분 없음 — 따로 저장된 옛 값이 시퀀서·스윕을 어긋나게 했다 (감사 B7)
+    if (out.timeSig === 6) out.subDiv = 1 // 6/8 은 세분 없음 — 따로 저장된 옛 값이 시퀀서·스윕을 어긋나게 한다
     return out
   }
-  // v1 (main.js 시절) — 값 검증은 v1 loadSettings와 동일
+  // v1 스키마
   const s = d as StoredV1
   { const v = tol(s.cents); if (v !== null) out.tolCents = v }
-  // 감도는 v1 값(.015/.010/.005)을 **단계 인덱스로** 옮긴다 (B8 부수 결함).
-  // 이전 코드는 `RMS_LEVELS.some(|v−rms| < .001)` 로 걸렀는데 v1 값은 어느 v2 단계와도 맞지 않아
-  // 사실상 전부 버려졌고(기본값으로 리셋), .015 는 부동소수 오차로 통과해 **단계에 없는 값**이 그대로 들어왔다
-  // (|.014 − .015| = 0.0009999… < .001). 설정 화면에서는 아무 단계도 선택돼 보이지 않는 상태가 된다.
   { const v = rmsStep(s.rms, V1_TABLES); if (v !== null) out.rmsMin = v }
   if (s.smooth) { const V1_SMOOTH = [.05, .10, .15]; const i = V1_SMOOTH.findIndex(v => Math.abs(v - s.smooth!) < .001); if (i >= 0) out.smoothing = SMOOTH_LEVELS[i]! }
   if (s.wakelock != null) out.wakeLock = !!s.wakelock

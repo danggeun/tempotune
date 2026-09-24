@@ -1,19 +1,11 @@
-/**
- * 플랫폼 분기 (웹 / Capacitor Android). 나머지 코드는 이 모듈의 함수만 호출한다.
- */
+/** 플랫폼 분기 (웹 / iOS 웹 / Capacitor Android). 나머지 코드는 이 모듈의 함수만 호출한다 */
 declare global { interface Window { Capacitor?: unknown } }
 
 export const isNative = (): boolean => typeof window !== 'undefined' && !!window.Capacitor
 
-/**
- * iOS / iPadOS 인가. **여기서만** UA 를 본다.
- * 왜 UA 인가: 고쳐야 하는 것이 "`<a download>` 가 조용히 실패한다" 인데 그건 기능 검출로 알 수 없다
- * (`navigator.canShare({files})` 는 안드로이드·데스크톱에서도 true 라 구분이 안 된다). 그래서 공유 시트를
- * **iOS 에서만** 쓴다 — 다른 플랫폼의 즉시 다운로드 동작은 그대로 둔다 (기존 기능 유지).
- * iPadOS 13+ 는 'MacIntel' 로 위장하므로 터치 포인트로 가른다.
- */
 /** Safari(iOS 포함). 크로미움계는 UA 에 Chrome/CriOS 가 있다 */
 export const isSafari = (): boolean => typeof navigator !== 'undefined' && /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|Chromium|Edg|FxiOS/.test(navigator.userAgent)
+/** iOS / iPadOS. UA 를 보는 유일한 곳 — iPadOS 13+ 는 'MacIntel' 로 위장하므로 터치 포인트로 가른다 */
 export const isIOS = (): boolean => {
   if (typeof navigator === 'undefined') return false
   const p = navigator.platform || ''
@@ -25,40 +17,36 @@ export function initStatusBar(): void {
   if (!isNative()) return
   document.body.classList.add('capacitor')
   import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-    // 앱은 다크 고정이므로 시스템 테마를 따라가지 않는다 (style.css :root 주석 참고)
+    // 앱은 다크 고정 — 시스템 테마를 따라가지 않는다
     StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-    StatusBar.setBackgroundColor({ color: '#0f0f0f' }).catch(() => {}) // Android 15 엣지투엣지에서는 무시됨 (투명 상태바) — 스타일만 유효
+    StatusBar.setBackgroundColor({ color: '#0f0f0f' }).catch(() => {}) // Android 15 엣지투엣지에서는 무시됨 (투명 상태바)
   }).catch(() => {})
 }
 
-// ── Android 뒤로가기 ──
 /** 앱에서 뒤로가기: handler 가 true 를 돌려주면 소비, 아니면 앱을 백그라운드로 (종료 대신) */
 export function onBackButton(handler: () => boolean): void {
   if (!isNative()) return
   import('@capacitor/app').then(({ App }) => { void App.addListener('backButton', () => { if (!handler()) void App.minimizeApp() }) }).catch(() => {})
 }
 
-// ── 화면 켜짐 유지 ──
+// 화면 켜짐 유지
 let wakeLock: WakeLockSentinel | null = null, wakeGen = 0
 let wakeWarned = false, wakeWarn: ((m: string) => void) | null = null
 export function onWakeLockUnsupported(fn: (m: string) => void): void { wakeWarn = fn }
-/**
- * iOS 웹은 첫 요청에 DOM 탭(transient activation)이 필요하다 — WebKit WakeLock.cpp. 그래서 main.ts 가 아이폰 첫 실행을 시작 버튼으로 받고
- * 그 핸들러에서 await 전에 이걸 부른다(요청 자체는 동기). 실패는 삼킨다: 저전력 모드·백그라운드·활성화 없음 — 다음 syncWake 에서 다시 시도된다.
- */
+/** iOS 웹은 첫 요청에 DOM 탭(transient activation)이 필요 — 탭 핸들러에서 await 전에 부른다. 실패는 삼킨다(다음 syncWake 에서 재시도) */
 export async function acquireWakeLock(): Promise<void> {
-  if (wakeLock && !wakeLock.released) return // 이미 쥐고 있으면 다시 요청하지 않는다 — 앞의 센티널을 놓지 못해 새는 것을 막는다 (R7)
+  if (wakeLock && !wakeLock.released) return // 이미 쥐고 있으면 다시 요청하지 않는다 — 앞의 센티널이 샌다
   if (!('wakeLock' in navigator)) { if (!wakeWarned) { wakeWarned = true; wakeWarn?.('이 브라우저는 화면 켜짐 유지를 지원하지 않아요') } return }
   const gen = ++wakeGen
   try {
     const s = await navigator.wakeLock.request('screen')
-    if (gen !== wakeGen) { s.release().catch(() => {}); return } // 기다리는 사이 release 가 왔다 — 고아 센티널을 쥐지 않는다 (감사)
+    if (gen !== wakeGen) { s.release().catch(() => {}); return } // 기다리는 사이 release 가 왔다 — 고아 센티널을 쥐지 않는다
     wakeLock = s
-  } catch { /* 위 주석 */ }
+  } catch { /* 저전력 모드·백그라운드·활성화 없음 */ }
 }
-export function releaseWakeLock(): void { wakeGen++; wakeLock?.release().catch(() => {}); wakeLock = null } // catch: 이미 풀린 센티널·문서 상태에 따라 reject 할 수 있다
+export function releaseWakeLock(): void { wakeGen++; wakeLock?.release().catch(() => {}); wakeLock = null } // 이미 풀린 센티널은 reject 할 수 있다
 
-// ── 전체화면 (웹 전용) ──
+// 전체화면 (웹 전용)
 export function toggleFullscreen(onUnsupported: () => void): void {
   if (isNative()) return
   const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
@@ -73,25 +61,19 @@ export function toggleFullscreen(onUnsupported: () => void): void {
   }
 }
 
-// ── 파일 저장 ──
-/** 사용자 이름에서 경로 문자·제어 문자를 제거 (하위 폴더로 새거나 실패하지 않게) */
+// 파일 저장
+/** 사용자 이름에서 경로 문자·제어 문자를 제거 */
 export function sanitizeFileName(name: string): string {
   const cleaned = name.replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').replace(/\.{2,}/g, '.').trim().replace(/^\.+/, '')
   return (cleaned || 'recording').slice(0, 120)
 }
 const toBase64 = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] ?? ''); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
-/**
- * 파일을 사용자에게 건넨다. 웹: 브라우저 다운로드. Android 앱: 캐시에 쓰고 공유 시트(파일 앱·드라이브 등으로 저장).
- * WebView 의 <a download> 는 동작하지 않는 경우가 많아(설계서 §D1) 네이티브 경로를 쓴다.
- */
+/** 파일을 사용자에게 건넨다. 웹: 다운로드, iOS: 공유 시트, Android 앱: 캐시에 쓰고 공유 시트(WebView 의 <a download> 는 동작하지 않는다) */
 export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     if (!isNative()) {
       const safe = sanitizeFileName(name)
-      // iOS: 공유 시트로 건넨다 (B13). `<a download>` 는 홈 화면 PWA 에서 조용히 실패하고, 성공해도 '파일' 앱
-      // 안에만 남아 다른 앱으로 보내기가 번거롭다. 공유 시트는 파일에 저장·AirDrop·메시지·카톡이 한 번에 열린다
-      // — 안드로이드 앱 경로(Share 플러그인)와 사용자 경험도 같아진다.
-      // 제스처 만료 주의: 이 함수는 클릭 핸들러에서 await 없이 바로 호출돼야 한다(호출부가 그렇게 되어 있다).
+      // iOS: <a download> 는 홈 화면 PWA 에서 조용히 실패한다 → 공유 시트. 클릭 핸들러에서 await 없이 바로 호출돼야 한다(제스처 만료)
       if (isIOS()) {
         const file = new File([blob], safe, { type: blob.type || 'application/octet-stream' })
         const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
@@ -99,8 +81,7 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
           try { await navigator.share({ files: [file], title: safe }); return { ok: true } }
           catch (e) {
             if (e instanceof Error && e.name === 'AbortError') return { ok: true } /* 취소는 오류가 아니다 */
-            // 홈 화면 앱에서는 <a download> 폴백이 **조용히 아무것도 안 한다** — ok:true 로 돌려주면 "저장" 눌렀는데 무반응이 된다 (감사 A3).
-            // 사파리 탭에서는 다운로드가 되므로 그때만 폴백한다
+            // 홈 화면 앱에서는 <a download> 폴백이 조용히 아무것도 안 한다 — 사파리 탭에서만 폴백
             if ((navigator as Navigator & { standalone?: boolean }).standalone) return { ok: false, error: '공유 창을 열지 못했어요 — 다시 탭해주세요' }
           }
         }
@@ -111,7 +92,7 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
     }
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])
     const safe = sanitizeFileName(name)
-    // 이전 공유 파일 정리 (캐시에 50 MB 씩 쌓이지 않게)
+    // 이전 공유 파일 정리 — 캐시에 쌓이지 않게
     await Filesystem.rmdir({ path: 'tempotune', directory: Directory.Cache, recursive: true }).catch(() => {})
     await Filesystem.mkdir({ path: 'tempotune', directory: Directory.Cache, recursive: true }).catch(() => {})
     // 큰 파일은 1 MB 씩 나눠 쓴다 — base64 문자열 한 덩어리로 브리지를 건너면 ANR/OOM
@@ -131,5 +112,5 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
   }
 }
 
-/** 폰 레이아웃 여부 (v1: window.innerWidth<700) */
+/** 폰 레이아웃 여부 */
 export const isPhoneLayout = (): boolean => window.innerWidth < 700

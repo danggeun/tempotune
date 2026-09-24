@@ -8,10 +8,7 @@ const FADE_MS = 260
 type Slot = { el: HTMLDivElement; timer: ReturnType<typeof setTimeout>; msg: string; actionable: boolean }
 const slots: Slot[] = []
 
-/**
- * 넘칠 때 내보낼 항목의 인덱스 — 액션이 없는 가장 오래된 것 우선, 전부 액션이면 가장 오래된 것.
- * 액션 토스트(실행 취소)는 사용자가 누를 기회를 잃으면 데이터가 사라지므로 가장 늦게 밀어낸다. 순수.
- */
+/** 넘칠 때 내보낼 인덱스 — 액션 없는 가장 오래된 것 우선(액션 토스트는 놓치면 데이터가 사라진다), 전부 액션이면 가장 오래된 것 */
 export function evictIndex(actionable: readonly boolean[]): number {
   if (!actionable.length) return -1
   const i = actionable.indexOf(false)
@@ -19,7 +16,7 @@ export function evictIndex(actionable: readonly boolean[]): number {
 }
 
 function markLatest(): void {
-  // 가장 최근 토스트가 #toast — 기존 선택자(e2e·문서)가 "지금 뜬 토스트" 를 가리키도록 유지
+  // 가장 최근 토스트가 #toast — e2e 선택자가 "지금 뜬 토스트" 를 가리킨다
   for (const s of slots) s.el.removeAttribute('id')
   const last = slots[slots.length - 1]
   if (last) last.el.id = 'toast'
@@ -36,7 +33,7 @@ function drop(s: Slot): void {
 
 /** 토스트. action 이 있으면 토스트를 탭할 때 실행된다 (예: 삭제 실행 취소) */
 export function toast(msg: string, ms = 2500, action?: () => void): void {
-  // 같은 안내가 연달아 오면 쌓지 않고 시간만 연장 (액션 토스트는 각각이 서로 다른 항목을 되살리므로 제외)
+  // 같은 안내가 연달아 오면 시간만 연장. 액션 토스트는 각각 다른 항목을 되살리므로 제외
   if (!action) {
     const same = slots.find(s => s.msg === msg && !s.actionable)
     if (same) { clearTimeout(same.timer); same.timer = setTimeout(() => drop(same), ms); return }

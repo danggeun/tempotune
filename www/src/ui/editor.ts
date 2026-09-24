@@ -1,8 +1,6 @@
 /**
- * 녹음 편집 페이지 — 재생/시크, 속도, A-B 구간·반복, 북마크, A-B WAV 저장.
- * Phase 4: 북마크·A-B 는 녹음과 함께 IndexedDB 에 저장되고(다시 열면 그대로), 트랙에 파형이 그려진다.
- * 파형은 디자인 언어 안에서: 모노톤(--line/--text-2), A-B 구간만 빨강 틴트. 파형 피크는 처음 열 때 계산해 저장한다.
- * Phase 6: 반복 3상태(꺼짐/켜짐/1s 앞 — 활을 준비할 시간), 속도 프리셋 탭 순환 + 녹음별 기억, 일시정지 글리프 ❚❚, 진입 페이드.
+ * 녹음 편집 페이지 — 재생/시크, 속도, A-B 구간·반복, 북마크, 파형, A-B WAV 저장.
+ * 북마크·A-B·속도·파형 피크는 녹음 항목과 함께 IndexedDB 에 저장된다.
  */
 import { fmtT } from '../core/format.ts'
 import { bufToWav } from '../core/wav.ts'
@@ -21,7 +19,7 @@ import { attachSwipeBack } from './swipeBack.ts'
 interface EdState {
   idx: number; item: RecItem | null; audio: HTMLAudioElement | null
   ptA: number | null; ptB: number | null
-  /** 0 꺼짐 · 1 켜짐(A 부터) · 2 켜짐, A 보다 1 s 앞에서 (프리롤) */
+  /** 0 꺼짐 · 1 켜짐(A 부터) · 2 켜짐, A 보다 1 s 앞에서(프리롤) */
   loop: 0 | 1 | 2; bookmarks: number[]
   dragging: 'pos' | 'a' | 'b' | null
   readyTimeout: ReturnType<typeof setTimeout> | null
@@ -29,7 +27,7 @@ interface EdState {
 }
 const ed: EdState = { idx: -1, item: null, audio: null, ptA: null, ptB: null, loop: 0, bookmarks: [], dragging: null, readyTimeout: null, handlers: null }
 
-// ── 시간 ↔ 트랙 위치 매핑. 기본은 전체, '구간 확대' 면 [A−2 s, B+2 s] 창 (긴 녹음에서 4마디 구간이 18 px 로 뭉개지지 않게, 리뷰)
+// 시간 ↔ 트랙 위치 매핑. 기본은 전체, '구간 확대' 면 [A−2 s, B+2 s] 창
 let view: { t0: number; t1: number } | null = null
 const ZOOM_PAD = 2
 function viewRange(): { t0: number; t1: number } { const d = dur(); return view && view.t1 > view.t0 ? view : { t0: 0, t1: d || 1 } }
@@ -43,13 +41,12 @@ function setZoom(on: boolean): void {
   updateHandles(); renderBmTicks(); if (ed.audio) setPosUI(ed.audio.currentTime); requestWave()
 }
 function updateZoomBtn(): void { const ok = ed.ptA !== null && ed.ptB !== null; q('ed-zoom-btn').classList.toggle('dim', !ok); if (!ok && view) setZoom(false) }
-// Chromium 은 MediaRecorder webm 의 duration 을 끝까지 seek 하기 전까지 Infinity 로 보고한다(crbug 642012).
-// 그러면 A-B/북마크/진행바가 전부 멈추므로 녹음 시 잰 길이(item.dur)로 폴백한다. 정확한 길이는 loadedmetadata 에서 seek 트릭으로 얻는다.
+// Chromium 은 MediaRecorder webm 의 duration 을 끝까지 seek 하기 전까지 Infinity 로 본다(crbug 642012) → item.dur 폴백
 const dur = () => (ed.audio && isFinite(ed.audio.duration) && ed.audio.duration > 0) ? ed.audio.duration : (ed.item?.dur ?? 0)
 export const PREROLL_SEC = 1
 /** 반복 시작점: 프리롤이면 A−1 s (0 아래로는 안 감) */
 const loopStart = () => ed.ptA === null ? 0 : (ed.loop === 2 ? Math.max(0, ed.ptA - PREROLL_SEC) : ed.ptA)
-// 편집기의 정지는 위치를 유지하는 '일시정지' — 메트로놈의 ■(진짜 정지)와 구분해 ❚❚ (UX 감사 D8). 글리프 크기는 .playing 클래스로 CSS 가 맞춘다
+// 편집기의 정지는 위치를 유지하는 일시정지 ❚❚. 글리프 크기는 .playing 클래스로 CSS 가 맞춘다
 function setPlayGlyph(playing: boolean): void { const b = q('ed-play-btn'); b.textContent = playing ? PAUSE_GLYPH : PLAY_GLYPH; b.classList.toggle('playing', playing) }
 const SPEED_PRESETS = [1.0, 0.5, 0.7, 0.85]
 
@@ -63,7 +60,7 @@ function onTimeUpdate(): void {
   const d = dur(); if (!d) return
   setPosUI(ed.audio.currentTime)
 }
-// A-B 반복은 timeupdate(≈4 Hz, 최대 250 ms 늦음)가 아니라 rAF 로 검사 — 다음 마디 첫 음이 새어 들리지 않게
+// A-B 반복은 timeupdate(≈4 Hz, 최대 250 ms 늦음)가 아니라 rAF 로 검사
 let loopRaf: number | null = null
 function loopTick(): void {
   loopRaf = null; const a = ed.audio; if (!a || a.paused) return
@@ -90,15 +87,14 @@ const abBtn = (id: string, active: boolean, label: string, dim = false) => {
   const btn = q(id); btn.classList.toggle('on', active); btn.classList.toggle('dim', dim)
   btn.querySelector('span')!.textContent = label
 }
-const LOOP_LABEL = ['꺼짐', '켜짐', '1초 전부터'] as const // '앞' 은 시간축에서 양방향으로 읽힌다 (리뷰)
+const LOOP_LABEL = ['꺼짐', '켜짐', '1초 전부터'] as const
 const updateLoopBtn = () => abBtn('ed-loop-btn', ed.loop > 0, LOOP_LABEL[ed.loop], ed.ptA === null || ed.ptB === null)
-// 설정된 뒤의 부제는 시각이 아니라 동작('해제') — 시각은 트랙 카드의 ‹ A 00:00 › 에 한 번만 (리뷰: 같은 정보 두 번)
 const updateABtn = () => abBtn('ed-a-btn', true, '해제')
 const updateBBtn = () => abBtn('ed-b-btn', true, '해제')
 const resetABtn = () => abBtn('ed-a-btn', false, '설정')
 const resetBBtn = () => abBtn('ed-b-btn', false, '설정', true)
 const resetLoopBtn = () => { ed.loop = 0; updateLoopBtn() }
-/** A/B 지점을 ±0.25 s 미세 조정 (재생 중 찍으면 반응 지연만큼 늦는 것을 손가락 드래그 없이 보정) */
+/** A/B 지점을 ±0.25 s 미세 조정 — 재생 중 찍으면 반응 지연만큼 늦는 것을 보정 */
 function nudge(which: 'a' | 'b', d: number): void {
   const len = dur(); if (!len) return
   if (which === 'a' && ed.ptA !== null) ed.ptA = Math.max(0, Math.min(ed.ptB !== null ? ed.ptB - 0.1 : len, ed.ptA + d))
@@ -114,7 +110,7 @@ function persistEdit(): void {
   if (next) ed.item = next
 }
 
-// ── 파형 ──
+// 파형
 let peaks: Float32Array | null = null
 let waveDirty = false, waveRaf: number | null = null
 function requestWave(): void { waveDirty = true; if (waveRaf == null) waveRaf = requestAnimationFrame(drawWave) }
@@ -132,9 +128,9 @@ function drawWave(): void {
   const accentRgb = cs.getPropertyValue('--accent-rgb').trim() || '209,42,42'
   const d = dur(), pos = ed.audio && d ? frac(ed.audio.currentTime) : 0
   const mid = H / 2, amp = (H / 2) * 0.92
-  // A-B 구간 틴트 (파형 뒤) — 어두운 면에서 .12 는 안 보여서 .22 (리뷰)
+  // A-B 구간 틴트 (파형 뒤). 어두운 면에서 .12 는 안 보여 .22
   if (ed.ptA !== null && ed.ptB !== null && d) { c.fillStyle = `rgba(${accentRgb},.22)`; c.fillRect(frac(ed.ptA) * W, 0, (frac(ed.ptB) - frac(ed.ptA)) * W, H) }
-  // 2 px 컬럼으로 리샘플(600 bin 을 340 px 에 그리면 겹쳐서 덩어리가 된다), pow(.6) 으로 조용한 부분도 보이게. 확대 창이면 그 구간의 bin 만
+  // 2 px 컬럼으로 리샘플(600 bin 을 그대로 그리면 덩어리가 된다), pow(.6) 으로 조용한 부분도 보이게. 확대 창이면 그 구간 bin 만
   const { t0, t1 } = viewRange(), n = peaks.length, b0 = d ? Math.floor(t0 / d * n) : 0, b1 = d ? Math.max(b0 + 1, Math.ceil(t1 / d * n)) : n, nb = b1 - b0
   const colW = 2, cols = Math.floor(W / colW)
   for (let k = 0; k < cols; k++) {
@@ -146,8 +142,7 @@ function drawWave(): void {
   }
   c.restore()
 }
-/** 피크가 없으면 blob 을 디코드해 계산하고 저장 (한 번만) */
-/** 녹음 중 누적한 피크가 없는 항목(구버전)만 디코드해 계산 — 긴 녹음(10분+)은 메모리를 많이 써서 12분 이상은 건너뛴다 */
+/** 피크가 없는 항목(구버전)만 디코드해 계산·저장. 12분 이상은 메모리 때문에 건너뛴다 */
 async function ensurePeaks(item: RecItem): Promise<void> {
   if (item.peaks && item.peaks.length) { peaks = item.peaks; requestWave(); return }
   peaks = null; requestWave()
@@ -156,7 +151,7 @@ async function ensurePeaks(item: RecItem): Promise<void> {
     const buf = await (await fetch(item.url)).arrayBuffer()
     const ac = new OfflineAudioContext(1, 1, 48000); const decoded = await ac.decodeAudioData(buf)
     const p = computePeaks(Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i)), 600)
-    if (!ed.item || ed.item.blob !== item.blob) return // 그 사이 다른 항목을 열었음 (patchRec 은 객체를 바꾸므로 blob 으로 동일성 판단)
+    if (!ed.item || ed.item.blob !== item.blob) return // 그 사이 다른 항목을 열었음 — patchRec 은 객체를 바꾸므로 blob 으로 동일성 판단
     peaks = p; const next = patchRec(ed.item, { peaks: p }); if (next) ed.item = next; requestWave()
   } catch { /* 디코드 실패 → 레일 유지 */ }
 }
@@ -168,7 +163,7 @@ function removeWindowHandlers(): void {
   ed.handlers = null
 }
 let dragEndedAt = 0
-/** 트랙 위 포인터다운: 플레이헤드·A·B 중 가장 가까운 것을 잡는다 (겹쳐 있을 때 위에 있는 것이 항상 이기지 않게, 리뷰 #13) */
+/** 트랙 위 포인터다운: 플레이헤드·A·B 중 가장 가까운 것을 잡는다 */
 function pickHandle(clientX: number): EdState['dragging'] {
   const d = dur(); if (!d) return null
   const r = q('ed-track').getBoundingClientRect(), x = clientX - r.left
@@ -199,7 +194,7 @@ export function openEditor(item: RecItem): void {
   ed.idx = 0; ed.item = item; ed.ptA = null; ed.ptB = null; ed.loop = 0; ed.bookmarks = item.bookmarks.slice(); ed.dragging = null; view = null
 
   const audio = new Audio(item.url); audio.preservesPitch = true; audio.playbackRate = 1.0; audio.preload = 'auto'
-  attachGain(audio, item.peak) // 녹음 레벨 보정 (B12c)
+  attachGain(audio, item.peak) // 녹음 레벨 보정
   ed.audio = audio
   const updateDur = () => { if (ed.audio !== audio) return; q('ed-dur').textContent = fmtT(isFinite(audio.duration) && audio.duration > 0 ? Math.max(item.dur || 0, Math.round(audio.duration)) : (item.dur || 0)) }
   // webm duration=Infinity 트릭: 끝으로 seek 하면 durationchange 로 실제 길이가 온다
@@ -233,7 +228,7 @@ export function openEditor(item: RecItem): void {
   q('ed-cur').textContent = '00:00'; q('ed-dur').textContent = item.dur ? fmtT(item.dur) : '--:--'
   setPlayGlyph(false); playBtn.classList.add('dim'); playBtn.disabled = true
   if (audio.readyState >= 3) { playBtn.classList.remove('dim'); playBtn.disabled = false }
-  setSpeed(item.speed ?? 1.0, false) // 녹음별 마지막 속도 복원 (UX 감사 B3)
+  setSpeed(item.speed ?? 1.0, false) // 녹음별 마지막 속도 복원
   q('ed-progress').style.width = '0%'; q('ed-pos-handle').style.left = '0%'
   for (const id of ['ed-ab-range', 'ed-a-handle', 'ed-b-handle', 'ed-ab-times']) q(id).style.display = 'none'
   q('ed-bm-ticks').innerHTML = ''
@@ -241,8 +236,8 @@ export function openEditor(item: RecItem): void {
   resetABtn(); resetBBtn(); resetLoopBtn(); updateZoomBtn()
   void ensurePeaks(item)
   checkExportBtn()
-  // 진입은 메뉴와 같은 .2 s 페이드(UX 감사 B5) — display 를 켠 다음 프레임에 .open 을 붙여야 전이가 걸린다. 복귀(closeEditor)는 의도대로 즉시
-  const page = q('editor-page'); page.style.display = 'flex'; reflow(page); page.classList.add('open') // 동기 reflow: rAF 는 스타일 재계산 전에 돌아 전이가 안 걸릴 수 있다 (리뷰 #2)
+  // 진입 페이드: display 를 켠 뒤 동기 reflow 하고 .open — rAF 는 스타일 재계산 전에 돌아 전이가 안 걸릴 수 있다
+  const page = q('editor-page'); page.style.display = 'flex'; reflow(page); page.classList.add('open')
   initDrag()
 }
 
@@ -261,15 +256,14 @@ export const isEditorOpen = (): boolean => ed.item !== null
 /** 진단 훅(e2e): 편집 상태 읽기 전용 */
 export const editorDiag = () => ({ ptA: ed.ptA, ptB: ed.ptB, loop: ed.loop, audio: ed.audio })
 
-/** 녹음 이름의 최대 길이 (C6) */
+/** 녹음 이름의 최대 길이 — 파일명·목록 카드가 감당할 수 있는 길이 */
 export const NAME_MAX = 40
 function editTitle(): void {
   const current = ed.item ? ed.item.name : ''
   const newName = prompt('녹음 이름', current)
   if (newName && newName.trim() && ed.item) {
-    // 40자 상한 (C6): 파일명·목록 카드가 감당할 수 있는 길이. 넘치면 잘라 저장한다
     const name = newName.trim().slice(0, NAME_MAX)
-    const next = patchRec(ed.item, { name }); if (next) ed.item = next // IndexedDB(meta) 에도 저장
+    const next = patchRec(ed.item, { name }); if (next) ed.item = next
     q('editor-title-display').textContent = displayName(ed.item)
   }
 }
@@ -322,7 +316,7 @@ function toggleB(): void {
     ed.ptB = t; updateHandles(); updateBBtn(); updateLoopBtn(); checkExportBtn(); persistEdit()
   }
 }
-/** 반복 버튼: 꺼짐 → 켜짐 → 1s 앞 → 꺼짐. 켜는 순간 시작점으로 가서 재생 (UX 감사 B2) */
+/** 반복 버튼: 꺼짐 → 켜짐 → 1s 앞 → 꺼짐. 켜는 순간 시작점으로 가서 재생 */
 function toggleLoop(): void {
   if (ed.ptA === null || ed.ptB === null) { toast('A, B 지점을 먼저 설정해주세요'); return }
   ed.loop = ((ed.loop + 1) % 3) as EdState['loop']
@@ -362,33 +356,32 @@ function addBookmark(): void {
 
 async function exportAB(): Promise<void> {
   if (ed.ptA === null || ed.ptB === null || !ed.item) { toast('A, B 지점을 먼저 설정해주세요'); return }
-  // 녹음 **전체**를 디코드한다 — 60분이면 ~690 MB PCM 이라 아이폰 탭이 죽는다. 다른 디코드 경로(파형·WAV 구제)와 같은 상한 (감사 A1)
+  // 녹음 전체를 디코드한다 — 60분이면 ~690 MB PCM 이라 아이폰 탭이 죽는다
   if (ed.item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 구간을 잘라낼 수 없어요 — 컴퓨터에서 열어주세요'); return }
   const item = ed.item
   try {
     const arrayBuf = await (await fetch(item.url)).arrayBuffer()
-    const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf) // 단일 컨텍스트 원칙: 디코드용 AudioContext 를 새로 만들지 않는다
+    const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf) // 디코드용 AudioContext 를 새로 만들지 않는다
     const sr = decoded.sampleRate, ch = decoded.numberOfChannels
-    const s0 = Math.floor(ed.ptA * sr), s1 = Math.min(decoded.length, Math.floor(ed.ptB * sr)), len = s1 - s0 // B 가 반올림된 dur 를 넘으면 끝이 무음이 되던 것
+    const s0 = Math.floor(ed.ptA * sr), s1 = Math.min(decoded.length, Math.floor(ed.ptB * sr)), len = s1 - s0 // B 가 반올림된 dur 를 넘을 수 있다
     if (len <= 0) { toast('구간이 너무 짧아요'); return }
     const offAC = new OfflineAudioContext(ch, len, sr); const buf = offAC.createBuffer(ch, len, sr)
     for (let c = 0; c < ch; c++) buf.copyToChannel(decoded.getChannelData(c).slice(s0, s1), c)
     const src = offAC.createBufferSource(); src.buffer = buf
-    // 앱 안 재생과 같은 보정(B12c: 게인 + 소프트 리미터) — 전엔 원본을 내보내 공유한 파일이 앱에서 듣던 것보다 훨씬 작았다 (감사 B11)
+    // 앱 안 재생과 같은 보정(게인 + 소프트 리미터)
     const g = playbackGain(item.peak)
     if (g > 1.01) { const gain = offAC.createGain(); gain.gain.value = g; const shaper = offAC.createWaveShaper(); shaper.curve = softClipCurve(); shaper.oversample = '2x'; src.connect(gain); gain.connect(shaper); shaper.connect(offAC.destination) }
     else src.connect(offAC.destination)
     src.start()
     const rendered = await offAC.startRendering()
-    handOff(new Blob([bufToWav(rendered)], { type: 'audio/wav' }), 'tempotune_' + item.name + '_cut.wav') // 아이폰: 탭 안에서 공유 (감사 A3)
+    handOff(new Blob([bufToWav(rendered)], { type: 'audio/wav' }), 'tempotune_' + item.name + '_cut.wav') // 아이폰: 탭 안에서 공유
   } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
 }
 /** 다운로드 — 목록과 같은 경로 (recList.downloadRec) */
 async function downloadWhole(): Promise<void> { if (ed.item) await downloadRec(ed.item) }
 
 export function mountEditor(): void {
-  // 가장자리 스와이프 = 닫기 (v2.3.0). 파형 스크럽·핸들·속도 슬라이더 위에서 시작하면 잡지 않는다 — 그건 그들 것.
-  // 잡히는 순간 뒤에 메뉴를 깔아, 끌리는 동안 본화면이 아니라 돌아갈 메뉴가 보이게 (closeEditor 도 메뉴로 돌아간다)
+  // 가장자리 스와이프 = 닫기. 잡히는 순간 뒤에 메뉴를 깔아 끌리는 동안 돌아갈 메뉴가 보이게
   attachSwipeBack(q('editor-page'), { onBack: closeEditor, onArm: showMenuInstant, ignore: '#ed-track, #ed-a-handle, #ed-b-handle, #ed-pos-handle, input[type=range]' })
   const track = q('ed-track')
   on(track, 'click', (e: MouseEvent) => {
@@ -401,7 +394,7 @@ export function mountEditor(): void {
   on(q('ed-back-btn'), 'click', closeEditor)
   on(q('ed-title-edit'), 'click', editTitle)
   on(q('ed-play-btn'), 'click', togglePlay)
-  // 편집기가 열려 있는 동안 Space 는 편집기 재생 (C1). 메트로놈 쪽은 isEditorOpen() 으로 비켜 준다
+  // 편집기가 열려 있는 동안 Space 는 편집기 재생. 메트로놈 쪽은 isEditorOpen() 으로 비켜 준다
   on(document, 'keydown', (e: KeyboardEvent) => {
     if (!isEditorOpen()) return
     const t = e.target as HTMLElement

@@ -1,30 +1,17 @@
 /**
- * 전용 모드 다이얼 (v2.3.0) — 실물 메트로놈의 다이얼처럼 링을 돌려 BPM 을 정한다.
- * 수학은 core/metro/dial.ts. 여기서는 SVG 를 한 번 만들고, BPM 이 바뀌면 바늘과 채움 호만 움직인다.
- *
- * 그림 (viewBox 320, 중심 160):
- *   r 112  링(트랙) + 시작~현재의 채움 호 + 현재 위치의 바늘점
- *   r 119~ 눈금: 5 BPM 마다 짧게, 20 BPM 마다 길게. 숫자는 눈금 끝 바깥쪽으로 정렬(outwardAnchor) — 겹치지 않는다
- *   r 94   템포 이름 — 링 안쪽, 이정표 넷만 (ARC_LABELS 의 이유 참고)
- * 가운데의 숫자·용어는 HTML(#dial-bpm, #dial-name) — 글꼴이 앱과 같아야 해서 SVG text 를 안 쓴다.
- *
- * 크기 (v2.3.1, L7): 다이얼은 전용 모드에서 **남는 높이**를 먹으므로 폰마다 다르다(217~320 px). SVG 글자는 user unit 이라
- * 같이 줄어들기 때문에, ResizeObserver 로 실제 px 를 재서 dialTypography() 가 준 user unit 을 CSS 변수로 넣는다 → 렌더 크기 고정.
- * 용어가 호에 안 들어가는 크기면 .no-names 로 감춘다. 관찰은 buildDial 에서 한 번만 건다(한 번 만든 SVG 를 계속 쓴다).
- *
- * 조작: 링 어디든 누르고 **돌린 만큼**만 변한다(상대 회전). 잡는 순간 값이 튀지 않는다.
- *   1.35°/BPM (20~220 이 270°) — 반지름 118 에서 약 2.8 px/BPM. 세로 ↕ 드래그(2 px/BPM)와 비슷한 손맛.
- *   −/+ 버튼은 ±1 미세 조정으로 그대로 둔다.
+ * 전용 모드 다이얼 — 링을 돌린 만큼(상대 회전) BPM 이 변한다. 수학은 core/metro/dial.ts.
+ * SVG 는 한 번 만들고 BPM 이 바뀌면 바늘·채움 호만 움직인다. 가운데 숫자·용어는 HTML — 앱 글꼴과 같아야 해서
  */
 import { bpmToAngle, degPerBpm, angleDelta, pointToAngle, polar, arcPath, tempoName, ARC_LABELS, dialTypography } from '../core/metro/dial.ts'
 import { CFG } from '../state/index.ts'
 import { q, on } from './dom.ts'
 
 const NS = 'http://www.w3.org/2000/svg'
+// viewBox 320 기준 반지름: 링·채움·바늘 112, 눈금 시작 119, 숫자 133, 템포 이름(링 안쪽) 94
 const C = 160, R_RING = 112, R_TICK0 = 119, R_NUM = 133, R_NAME = 94
 const A0 = -135, A1 = 135
 
-/** 숫자를 눈금 **바깥쪽으로** 붙인다 — 중심에서 본 방향에 따라 정렬점을 바꿔, 글자가 항상 눈금에서 멀어지는 쪽으로 자란다 */
+/** 숫자를 눈금 바깥쪽으로 붙인다 — 중심에서 본 방향에 따라 정렬점을 바꾼다 */
 function outwardAnchor(deg: number): { anchor: string; baseline: string } {
   const a = (deg * Math.PI) / 180, dx = Math.sin(a), dy = -Math.cos(a)
   return {
@@ -61,7 +48,7 @@ export function buildDial(): void {
       t.textContent = String(b); svg.appendChild(t)
     }
   }
-  // 템포 이름 — 링 **안쪽** 호를 따라, 구간 가운데 정렬. 실물 다이얼도 용어는 판 안에 인쇄돼 있다 — 바깥 숫자와 다투지 않는다
+  // 템포 이름 — 링 안쪽 호를 따라, 구간 가운데 정렬
   const defs = el('defs', {}); svg.appendChild(defs)
   ARC_LABELS.forEach(([name, from, to], i) => {
     const id = `dial-arc-${i}`
@@ -80,10 +67,10 @@ export function buildDial(): void {
   attachTypography(host)
 }
 
-/** 다이얼의 실제 px → 글자 user unit (L7 2단계). observe() 직후 현재 크기로 한 번 불리고, 회전·모드 전환에도 따라온다 */
+/** 다이얼 크기는 폰마다 다르고(217~320 px) SVG 글자는 user unit 이라 같이 줄어든다 → 실제 px 를 재서 CSS 변수로 글자 크기를 고정 */
 function attachTypography(host: HTMLElement): void {
   const apply = (px: number): void => {
-    if (!(px > 0)) return // display:none 인 순간(전용 모드 밖)은 0 — 마지막 값을 유지
+    if (!(px > 0)) return // display:none(전용 모드 밖)이면 0 — 마지막 값을 유지
     const t = dialTypography(px)
     host.style.setProperty('--dial-px', px.toFixed(1))
     host.style.setProperty('--dial-num-units', t.numUnits.toFixed(2))
@@ -121,7 +108,7 @@ function attachRotate(host: HTMLElement): void {
     const c = center(), a = pointToAngle(e.clientX - c.x, e.clientY - c.y)
     const { bpmMin: min, bpmMax: max } = CFG.metro, dpb = degPerBpm(min, max)
     acc += angleDelta(lastA, a); lastA = a
-    acc = Math.max((min - base) * dpb, Math.min((max - base) * dpb, acc)) // 끝에서 멈춘다 — 실물 다이얼처럼. 넘겨 돌린 만큼을 되감을 필요가 없다
+    acc = Math.max((min - base) * dpb, Math.min((max - base) * dpb, acc)) // 끝에서 멈춘다 — 넘겨 돌린 만큼을 되감을 필요가 없다
     const next = Math.round(base + acc / dpb)
     if (onChange && next !== +q('dial-bpm').textContent!) onChange(next)
   })

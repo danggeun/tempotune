@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// 시각 회귀 스크린샷 — 라이트/다크 × 주요 화면을 폰 크기(390×844 @2x)로 찍는다.
+// 시각 회귀 스크린샷 — 주요 화면을 폰 크기(390×844 @2x)로 찍고, 기준선과 비교하면 diff 이미지를 만든다.
 // 사용: node scripts/screenshots.mjs [--out test-assets/screens/current] [--compare test-assets/screens/baseline]
-// 왜: 리팩토링 중 "의도치 않은 UI 변화"를 픽셀 단위로 잡기 위해. 기준선과 비교하면 diff 이미지를 만든다.
 // 전제: `npx vite build --base=/ && npx vite preview --base=/ --port 4173` 이 떠 있거나, --serve 로 이 스크립트가 직접 띄운다.
 import { chromium } from 'playwright'
 import { waitForServer } from './lib/wait-server.mjs'
@@ -29,7 +28,7 @@ if (args.serve) {
 }
 
 const exe = process.env.CHROMIUM_PATH || undefined
-// 가짜 마이크에 '거의 무음' WAV를 물려 튜너가 결정적인 상태(음 없음)가 되게 한다. (기본 가짜 장치는 톤을 내서 바늘이 움직여 픽셀 diff가 생김)
+// 가짜 마이크에 '거의 무음' WAV를 물려 튜너가 결정적인 상태(음 없음)가 되게 한다 — 기본 가짜 장치는 톤을 내서 바늘이 움직인다
 const SILENCE = join(ROOT, 'test-assets', 'signals', 'silence_lowfloor.wav')
 if (!existsSync(SILENCE)) execSync('node scripts/gen-signals.mjs', { cwd: ROOT, stdio: 'ignore' })
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${SILENCE}%noloop`] })
@@ -37,7 +36,7 @@ const browser = await chromium.launch({ executablePath: exe, args: ['--use-fake-
 // 화면 시나리오: 이름 → 준비 동작. 애니메이션이 끝날 시간을 준다.
 const SCENES = {
   main: async p => {},
-  metro_open: async p => { await p.click('#metro-size-btn'); await p.waitForTimeout(600) }, // v2.3.2 M10: 크기 버튼 하나로 순환
+  metro_open: async p => { await p.click('#metro-size-btn'); await p.waitForTimeout(600) },
   menu: async p => { await p.click('#menu-btn'); await p.waitForTimeout(600) },
   settings: async p => { await p.click('#menu-btn'); await p.waitForTimeout(400); await p.click('#settings-open-btn'); await p.waitForTimeout(500) },
   editor: async p => { await p.evaluate(() => { const e = document.getElementById('editor-page'); e.style.display = 'flex'; e.classList.add('open') }); await p.waitForTimeout(300) },
@@ -46,14 +45,12 @@ const SCENES = {
 }
 
 const results = []
-// 앱은 다크 고정(style.css `color-scheme:dark`)이라 라이트로 찍어도 **픽셀까지 같은 그림**이 나온다.
-// v2.1.0 전까지 light/dark 두 벌을 찍고 두 벌을 비교했는데, 라이트 쪽은 아무것도 잡지 못하면서
-// 검증 시간만 두 배로 쓰고 있었다. 다크만 찍는다. (라이트 모드를 되살리면 여기에 다시 넣는다.)
+// 앱은 다크 고정이라 라이트로 찍어도 픽셀까지 같은 그림이 나온다 — 다크만 찍는다
 for (const scheme of ['dark']) {
   for (const [name, prep] of Object.entries(SCENES)) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
     const page = await ctx.newPage()
-    await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(1000) // 폰트(fonts.ready) + 첫 접힘 트랜지션(250 ms 뒤 시작, .55 s)이 끝난 뒤 — 그 전엔 카드가 반쯤 접힌 채 찍힌다
+    await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(1000) // 첫 접힘 트랜지션(250 ms 뒤 시작, .55 s)이 끝난 뒤 — 그 전엔 카드가 반쯤 접힌 채 찍힌다
     await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;caret-color:transparent!important}' })
     await prep(page)
     const file = join(OUT, `${scheme}_${name}.png`)

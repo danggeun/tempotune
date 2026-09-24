@@ -1,9 +1,6 @@
 #!/usr/bin/env node
-// 스케일 시뮬레이션 — 도레미파솔라시도시라솔파미레도 를 합성해 **실제 분석기**(core/pitch/analyzer.ts, 워커와 같은 코드)에
-// 통과시키고, 화면에 그려질 (cents, midi) 프레임 열과 통계를 낸다.
+// 스케일 시뮬레이션 — 도레미파솔라시도시라솔파미레도 를 합성해 실제 분석기(core/pitch/analyzer.ts)에 통과시키고, 화면에 그려질 (cents, midi) 프레임 열과 통계를 낸다.
 // 사용: node scripts/sim-scale.mjs [--bpm 80] [--err 5] [--vib 10] [--json out.json]
-// 왜: "음정을 정확히 짚었으면 트레이스가 가운데 근처에만 머물러야 한다. 음 바뀔 때 벗어나거나 끊기면 안 된다."
-//     — 이 요구가 실제로 만족되는지, 벗어난다면 어디서 벗어나는지(어택/트래커 전환/평활) 프레임 단위로 본다.
 import { createAnalyzer } from '../www/src/core/pitch/analyzer.ts'
 import { writeFileSync } from 'node:fs'
 
@@ -26,7 +23,7 @@ const KR = ['도', '레', '미', '파', '솔', '라', '시', '도↑', '시', '�
 const noteSec = 60 / BPM                      // 4분음표
 const midiHz = m => REF * Math.pow(2, (m - 69) / 12)
 
-// ── 합성: 활을 바꿔 이어 켜는 레가토 스케일 ──
+// 합성: 활을 바꿔 이어 켜는 레가토 스케일
 const total = Math.round((SEQ.length * noteSec + 0.6) * SR)
 const x = new Float32Array(total)
 const truth = []                                // 각 음의 시작/끝/의도한 midi/의도한 오차
@@ -37,7 +34,7 @@ for (let i = 0; i < total; i++) {
   if (t < 0 || t >= SEQ.length * noteSec) { x[i] = 0; continue }
   const k = Math.min(SEQ.length - 1, Math.floor(t / noteSec))
   const tn = t - k * noteSec                    // 음 안에서의 시각
-  // 음 전환: 손가락이 짚히는 25 ms 동안만 이전 음에서 미끄러진다 (레가토 스케일의 현실)
+  // 음 전환: 손가락이 짚히는 25 ms 동안만 이전 음에서 미끄러진다
   const SLIDE = 0.025
   const prevM = k > 0 ? SEQ[k - 1] + errs[k - 1] / 100 : SEQ[k] + errs[k] / 100
   const curM = SEQ[k] + errs[k] / 100
@@ -54,7 +51,7 @@ for (let i = 0; i < total; i++) {
   if (tn < 1 / SR + 1e-9) truth.push({ k, t0: t + 0.3, midi: SEQ[k], err: errs[k], name: KR[k] })
 }
 
-// ── 실제 분석기 ──
+// 실제 분석기
 const an = createAnalyzer({ sampleRate: SR, windowSize: WIN })
 an.setSettings({ rmsMin: .014, smoothing: .12, refHz: REF, tolCents: 15 })
 const frames = []
@@ -64,11 +61,11 @@ for (let s = 0; s + WIN <= total; s += HOP) {
   const f = an.process(win)
   // 앱과 같은 규칙: 유지(held) 프레임은 트레이스에 쌓지 않는다 (ui/tuner.ts)
   const off = f.hz <= 0 || f.held >= 1
-  // rawCents/rawMidi = 걸러내기 전 값 (v2.0.1 이 그리던 것 — 전/후 비교용)
+  // rawCents/rawMidi = 걸러내기 전 값 (전/후 비교용)
   frames.push({ t: (s + WIN) / SR, cents: off ? null : f.cents, midi: off ? null : f.midi, rawCents: f.hz > 0 ? f.cents : null, rawMidi: f.hz > 0 ? f.midi : null, hz: f.hz, held: f.held })
 }
 
-// ── 통계 ──
+// 통계
 const shown = frames.filter(f => f.cents !== null)
 const abs = shown.map(f => Math.abs(f.cents)).sort((a, b) => a - b)
 const pct = p => abs.length ? abs[Math.min(abs.length - 1, Math.floor(abs.length * p))] : NaN

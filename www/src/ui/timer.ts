@@ -1,4 +1,4 @@
-/** 연습/연주 타이머 (메뉴). (무활동 자동 종료는 main 의 inactivity watch 가 담당) */
+/** 연습/연주 타이머 (메뉴). 무활동 자동 종료는 main 의 inactivity watch 가 담당 */
 import { sessionStore, tunerStore } from '../state/index.ts'
 import { fmt } from '../core/format.ts'
 import { q, on } from './dom.ts'
@@ -14,20 +14,19 @@ export function stopTimer(): void { if (int) clearInterval(int); int = null; ses
 function startTimer(): void {
   sessionStore.set({ timerRunning: true })
   if (int) clearInterval(int)
-  // 벽시계 기준으로 센다 — 백그라운드에서 setInterval 이 늦어져도 경과 시간이 실제보다 적게 잡히지 않게. 소리 낸 시간은 틱마다 감지 상태로 가산
+  // 벽시계 기준 — 백그라운드에서 setInterval 이 늦어져도 경과 시간이 적게 잡히지 않게
   let last = Date.now(), acc = 0
   int = setInterval(() => {
     const s = sessionStore.get(); if (!s.timerRunning) return
     const now = Date.now(); acc += (now - last) / 1000; last = now
-    const whole = Math.round(acc); if (whole <= 0) return // round: 틱이 몇 ms 이르게 와도 1초를 잃지 않는다 (잔여는 다음 틱에 상쇄)
+    const whole = Math.round(acc); if (whole <= 0) return // round: 틱이 몇 ms 이르게 와도 1초를 잃지 않는다
     acc -= whole
     sessionStore.set({ elapsedSec: s.elapsedSec + whole, detectedSec: s.detectedSec + (tunerStore.get().playing ? whole : 0) })
   }, 1000)
 }
 export function mountTimer(): void {
   on(q('timer-toggle-btn'), 'click', () => { if (sessionStore.get().timerRunning) stopTimer(); else startTimer() })
-  // 초기화는 확인 없이 즉시 — 대신 삭제와 같은 '실행 취소' 토스트 (활 든 손이 스쳐도 40분 기록이 안 날아가게, UX 감사 A6).
-  // 실행 취소는 카운트와 함께 '돌고 있었음' 도 되돌린다 (스친 것이면 계속 재던 중이었을 테니)
+  // 초기화는 확인 없이 즉시, 대신 '실행 취소' 토스트. 실행 취소는 돌고 있던 상태도 되돌린다
   on(q('timer-reset-btn'), 'click', () => {
     const { elapsedSec, detectedSec, timerRunning } = sessionStore.get()
     stopTimer(); sessionStore.set({ elapsedSec: 0, detectedSec: 0 })

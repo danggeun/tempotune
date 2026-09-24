@@ -1,13 +1,7 @@
 /**
- * YIN 기본 음정 추정 (de Cheveigné & Kawahara, 2002).
- * 순수 함수 — 브라우저 API 없음. 워커/노드/테스트 어디서나 동일하게 동작.
- *
- * @param buf 시간 영역 샘플 (길이 N). 최대 탐지 주기는 N/2 샘플.
- * @param sr  샘플레이트 (Hz)
- * @param threshold 누적 평균 정규화 차분(CMND)의 절대 임계. 낮을수록 엄격.
+ * YIN 기본 음정 추정 (de Cheveigné & Kawahara, 2002). 순수. O(N²/4) 직접 계산 (FFT 판은 pitch/yinFast.ts).
+ * @param buf 시간 영역 샘플 (길이 N, 최대 탐지 주기 N/2) @param sr Hz @param threshold CMND 절대 임계 (낮을수록 엄격)
  * @returns 추정 주파수 (Hz), 주기성이 없으면 -1
- *
- * 참고: v1 구현을 그대로 옮김. O(N²/4) 직접 계산 — Phase 2에서 FFT 기반으로 교체 예정.
  */
 export function yin(buf: Float32Array, sr: number, threshold = 0.10): number {
   const N = buf.length, half = Math.floor(N / 2)

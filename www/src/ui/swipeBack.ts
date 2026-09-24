@@ -1,21 +1,10 @@
 /**
- * 가장자리 스와이프로 뒤로 (v2.3.0) — iOS 의 "왼쪽 끝에서 오른쪽으로 끌면 뒤로" 그대로.
- *
- * 왜: 홈 화면 웹앱(standalone)에는 브라우저의 뒤로 제스처가 없다. 메뉴·설정·편집기가 전부
- * 전체 화면이라 버튼 말고는 나갈 길이 없었고, 아이폰 사용자는 이 제스처를 당연히 기대한다.
- *
- * 규칙 (iOS 와 같게):
- *   · 시작은 **왼쪽 가장자리 24 px** 안에서만. 화면 한가운데서 옆으로 긋는 건 다른 뜻일 수 있다(스크럽·슬라이더)
- *   · 처음 10 px 이 가로면 잡고, 세로면 놓는다(그건 스크롤). 잡은 뒤로는 화면이 손가락을 따라온다
- *   · 놓을 때 폭의 35 % 를 넘었거나 빠르면(0.5 px/ms) 닫힘, 아니면 제자리로
- *   · 가로 드래그를 가진 요소(파형 스크럽·핸들·range) 위에서 시작하면 아예 잡지 않는다
- *
- * 닫히는 애니메이션 뒤에 onBack() 을 부른다 — 실제 닫기(클래스 제거·상태 정리)는 원래 코드가 한다.
- * 그 다음 transform 을 지우는데, 페이드아웃(--t-std .2 s)이 끝난 뒤에 지운다 — 바로 지우면
- * 사라지는 중인 화면이 제자리로 튀어 돌아오는 게 보인다.
+ * 가장자리 스와이프로 뒤로 — iOS 의 "왼쪽 끝에서 오른쪽으로 끌면 뒤로". 홈 화면 웹앱에는 브라우저 뒤로 제스처가 없다.
+ * 닫히는 애니메이션 뒤에 onBack() — 실제 닫기는 호출자가 한다.
  */
 import { on } from './dom.ts'
 
+// 가장자리 24 px 안에서 시작 · 처음 10 px 로 가로/세로 판정 · 폭 35 % 또는 0.5 px/ms 넘으면 닫힘 · FADE_MS = --t-std 페이드아웃
 const EDGE_PX = 24, ARM_PX = 10, COMMIT_FRAC = 0.35, COMMIT_VEL = 0.5, FADE_MS = 260
 
 export type SwipeBackOpts = {
@@ -40,7 +29,7 @@ export function attachSwipeBack(page: HTMLElement, opts: SwipeBackOpts): void {
     page.style.transform = 'translateX(100%)'
     setTimeout(() => {
       opts.onBack()
-      setTimeout(() => { page.style.transition = 'none'; page.style.transform = ''; page.classList.remove('swiping'); void page.offsetWidth; page.style.transition = '' }, FADE_MS)
+      setTimeout(() => { page.style.transition = 'none'; page.style.transform = ''; page.classList.remove('swiping'); void page.offsetWidth; page.style.transition = '' }, FADE_MS) // 페이드아웃 뒤에 지운다 — 바로 지우면 화면이 제자리로 튀어 보인다
     }, 180)
   }
 

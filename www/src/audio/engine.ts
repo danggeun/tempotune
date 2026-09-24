@@ -1,8 +1,5 @@
 /**
- * 오디오 엔진 — 단일 AudioContext 와 마이크 캡처 파이프라인의 생명주기 (설계서 §B1, §B7).
- *
- * 컨텍스트는 하나다. 처음 필요할 때(메트로놈 시작·기준음·마이크) 만들고 앱이 살아 있는 동안 유지한다.
- * 마이크를 끄면 소스/워클릿/워커만 정리하고 컨텍스트는 남긴다 → 메트로놈은 영향 없음. (기준음은 beforeClose 훅에서 스스로 멈춘다 — refTone.ts)
+ * 오디오 엔진 — 단일 AudioContext(앱 수명 동안 유지)와 마이크 캡처 파이프라인의 생명주기.
  * 마이크 파이프라인: 마이크 → AudioWorklet(capture) → MessagePort → Worker(analysis) → tunerStore
  */
 import { tunerStore, settingsStore } from '../state/index.ts'
@@ -38,16 +35,7 @@ export function onEngineFatal(fn: (msg: string) => void): void { onFatal = fn }
 
 const ACCtor = (): typeof AudioContext => (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)
 
-/**
- * iOS 오디오 세션 힌트 (W3C Audio Session · iOS 17 Safari+). 다른 플랫폼엔 없어서 no-op.
- *
- * 왜 (B12a): iOS 는 마이크 트랙이 살아 있는 동안 AVAudioSession 을 play-and-record 로 두고, 그 상태에서
- * 출력을 감쇠하거나 수화기로 돌린다 — 사용자가 "폰 볼륨 최대인데 30 % 수준" 이라고 한 증상이 메트로놈과
- * 녹음 재생에 **동시에** 나타난 이유다. 마이크가 없을 때는 'playback' 으로 선언해 스피커 전체 음량을 받고,
- * 마이크가 열려 있을 때는 의도를 명시(play-and-record)해 Safari 의 추론에 맡기지 않는다.
- * 단 Safari 는 독자적으로도 카테고리를 추론하므로 이것만으로 다 해결되지는 않는다(그래서 재생 경로는
- * A-3 의 게인, 메트로놈은 A-2 의 레벨로 따로 보강한다).
- */
+/** iOS 오디오 세션 힌트 (W3C Audio Session · iOS 17 Safari+, 다른 플랫폼은 no-op). 'play-and-record' 상태면 iOS 가 출력을 감쇠하거나 수화기로 돌린다 */
 type AudioSessionType = 'auto' | 'playback' | 'transient' | 'transient-solo' | 'ambient' | 'play-and-record'
 function setAudioSession(type: AudioSessionType): void {
   const n = navigator as Navigator & { audioSession?: { type: AudioSessionType } }
@@ -59,9 +47,9 @@ export const audioSupported = (): boolean => typeof AudioWorkletNode !== 'undefi
 /** 단일 컨텍스트. 없으면 만든다. 사용자 제스처 안에서 부르면 바로 running, 밖이면 suspended 일 수 있다. */
 export function getContext(): AudioContext {
   if (!A.ac || A.ac.state === 'closed') {
-    audioSessionHint(!!A.micStream) // 컨텍스트를 만들기 전에 의도를 선언한다. 이후 openMic/closeMic 이 매번 다시 선언한다 (K7)
+    audioSessionHint(!!A.micStream) // 컨텍스트를 만들기 전에 세션 의도를 선언한다
     A.ac = new (ACCtor())({ latencyHint: 'interactive' }); A.captureLoaded = false; A.sampleRate = A.ac.sampleRate
-    // 전화·다른 앱의 오디오 포커스 등으로 컨텍스트가 멈추면(iOS 'interrupted', Android 'suspended') 알린다 — UI 가 "일시정지" 표시/복구
+    // 전화·오디오 포커스 상실로 컨텍스트가 멈추면(iOS 'interrupted', Android 'suspended') 알린다
     A.ac.onstatechange = () => { for (const f of stateListeners) f(A.ac!.state as AudioContextState | 'interrupted') }
   }
   if (A.ac.state !== 'running') void A.ac.resume().catch(() => {}) // 'suspended' 뿐 아니라 iOS 'interrupted' 도
@@ -90,14 +78,14 @@ function waitWorkerReady(w: Worker, timeoutMs: number): Promise<void> {
 }
 
 let opening = false
-let micGen = 0 // 세션 토큰: openMic 도중 closeMic 이 끼어들면(트랙 ended·무활동·워커 오류) 늦게 깨어난 await 뒤에서 옛 세션을 이어가지 않게
+let micGen = 0 // 세션 토큰: openMic 도중 closeMic 이 끼어들면 늦게 깨어난 await 가 옛 세션을 이어가지 않게
 export type MicResult = { ok: true } | { ok: false; error: string }
 
-/** 지금 getUserMedia 를 기다리는 중인가 — 숨김·편집기가 이 창에 끼어들면 cancelOpen() 으로 그 세션을 무효화한다 (감사 A5) */
+/** 지금 getUserMedia 를 기다리는 중인가 — 숨김·편집기가 끼어들면 cancelOpen() 으로 무효화한다 */
 export const isOpening = (): boolean => opening
 /** 진행 중인 openMic 을 무효화한다. 늦게 깨어난 gUM 은 gen 이 바뀐 걸 보고 트랙을 끄고 'busy' 로 끝난다 */
 export function cancelOpen(): void { if (opening) micGen++ }
-/** 진행 중인 열기가 끝날 때까지 (최대 maxMs). 'busy' 를 받은 쪽이 이걸 기다렸다가 한 번 더 열면 된다 (감사 B12) */
+/** 진행 중인 열기가 끝날 때까지 (최대 maxMs). 'busy' 를 받은 쪽이 기다렸다가 한 번 더 연다 */
 export function untilOpenSettled(maxMs = 6000): Promise<void> {
   return new Promise(res => { const t0 = Date.now(); const tick = (): void => { if (!opening || Date.now() - t0 > maxMs) res(); else setTimeout(tick, 50) }; tick() })
 }
@@ -109,13 +97,9 @@ export async function openMic(): Promise<MicResult> {
   const gen = ++micGen
   const stale = () => gen !== micGen || !A.micStream
   try {
-    // ⚠ 순서가 중요하다 (K7). iOS 는 AVAudioSession 카테고리가 'playback' 이면 **마이크 캡처를 거부**한다
-    //   — `The audio session category is not compatible with audio capture`.
-    //   closeMic() 이 세션을 'playback' 으로 돌려놓으므로, 두 번째 openMic 은 그 상태에서 시작한다.
-    //   따라서 getUserMedia 를 부르기 **전에** 의도를 선언해야 한다. 성공 뒤에 선언하면 영영 도달하지 못한다.
-    //   (첫 실행은 기본값 'auto' 라 통과한다 — 그래서 "처음엔 되는데 껐다 켜면 안 된다" 로 보였다)
+    // iOS: getUserMedia 전에 'play-and-record' 선언. 'playback' 상태면 캡처가 거부된다
     audioSessionHint(true)
-    // 샘플레이트를 강제하지 않는다 — 기기 기본값(44.1/48 kHz)을 쓰고 분석기가 sr 을 받는다 (§B1)
+    // 샘플레이트를 강제하지 않는다 — 기기 기본값(44.1/48 kHz)을 분석기가 받는다
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
     if (gen !== micGen) { stream.getTracks().forEach(t => t.stop()); opening = false; return { ok: false, error: 'busy' } }
     A.micStream = stream
@@ -136,7 +120,7 @@ export async function openMic(): Promise<MicResult> {
     A.micSource = ac.createMediaStreamSource(stream); A.micSource.connect(A.captureNode)
     // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리 — 자기 스트림일 때만 (이전 세션의 늦은 ended 가 새 세션을 닫지 않게)
     stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.('마이크 연결이 끊겼습니다') } })
-    tunerStore.set({ micReady: true, running: true, sampleRate: ac.sampleRate }) // 샘플레이트는 트레이스 창을 초 단위로 유지하는 데 쓰인다 (B11)
+    tunerStore.set({ micReady: true, running: true, sampleRate: ac.sampleRate }) // 샘플레이트는 트레이스 창을 초 단위로 유지하는 데 쓰인다
     opening = false
     for (const h of hooks.afterOpen) h()
     return { ok: true }
@@ -144,13 +128,11 @@ export async function openMic(): Promise<MicResult> {
     opening = false
     if (e instanceof Error && e.message === 'busy') return { ok: false, error: 'busy' } // 도중에 닫힘 — closeMic 이 세션도 이미 되돌렸다
     teardownMic()
-    // 열기에 실패했으면 재생 전용으로 되돌린다. 'play-and-record' 로 남기면 iOS 가 스피커 출력을
-    // 감쇠하거나 수화기로 돌린다 — B12("폰 볼륨 최대인데 30 % 수준")가 마이크도 없이 재발한다.
-    audioSessionHint(false)
+    audioSessionHint(false) // 실패 시 재생 전용으로 되돌린다 — 'play-and-record' 로 남기면 iOS 가 출력을 감쇠한다
     return { ok: false, error: micErrorMessage(e) }
   }
 }
-/** getUserMedia 오류를 사용자가 행동할 수 있는 문장으로 (설계서 §D1 권한 흐름) */
+/** getUserMedia 오류를 사용자가 행동할 수 있는 문장으로 */
 export function micErrorMessage(e: unknown): string {
   const name = e instanceof Error ? e.name : ''
   const msg = e instanceof Error ? e.message : String(e)
@@ -158,14 +140,14 @@ export function micErrorMessage(e: unknown): string {
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return '마이크를 찾을 수 없어요'
   if (name === 'NotReadableError' || name === 'TrackStartError') return '다른 앱이 마이크를 쓰고 있어요 — 그 앱을 닫고 다시 시도해주세요'
   if (name === 'SecurityError') return '이 페이지에서는 마이크를 쓸 수 없어요 (HTTPS 필요)'
-  // K7 의 보험. 원인(세션 선언 순서)은 openMic 에서 고쳤으므로 이 문장이 보이면 그 자체가 신호다.
+  // iOS 세션 카테고리 충돌 — 보이면 openMic 의 세션 선언 순서가 깨진 것
   if (/audio session/i.test(msg)) return '마이크를 다시 열지 못했어요 — 앱을 새로고침하면 복구됩니다'
   return msg || '알 수 없는 오류'
 }
 export const isPermissionError = (msg: string): boolean => /권한|차단/.test(msg)
 
 function teardownMic(): void {
-  micGen++ // 진행 중인 openMic 이 있으면 그 세션은 무효
+  micGen++ // 진행 중인 openMic 세션 무효화
   A.micStream?.getTracks().forEach(t => t.stop())
   A.captureNode?.port.postMessage({ type: 'stop' }) // 프로세서 수거 (process → false)
   A.micSource?.disconnect(); A.captureNode?.disconnect(); A.worker?.terminate()
@@ -189,4 +171,4 @@ export function resumeIfRunning(): void {
 /** 메트로놈 클릭 구간을 워커에 알려 그 창의 프레임을 버리게 한다 (같은 컨텍스트 시계) */
 export function muteAnalysis(fromT: number, untilT: number, at: number): void { if (A.worker) sendToWorker({ type: 'mute', from: fromT, until: untilT, at }) }
 
-settingsStore.select(s => `${s.rmsMin}|${s.smoothing}|${s.refHz}|${s.tolCents}`, () => { if (A.worker) sendToWorker({ type: 'settings', settings: analyzerSettings() }) }) // BPM 등 무관한 변경마다 워커에 보내지 않는다 (감사)
+settingsStore.select(s => `${s.rmsMin}|${s.smoothing}|${s.refHz}|${s.tolCents}`, () => { if (A.worker) sendToWorker({ type: 'settings', settings: analyzerSettings() }) }) // 무관한 설정 변경마다 워커에 보내지 않는다

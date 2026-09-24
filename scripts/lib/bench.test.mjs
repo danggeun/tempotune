@@ -1,4 +1,4 @@
-// 벤치마크 하네스 자체 검증 — 하네스가 틀리면 모든 숫자가 무의미하므로
+// 벤치마크 하네스 자체 검증
 import { describe, test, expect } from 'vitest'
 import { makeFFT } from './fft.mjs'
 import { createV1 } from './adapter-v1.mjs'
@@ -50,8 +50,8 @@ describe('metrics — 배음 관계 판정 (실측 발견 B3)', () => {
     expect(harmonicRel(880, 440)).toBe('×2')
   })
   test('이전 하네스가 놓치던 것들', () => {
-    expect(harmonicRel(110, 440)).toBe('÷4')      // 2옥타브 — 실제 오류의 29 %
-    expect(harmonicRel(440 / 3, 440)).toBe('÷3')  // 옥타브+5도 — 8 %
+    expect(harmonicRel(110, 440)).toBe('÷4')      // 2옥타브
+    expect(harmonicRel(440 / 3, 440)).toBe('÷3')  // 옥타브+5도
     expect(harmonicRel(440 / 5, 440)).toBe('÷5')
     expect(harmonicRel(440 * 3, 440)).toBe('×3')
   })

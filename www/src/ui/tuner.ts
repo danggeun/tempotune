@@ -9,42 +9,37 @@ import { buildSegments, keepInTrace } from '../core/trace.ts'
 import { CFG, settingsStore, tunerStore } from '../state/index.ts'
 import { q } from './dom.ts'
 
-const hzReadout = createHzReadout() // Hz 표시의 평활·갱신 주기 (v2.3.0)
+const hzReadout = createHzReadout() // Hz 표시의 평활·갱신 주기
 
 let tapHandler: (() => void) | null = null
-/**
- * 트레이스 버퍼. 길이는 `histSec × 프레임률` 이라 샘플레이트가 정해지면(마이크 열림) 다시 잡는다 (B11).
- * `histMidi` 는 같은 인덱스에 그때의 음이름(midi)을 담는다 — 라벨이 바뀐 자리를 알아야 가로줄을 안 그릴 수 있다 (C1).
- */
+// 트레이스 버퍼. 길이는 histSec × 프레임률이라 샘플레이트가 정해지면 다시 잡는다. histMidi 는 같은 인덱스의 음이름 — 음이 바뀐 자리에 가로줄을 안 긋기 위해
 let histSec: number = CFG.tuner.histSec
 let histSr = 44100
 let hist: Array<number | null> = new Array(histLenFor(histSr, histSec, CFG.tuner.hop)).fill(null)
 let histMidi: Array<number | null> = new Array(hist.length).fill(null)
-/** 마이크가 열려 샘플레이트가 확정되면 버퍼를 그 길이로 다시 잡는다. 표시 버퍼라 내용 보존은 불필요. */
+/** 표시 버퍼라 내용 보존은 불필요 */
 function resizeHist(sampleRate: number): void {
   histSr = sampleRate
   const n = histLenFor(sampleRate, histSec, CFG.tuner.hop)
   if (n === hist.length) return
   hist = new Array(n).fill(null); histMidi = new Array(n).fill(null)
 }
-/** 창 길이(초) 변경 — 값 선택용 비교 렌더/e2e 에서 쓴다 (scripts/render-trace.mjs) */
+/** 창 길이(초) 변경 — 비교 렌더/e2e 용 */
 export function setHistSec(sec: number): void { histSec = sec; hist = []; resizeHist(histSr) }
-/** 마지막 그리기에서 '음이 바뀌어 끊은' 세그먼트 수 — 픽셀 추정 없이 규칙을 직접 검사하기 위한 진단값 */
+/** 마지막 그리기에서 '음이 바뀌어 끊은' 세그먼트 수 (진단값) */
 let lastSkipped = 0
 /** 테스트·진단용 */
 export const histDiag = (): { len: number; sec: number; sr: number; skipped: number } => ({ len: hist.length, sec: histSec, sr: histSr, skipped: lastSkipped })
-/** 캔버스 색은 토큰에서 (style.css 의 '색은 토큰에서만' 원칙) */
+/** 캔버스 색은 CSS 토큰에서 */
 let okRgb = '34,197,94'
 let stageBg = '#0d0f13'
 function readTokens(): void {
   const cs = getComputedStyle(document.documentElement)
   okRgb = cs.getPropertyValue('--ok-rgb').trim() || okRgb
-  // 무대 색은 토큰에서 읽는다. 전에는 '#000' 리터럴이었는데, 화면에서 가장 큰 면이 토큰 체계 밖에 있어
-  // 팔레트를 올려도 여기만 순검정으로 남았다 (style.css 머리말: "값은 토큰에서만 온다")
   stageBg = cs.getPropertyValue('--tuner-bg').trim() || stageBg
 }
 
-// ── 히스토리 ──
+// 히스토리
 function drawHistory(inTune: boolean): void {
   const canvas = q<HTMLCanvasElement>('tuner-history'); if (!canvas.offsetWidth) return
   const W = canvas.offsetWidth, H = Math.max(80, canvas.offsetHeight || 100), dpr = devicePixelRatio || 1
@@ -54,17 +49,15 @@ function drawHistory(inTune: boolean): void {
   if (inTune) { c.fillStyle = `rgba(${okRgb},.07)`; c.fillRect(0, 0, W, H) }
   const ppc = (W / 2) / 50, tol = settingsStore.get().tolCents, N = hist.length, rH = H / N
   lastSkipped = 0
-  c.fillStyle = `rgba(${okRgb},.38)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H) // 띠는 '영역' 이지 신호가 아니다 — 음이름·트레이스보다 뒤로 (.65 는 시선을 먼저 가져갔다)
+  c.fillStyle = `rgba(${okRgb},.38)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H) // 띠는 '영역' — 트레이스보다 뒤로
   c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1
   c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2, H); c.stroke()
-  // ♭ / ♯ — 게이지 줄을 걷어내면서(K9) 방향 표시까지 사라지지 않게 캔버스 안으로 옮겼다.
-  // 축(가로 = cents)이 곧 이 캔버스이므로, 라벨도 축 위에 있는 게 맞다.
-  // 아래쪽에 둔다 — 최신 값이 맨 아래라 시선이 거기 있고, 걷어낸 게이지 줄도 아래에 있었다(공간 습관 유지)
+  // ♭ / ♯ 방향 표시 — 최신 값이 맨 아래라 아래쪽에
   c.fillStyle = 'rgba(255,255,255,.42)'; c.font = "14px 'DM Mono', monospace"; c.textBaseline = 'bottom'
   c.textAlign = 'left'; c.fillText('\u266d', 8, H - 7)
   c.textAlign = 'right'; c.fillText('\u266f', W - 8, H - 7)
   c.lineWidth = 3; c.lineCap = 'round' // 90 cm 에서 보이는 굵기
-  // 무엇을 잇고 무엇을 버릴지는 core/trace.ts 가 정한다 (경계에 걸친 프레임 폐기 + 가짜 통과선 끊기)
+  // 무엇을 잇고 무엇을 버릴지는 core/trace.ts 가 정한다
   const { segs, breaks } = buildSegments(hist, histMidi)
   lastSkipped = breaks
   for (const [i, j] of segs) {
@@ -72,25 +65,14 @@ function drawHistory(inTune: boolean): void {
     const y0 = (i + .5) * rH, y1 = (j + .5) * rH
     const x0 = W / 2 + Math.max(-50, Math.min(50, v0)) * ppc, x1 = W / 2 + Math.max(-50, Math.min(50, v1)) * ppc
     c.globalAlpha = .22 + (i / (N - 1)) * .78
-    // 트레이스는 **항상 흰색**. 맞음을 색으로 또 말하면, 하필 맞은 순간에 초록 선이 초록 띠 위에 얹혀
-    // 대비가 가장 낮아진다(실측 4.53:1 → 흰색 5.92:1; 녹색맹에서는 4.45 → 5.88).
-    // 정보 손실은 없다 — 띠는 |cents| ≤ tol 구간을 그대로 칠하고 트레이스의 x 도 같은 cents 축이므로
-    // '선이 띠 안에 있다' 가 '맞았다' 와 정확히 같은 뜻이다. 색은 그 말을 중복해서 할 뿐이었다.
-    // 띠는 '영역', 트레이스는 '신호' — 신호가 영역보다 앞에 있어야 한다(이 파일의 띠 알파 주석과 같은 규칙).
+    // 트레이스는 항상 흰색 — 초록 선은 초록 띠 위에서 대비가 가장 낮아진다. '선이 띠 안' = '맞음' 이라 정보 손실은 없다
     c.strokeStyle = '#ffffff'
     c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke()
   }
   c.globalAlpha = 1; c.restore()
 }
 
-// ── 중음(더블스톱) 둘째 성부 ──
-/**
- * 화면은 위 성부(멜로디)를 보여준다. 중음일 때 **아래 성부**를 이 줄에 같이 적는다 (B17).
- * 왜: 아래 음을 28 ¢ 틀리게 짚어도 화면은 위 음만 보고 0 ¢ · 초록으로 "완벽" 이라고 말했다(실측) —
- * 중음 연습에서 틀린 현을 맞다고 보증하던 문제. 어느 쪽이 틀렸는지는 이 줄이 답한다.
- * 최소 표시 시간: 강하게 울리는 개방현이 116 ms 문턱을 스쳐 지나가도 글자가 번쩍이지 않게 한다.
- * 화면 문구는 '겹음'(교본 표기)이 아니라 **'더블스톱'** — 흘끗 보는 줄이라 정확한 용어보다 즉시 알아보는 말이 낫다.
- */
+// 중음(더블스톱) 둘째 성부: 화면은 위 성부, 아래 성부는 이 줄에. 최소 표시 400 ms — 개방현이 문턱을 스쳐도 글자가 번쩍이지 않게
 const DUAL_MIN_MS = 400
 let dualUntil = 0, dualMidi = -1, dualCents = 0
 function renderDual(midi: number, cents: number): boolean {
@@ -105,11 +87,10 @@ function renderDual(midi: number, cents: number): boolean {
 }
 function clearDual(): void { dualUntil = 0; dualMidi = -1; const el = q('tuner-dual'); el.className = ''; el.textContent = '' }
 
-// ── 음 표시 ──
+// 음 표시
 function renderEmpty(): void {
   const nEl = q('tuner-note')
-  // 마이크가 꺼져 있으면 '--' 대신 왜 아무것도 안 뜨는지 (빈 상태 카피). 켜져 있고 조용하면 '--'.
-  // 앱이 스스로 다시 여는 중(micReopening)이면 사용자가 할 일이 없다 — "켜라" 고 말하지 않고 '--' (L4: 전용 모드에서 나올 때 문구가 깜빡였다)
+  // 마이크가 꺼져 있으면 빈 상태 카피, 켜져 있거나 스스로 다시 여는 중(micReopening)이면 '--'
   const s = tunerStore.get(), off = !s.micReady && !s.micReopening && !tapHandler
   nEl.textContent = off ? 'MIC 를 켜면 시작해요' : '--'; nEl.className = off ? 'empty hint' : 'empty'
   q('tuner-oct').textContent = ''; q('tuner-cents').textContent = ''; q('tuner-enharmonic').textContent = ''; q('tuner-acc').textContent = ''
@@ -117,11 +98,7 @@ function renderEmpty(): void {
   clearDual()
   q('tuner-card').classList.remove('in-tune')
 }
-/**
- * @param inTune 화면 음(위 성부)이 허용 범위 안인가 — 음이름·♯ 색
- * @param allInTune 지금 울리는 **모든 성부**가 안인가 — 카드 전체 초록 글로우. 중음에서 아래 음이 틀렸는데
- *   카드가 "완벽" 으로 빛나는 것을 막는다. 단음이면 두 값이 같다.
- */
+/** inTune = 위 성부가 허용 범위 안(음이름 색), allInTune = 모든 성부가 안(카드 글로우). 단음이면 같다 */
 function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boolean, hz: number): void {
   const { name, secondary } = noteLabel(midi, settingsStore.get().noteNames)
   const base = name.replace('♯', ''), acc = name.includes('♯') ? '♯' : ''
@@ -134,23 +111,19 @@ function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boo
   const t = hzReadout.push(hz, midi, performance.now()); if (t !== null) q('tuner-hz').textContent = t
 }
 
-/**
- * 시작 버튼 (v2.3.3 N7, 전엔 "탭하여 시작" 글자) — 탭이 있어야 마이크를 열 수 있는 상태. 카드 어디를 눌러도 되지만 보이는 건 버튼 하나.
- * sub: 다음에 벌어질 일 한 줄(예: 아이폰 첫 실행 "마이크 사용을 물어볼게요"). 없으면 비운다.
- * 성공(true) 시 버튼을 거두고 원래 표시로 복귀.
- */
+/** 시작 버튼. 카드 어디를 눌러도 onTap. sub 는 버튼 아래 한 줄 안내(없으면 비움). onTap 이 true 면 거둔다 */
 export function showTapHint(onTap: () => Promise<boolean>, sub = ''): void {
   const nEl = q('tuner-note'), card = q('tuner-card')
   nEl.textContent = '--'; nEl.className = 'empty'
   q('tuner-start-sub').textContent = sub
   card.classList.add('tap-hint')
-  if (tapHandler) card.removeEventListener('click', tapHandler) // 호출마다 리스너가 쌓이지 않게 (리뷰)
+  if (tapHandler) card.removeEventListener('click', tapHandler) // 호출마다 리스너가 쌓이지 않게
   const handler = async () => { if (await onTap()) { card.classList.remove('tap-hint'); card.removeEventListener('click', handler); if (tapHandler === handler) tapHandler = null } }
   tapHandler = handler
   card.addEventListener('click', handler)
 }
 
-/** 시작 버튼을 거둔다 — 마이크가 열려 있고 컨텍스트가 돌면 버튼은 할 일이 없다 (B12: 돌아가는 튜너 위에 버튼이 남지 않게) */
+/** 시작 버튼을 거둔다 */
 export function hideTapHint(): void {
   const card = q('tuner-card')
   if (tapHandler) { card.removeEventListener('click', tapHandler); tapHandler = null }
@@ -158,7 +131,7 @@ export function hideTapHint(): void {
 }
 export function mountTuner(): void {
   readTokens() // 앱은 다크 고정 — 시스템 테마 변화를 따라갈 일이 없다
-  // 매 분석 프레임(≈43 Hz): 히스토리는 프레임마다 쌓고, 그리기는 rAF 에 한 번만 (vsync 와 비동기인 워커 프레임을 코얼레싱)
+  // 매 분석 프레임(≈43 Hz)마다 히스토리를 쌓고, 그리기는 rAF 에 한 번만
   let dirty = false, raf: number | null = null
   const paint = () => {
     raf = null; if (!dirty) return; dirty = false
@@ -170,20 +143,20 @@ export function mountTuner(): void {
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
   tunerStore.select(s => s.frame, () => {
     const s = tunerStore.get()
-    // 무엇을 트레이스에 쌓을지는 core/trace.ts 가 정한다 (짧은 유지는 잇고, 소리가 끝난 뒤 꼬리는 비운다 — T1)
+    // 무엇을 트레이스에 쌓을지는 core/trace.ts 가 정한다
     const off = !keepInTrace(s.hz, s.held)
     hist.push(off ? null : s.cents); hist.shift()
     histMidi.push(off ? null : s.midi); histMidi.shift()
     dirty = true; if (raf == null) raf = requestAnimationFrame(paint)
   })
-  // 마이크 꺼짐 → 표시 초기화 (v1 closeMic)
+  // 마이크 꺼짐 → 표시 초기화
   tunerStore.select(s => s.micReady, ready => {
     q('hdr-mic-btn').style.display = ready ? 'none' : 'flex'
     q('rec-hdr-btn').style.opacity = ready ? '1' : '.35'
     if (!ready) renderEmpty()
   })
-  // 자동 재개가 실패로 끝났을 때만 그제야 "켜면 시작" 을 보여준다 (분석 루프가 안 도니 여기서 직접 다시 그린다)
+  // 자동 재개가 실패로 끝나면 그제야 "켜면 시작" — 분석 루프가 안 도니 여기서 직접 그린다
   tunerStore.select(s => s.micReopening, v => { if (!v && !tunerStore.get().micReady) renderEmpty() })
-  // 초기 렌더 (v1: 200 ms 후)
+  // 초기 렌더
   setTimeout(() => drawHistory(false), 200)
 }

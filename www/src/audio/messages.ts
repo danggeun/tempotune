@@ -5,19 +5,17 @@ import type { Frame, AnalyzerSettings } from '../core/pitch/analyzer.ts'
 export interface ChunkMsg { type: 'chunk'; chunk: Float32Array; /** 청크 끝의 AudioContext 시간(초) */ t: number }
 /** 워커 → 워클릿: 다 쓴 버퍼 반납 (오디오 스레드의 할당/GC 를 피한다) */
 export interface RecycleMsg { type: 'recycle'; buf: ArrayBuffer }
-/** 메인 → 워클릿: 워커로 가는 포트 전달 */
 
 /** 메인 → 워커 */
 export type WorkerIn =
   | { type: 'init'; sampleRate: number; port: MessagePort; settings: AnalyzerSettings }
   | { type: 'settings'; settings: Partial<AnalyzerSettings> }
-  /** 링버퍼 리셋 + afterT(초) 이전에 캡처된 청크는 버림 (백그라운드 복귀 시 밀린 청크 폭주 방지) */
+  /** 링버퍼 리셋 + afterT(초) 이전 청크는 버림 — 백그라운드 복귀 시 밀린 청크 폭주 방지 */
   | { type: 'reset'; afterT: number }
-  /** 이 구간(초, AudioContext 시계)에 걸치는 프레임은 신뢰도를 낮춤 — 메트로놈 클릭이 마이크로 누설되는 구간.
-   *  at = 클릭이 마이크에 닿을 것으로 예상한 시각(예약 + 출력 지연). 워커는 실제 도착 시각을 재서 구간을 그만큼 민다 (M1) */
+  /** 메트로놈 클릭 누설 구간(초, AudioContext 시계). at = 클릭이 마이크에 닿을 예상 시각(예약 + 출력 지연) */
   | { type: 'mute'; from: number; until: number; at: number }
 
 /** 워커 → 메인 */
 export type WorkerOut =
-  | { type: 'frame'; frame: Frame; /** 창 끝 시각(초) */ t: number; /** 처리 시간 ms */ ms: number; /** 직전에 백프레셔로 건너뛴 프레임 수 */ skipped: number; /** 클릭 도착 보정(초, M1). 합의 전 0 */ calib: number }
+  | { type: 'frame'; frame: Frame; /** 창 끝 시각(초) */ t: number; /** 처리 시간 ms */ ms: number; /** 직전에 백프레셔로 건너뛴 프레임 수 */ skipped: number; /** 클릭 도착 보정(초). 합의 전 0 */ calib: number }
   | { type: 'ready' }

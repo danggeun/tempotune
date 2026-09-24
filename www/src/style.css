@@ -1,39 +1,26 @@
-/* ══════════════════════════════════════════════════════════════
-   TempoTune — 디자인 토큰 (Phase 6)
-   원칙(docs/UX-AUDIT.md §2): 색과 움직임을 아낀다 · 연습 중엔 튜너만 · 조작은 글자로 · 경계는 얇고 낮게
-   이 파일의 값은 토큰에서만 온다. 컴포넌트 규칙에 색/크기 리터럴을 새로 쓰지 않는다.
-   ══════════════════════════════════════════════════════════════ */
+/* TempoTune — 디자인 토큰. 컴포넌트 규칙에 색/크기 리터럴을 새로 쓰지 않는다 */
 :root{
-  /* 면 — **다크 고정** (v2.0.2). 앱의 정체성(세리프 워드마크·검정 튜너 카드·초록)이 전부 어두운 쪽이고,
-     실사용이 연습실·밤·거리 두고 보는 화면이라 흰 프레임이 검정 카드와 따로 놀았다. 시스템 설정을 따르지 않는다. */
+  /* 면 — 다크 고정. 시스템 설정을 따르지 않는다 */
   color-scheme:dark;
-  /* 면 램프 — 단차는 WCAG 대비가 아니라 **지각 명도 ΔL\*** 로 잡는다(대비비는 글자 가독성용이고 어두운 값에서 압축된다).
-     한 단 = ΔL* 5~8. 무대 4.3 → bg 9.7 → surface 15.9 → surface-2 21.1 (ΔL* 5.4 / 6.2 / 5.2).
-     v2.0.2 는 무대가 순검정(L*0)이고 bg 가 L*4.3 이라 화면 전체가 '바닥에 깔린 한 덩어리 검정' 으로 읽혔다 (베타 피드백 #1).
-     램프 전체를 들어 올려 면이 층으로 나뉘게 했다. 약간의 한색(색상 ≈220°)은 중성 회색의 '죽은' 느낌을 없애고
-     경고색(빨강·앰버)과 색상환에서 멀어져 상태색이 더 또렷해진다. */
+  /* 면 램프 — 단차는 지각 명도 ΔL* 5~8 (무대 4.3 → bg 9.7 → surface 15.9 → surface-2 21.1). 한색 ≈220° 는 경고색과 색상환에서 멀다 */
   --bg:#181b21;--surface:#232830;--surface-2:#2e333c;
   /* 경계 — 하나의 헤어라인. 강조는 색으로, 굵기로 하지 않는다 */
   --line:#363c46;--line-strong:#4d5560;
-  /* 조작 요소(버튼·세그먼트) 테두리 — 면 구분선(--line)과 분리 (v2.0.3 D3). 어두운 면 위 1.4:1 이던 것을 WCAG 1.4.11 의 3:1 로.
-     카드·구분선은 '얇고 낮게' 원칙대로 --line 을 유지한다. 그림으로 비교해 정함 (scripts/render-design.mjs) */
+  /* 조작 요소(버튼·세그먼트) 테두리 — 어두운 면 위 3:1 (WCAG 1.4.11). 카드·구분선은 --line */
   --line-ctl:#757d88;
-  /* 글자 3단계 — text-3 는 '읽으라고 둔 보조문' 까지 AA(4.5:1) 를 넘긴다(#8a8a8a = 5.3:1; v2.0.2 의 #7c7c7c 는 4.2 로 미달이었다 — D1). 순수 장식은 --deco */
+  /* 글자 3단계 — text-3 도 AA(4.5:1) 를 넘긴다. 순수 장식은 --deco */
   --text:#dfe3e8;--text-2:#a2a9b2;--text-3:#99a1aa;--deco:#616974;
-  /* 액센트 — 빨강 하나. 어두운 면 위에서 4.6:1 이 되도록 반 톤 밝게 */
-  /* 액센트 — 빨강 하나. **두 값으로 나눈다**: 어두운 면 위의 '글자·테두리' 와 흰 글자를 얹는 '면'.
-     v2.0.2 는 하나로 썼는데, 흰 글자/#ec4646 = 3.80:1 로 WCAG AA(4.5) 미달이었다(실측).
-     채도 높은 빨강을 큰 면적에 그대로 쓰면 각성도도 높다 — 면적 × 채도는 함께 줄인다. */
-  --accent:#f15f54;--accent-rgb:241,95,84;--accent-soft:rgba(241,95,84,.13); /* 글자·테두리(작은 면적) — 채도 85%, surface 위 4.59:1 */
-  --accent-fill:#cc473e; /* 솔리드 버튼(큰 면적) — 채도 58% 로 낮춘다. 흰 글자 4.63:1 */
-  /* 상태 — 맞음(초록)은 튜너 안에서만. 앰버는 두 곳: 주의 점(--warn) 과 북마크 표식(--mark) — 같은 색, 다른 이름 (뜻이 섞이지 않게) */
+  /* 액센트 — 빨강 하나, 두 값: 어두운 면 위의 글자·테두리와 흰 글자를 얹는 면 */
+  --accent:#f15f54;--accent-rgb:241,95,84;--accent-soft:rgba(241,95,84,.13); /* 글자·테두리(작은 면적) — surface 위 4.59:1 */
+  --accent-fill:#cc473e; /* 솔리드 버튼(큰 면적) — 흰 글자 4.63:1 */
+  /* 상태 — 초록은 튜너 안에서만. --warn(주의 점)과 --mark(북마크)는 같은 색, 다른 뜻 */
   --ok:#22c55e;--ok-rgb:34,197,94;--warn:#f59e0b;--mark:#f59e0b;--mark-rgb:245,158,11;
-  /* 튜너 카드 전용 (라이트/다크 무관하게 항상 검정 무대) */
-  --tuner-bg:#0d0f13;--tuner-line:#1f242c;--tuner-well:#151a21;--tuner-text-1:#b6bcc4;--tuner-text-2:#949aa2;--tuner-text-3:#868c94;--tuner-empty:#2f353d; /* text-3 = 이명(레♭·C♯·D♭) — 정보라 4.6:1 (D2; 옛 #555 는 2.8) */
+  /* 튜너 카드 전용 — 항상 검정 무대 */
+  --tuner-bg:#0d0f13;--tuner-line:#1f242c;--tuner-well:#151a21;--tuner-text-1:#b6bcc4;--tuner-text-2:#949aa2;--tuner-text-3:#868c94;--tuner-empty:#2f353d; /* text-3 = 이명 — 4.6:1 */
   /* 형태 */
   --r-lg:16px;--r-md:10px;--r-sm:7px;
   --gap:8px;
-  /* 타입 스케일 — 11단계. 컴포넌트 규칙에 이 밖의 font-size 리터럴을 새로 쓰지 않는다 (워드마크 28 만 예외) */
+  /* 타입 스케일 — 11단계. 이 밖의 font-size 리터럴 금지 (워드마크 28 만 예외) */
   --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-base:15px;--fs-lg:17px;--fs-xl:22px;--fs-2xl:32px;--fs-d1:44px;--fs-d2:56px;--fs-d3:104px;
   /* 굵기 — 셋. 700 은 주행동·섹션 제목·원거리 캡스에만 */
   --fw:400;--fw-md:500;--fw-b:700;
@@ -52,28 +39,28 @@
   --t-fast:.08s;--t-std:.2s;--t-slow:.55s;--ease:cubic-bezier(.4,0,.2,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;} /* 안드로이드 크롬 탭: 카드를 아래로 미는 제스처가 '당겨서 새로고침' 이 되지 않게 (감사 B3) */
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;} /* 안드로이드 크롬: 카드를 아래로 미는 제스처가 '당겨서 새로고침' 이 되지 않게 */
 button{font-family:inherit;color:inherit;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes metroflash{0%{background:rgba(var(--accent-rgb),.28);box-shadow:inset 0 0 0 2px var(--accent)}60%{background:rgba(var(--accent-rgb),.1);box-shadow:inset 0 0 0 2px var(--accent)}100%{background:var(--surface);box-shadow:none}}
 
-/* 컴팩트 글자 버튼 (36 px) — 보이는 크기는 그대로, 누르는 영역은 ::after 로 44 px (활 든 손으로 뻗는 버튼들) */
+/* 컴팩트 글자 버튼 (36 px) — 누르는 영역은 ::after 로 44 px */
 .compact-btn{position:relative;height:var(--h-compact);padding:0 12px;background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);font-size:var(--fs-md);font-weight:var(--fw-md);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;}
 .compact-btn.caps{font-size:var(--fs-sm);font-weight:var(--fw-b);letter-spacing:var(--ls-caps);} /* REC · MIC — 원거리 캡스만 굵게+자간 */
 .compact-btn::after{content:'';position:absolute;inset:-4px -2px;}
 
-/* 아이콘은 SVG 로 — 폰트 문자(≡ ✕ ← ▼ ♩)는 굵기가 제각각(3 px 부터 1.8 px)이고 폴백 폰트를 탄다. 획 1.75 로 헤어라인 계열 */
+/* 아이콘은 SVG 로 — 폰트 문자(≡ ✕ ← ▼ ♩)는 굵기가 제각각이고 폴백 폰트를 탄다 */
 .nav-glyph{width:var(--icon-nav);height:var(--icon-nav);fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;display:block;}
 .nav-glyph.chev{transition:transform var(--t-std) var(--ease);}
 #metro-size-btn.to-expand .nav-glyph.chev{transform:rotate(180deg);} /* 접힘일 때는 ∧ (펼치러 간다) */
 .note-glyph{width:12px;height:17px;fill:currentColor;display:inline-block;vertical-align:-3px;}
-/* 빔으로 묶인 글리프는 가로로 길다 — viewBox 비율 그대로 폭을 준다 (찌그러지면 음표가 아니다) */
-.note-glyph.g2{width:22px;}.note-glyph.g4{width:40px;}.note-glyph.g3{width:29px;height:17.5px;}.note-glyph.gd{width:26px;} /* L5: g4 44→48, gd 30→31 viewBox 에 맞춰 폭도 비례 */
+/* 빔으로 묶인 글리프는 가로로 길다 — viewBox 비율 그대로 폭을 준다 */
+.note-glyph.g2{width:22px;}.note-glyph.g4{width:40px;}.note-glyph.g3{width:29px;height:17.5px;}.note-glyph.gd{width:26px;}
 .note-glyph .flag{display:none;}
 #sd-grid.compound .note-glyph .flag{display:block;}
 
-/* ── 팝업 ── */
+/* 팝업 */
 #mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);}
 #mic-popup-bg.show{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #mic-popup{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px 22px 18px;max-width:300px;width:90%;display:flex;flex-direction:column;gap:16px;text-align:center;}
@@ -82,12 +69,10 @@ button{font-family:inherit;color:inherit;}
 #mic-popup-btn{height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:#fff;font-size:var(--fs-base);font-weight:var(--fw-b);cursor:pointer;}
 #mic-popup-cancel{height:var(--h-seg);background:transparent;border:none;color:var(--text-3);font-size:var(--fs-md);cursor:pointer;}
 
-/* ── 앱 ── */
+/* 앱 */
 #app{height:100%;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + var(--s3)) var(--s3) max(var(--s3),env(safe-area-inset-bottom,0px));gap:var(--gap);} /* 엣지투엣지(Android 15+)에서 워드마크가 상태바 밑으로 들어가지 않게 */
 
-/* ── 헤더 ── */
-/* 워드마크 없음(v2.3.1 L10) → 빈 왼쪽에 ☰ 를 옮기고 옛 ☰ 자리에 ⚙ 를 놓는다 (v2.3.2 M1).
-   양 끝에 같은 크기의 아이콘 버튼 하나씩 — 균형이 맞고, 설정이 '메뉴 → 설정' 두 단계에서 한 단계가 된다 */
+/* 헤더 — 양 끝에 같은 크기의 아이콘 버튼 하나씩: 왼쪽 ☰, 오른쪽 ⚙ */
 #hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
 #hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 #hdr-rec-time{display:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;letter-spacing:.04em;min-width:2.6em;text-align:right;}
@@ -97,18 +82,16 @@ button{font-family:inherit;color:inherit;}
 #hdr-mic-dot{background:var(--text);}
 #rec-hdr-btn.rec-on #rec-hdr-dot,.rec-live-dot{background:var(--accent);animation:pulse 1s infinite;}
 .rec-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;}
-/* 44 px 터치 영역은 두고 글리프만 화면 모서리에 맞춘다 — 왼쪽으로 옮겼으므로 음수 마진도 왼쪽 (M1) */
+/* 44 px 터치 영역은 두고 글리프만 화면 모서리에 맞춘다 */
 #menu-btn{position:relative;width:44px;height:44px;margin-left:-12px;background:transparent;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #settings-hdr-btn{position:relative;width:44px;height:44px;margin-right:-12px;background:transparent;border:none;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #settings-hdr-btn .nav-glyph{stroke-width:1.5;}
 
-/* ── 메인 ── */
+/* 메인 */
 #main-body{display:flex;flex-direction:column;gap:var(--gap);width:100%;max-width:400px;flex:1;min-height:0;}
 
-/* ══════════════════════════════════
-   튜너 — 검정 무대. 색은 '맞음' 에만.
-══════════════════════════════════ */
-#tuner-card{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--tuner-bg);border:1px solid var(--tuner-line);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow var(--t-std);} /* 헤어라인: 무대(L*4.3)가 bg(L*9.7) 위에서 한 단 낮게 읽히도록 윤곽을 남긴다 */
+/* 튜너 — 검정 무대. 색은 '맞음' 에만 */
+#tuner-card{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--tuner-bg);border:1px solid var(--tuner-line);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow var(--t-std);} /* 헤어라인: 무대가 bg 위에서 한 단 낮게 읽히도록 윤곽을 남긴다 */
 #tuner-card.in-tune{box-shadow:0 0 0 2px var(--ok),0 0 28px rgba(var(--ok-rgb),.45);}
 #tuner-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--tuner-line);transition:border-color .06s;}
 @keyframes tunerbeat{0%{border-color:var(--accent)}50%{border-color:var(--accent)}100%{border-color:var(--tuner-line)}}
@@ -116,12 +99,12 @@ button{font-family:inherit;color:inherit;}
 #tuner-hdr.beat-flash{animation:tunerbeat .5s ease-out forwards;}
 #tuner-hdr.beat-flash-weak{animation:tunerbeatweak .18s ease-out forwards;}
 #tuner-label{font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);display:flex;align-items:center;}
-/* 오디오 상태 점 — 말 대신 점 (v1 66e7159 의 의도 계승): 켜짐 = 무채색(초록은 '맞음' 하나의 뜻만 가진다), 주의 = 앰버 펄스, 꺼짐 = 숨김 */
+/* 오디오 상태 점 — 켜짐 = 무채색, 주의 = 앰버 펄스, 꺼짐 = 숨김 */
 #tuner-hdr-right{display:flex;align-items:center;gap:10px;}
-/* 'A 듣기' — 검정 무대 위의 글자 버튼: 회색 테두리·글자, 켜짐 = 흰 테두리+흰 글자 (채움 없음) */
+/* 'A 듣기' — 회색 테두리·글자, 켜짐 = 흰 테두리+흰 글자 (채움 없음) */
 #ref-a-btn{height:var(--h-chip);padding:0 9px;border-color:#333;color:var(--tuner-text-2);font-size:var(--fs-xs);font-weight:var(--fw-md);}
 #ref-a-btn.on{border-color:#fff;color:#fff;}
-/* 드럼 히트 영역: 행 전체(라벨 포함)를 잡고 상하 12 px 여유 (UX 감사 B6) — 보이는 크기는 그대로 */
+/* 드럼 히트 영역: 행 전체(라벨 포함)를 잡고 상하 12 px 여유 — 보이는 크기는 그대로 */
 #ref-row{display:flex;align-items:center;gap:8px;padding:12px 8px;margin:-12px -8px;cursor:ns-resize;touch-action:none;user-select:none;}
 #ref-lbl{font-size:var(--fs-xs);color:var(--tuner-text-1);letter-spacing:var(--ls-caps);} /* 흰색은 음이름·바늘·TUNER 만 */
 #ref-drum-outer{position:relative;width:78px;height:28px;overflow:hidden;border-radius:var(--r-sm);background:var(--tuner-well);cursor:ns-resize;user-select:none;touch-action:none;border:1px solid var(--tuner-line);}
@@ -141,72 +124,56 @@ button{font-family:inherit;color:inherit;}
 #tuner-note.tune{color:var(--ok);text-shadow:0 0 20px rgba(var(--ok-rgb),1),0 0 40px rgba(var(--ok-rgb),.7),0 0 80px rgba(var(--ok-rgb),.4);}
 #tuner-note.empty{color:var(--tuner-empty);font-size:64px;letter-spacing:.05em;}
 #tuner-note.empty.hint{font-size:var(--fs-xl);letter-spacing:.02em;color:var(--tuner-text-2);font-family:inherit;font-weight:var(--fw-md);}
-/* 시작 버튼 (N7) — 마이크를 열려면 탭이 필요한 상태. 큰 음 자리에 주 동작 버튼 하나 + 다음에 벌어질 일 한 줄 */
+/* 시작 버튼 — 마이크를 열려면 탭이 필요한 상태. 큰 음 자리에 버튼 하나 + 다음에 벌어질 일 한 줄 */
 #tuner-start{display:none;flex-direction:column;align-items:center;gap:var(--s3);}
 #tuner-card.tap-hint #tuner-start{display:flex;} #tuner-card.tap-hint #tuner-note-main{display:none;}
-#tuner-start-btn{height:var(--h-seg);padding:0 var(--s6);min-width:132px;background:transparent;border:1px solid var(--tuner-text-3);border-radius:var(--r-md);color:var(--tuner-text-1);font-size:var(--fs-base);font-weight:var(--fw-md);letter-spacing:.04em;cursor:pointer;} /* 튜너 카드의 다른 조작(A 듣기·MIC)과 같은 외곽선 꼴 — 무대는 조용해야 한다 */
+#tuner-start-btn{height:var(--h-seg);padding:0 var(--s6);min-width:132px;background:transparent;border:1px solid var(--tuner-text-3);border-radius:var(--r-md);color:var(--tuner-text-1);font-size:var(--fs-base);font-weight:var(--fw-md);letter-spacing:.04em;cursor:pointer;} /* A 듣기·MIC 와 같은 외곽선 꼴 */
 #tuner-start-sub{font-size:var(--fs-sm);color:var(--tuner-text-2);min-height:1em;}
 #tuner-acc{position:absolute;top:4px;left:calc(100% + 2px);font-family:'DM Mono',monospace;font-size:var(--fs-d1);font-weight:var(--fw-md);color:#fff;white-space:nowrap;transition:color var(--t-fast);}
 #tuner-acc.tune{color:var(--ok);}
 #tuner-oct{position:absolute;bottom:4px;left:calc(100% + 12px);font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--tuner-text-2);white-space:nowrap;}
-/* 중음 둘째 성부 — 큰 음이름 바로 아래. 비어 있으면 자리도 차지하지 않게 절대 배치(음이름이 밀려 올라가지 않는다).
-   색 규칙은 트레이스와 같다: 초록 = 그 음도 맞음, 흰색 = 그 음은 벗어남. */
+/* 중음 둘째 성부 — 비어 있으면 자리도 차지하지 않게 절대 배치. 초록 = 그 음도 맞음, 흰색 = 벗어남 */
 #tuner-dual{position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:var(--fs-sm);color:var(--tuner-text-1);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;}
 #tuner-dual.on{opacity:1;}
 #tuner-dual.tune{color:var(--ok);}
 #tuner-right{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;padding:2px 0;}
-/* Hz 는 ¢ 의 거울 자리 (v2.3.0): 왼쪽 가장자리, 아래줄, 같은 서체·크기. 값은 6칸 고정폭(core/hzReadout)이라 white-space:pre 로 앞 공백을 살려 'Hz' 가 자리를 옮기지 않는다 */
+/* Hz 는 ¢ 의 거울 자리. 값은 6칸 고정폭(core/hzReadout)이라 white-space:pre 로 앞 공백을 살린다 */
 #tuner-left{position:absolute;left:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:2px 0;pointer-events:none;}
 #tuner-hz{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);font-weight:var(--fw-md);white-space:pre;font-variant-numeric:tabular-nums;}
 #tuner-enharmonic{font-family:'DM Mono',monospace;font-size:var(--fs-base);color:var(--tuner-text-3);white-space:nowrap;}
 #tuner-cents{font-family:'DM Mono',monospace;font-size:var(--fs-lg);color:var(--tuner-text-1);font-weight:var(--fw-md);text-align:right;}
 #tuner-history{flex:1;min-height:80px;border-radius:var(--r-sm);background:var(--tuner-bg);display:block;width:100%;border:none;}
-/* 게이지 양 끝 ♭ ♯ — '왼쪽이 낮음' 을 학습하지 않아도 되게 (색 추가 없음) */
-/* 음이 바뀌면 cents 의 기준이 바뀐다(+45 → −45). 자리를 애니메이션하면 '바늘이 반대편까지 쓸고 간' 거짓 궤적이 되고(B10),
-   전이만 끄면 순간이동으로 보인다(베타 피드백 #1). 기준이 바뀐 값은 **자리로 이을 수 없는 값**이므로,
-   자리는 즉시 옮기되 그 순간 바늘을 사라졌다 돌아오게 한다 — 거짓 궤적 없이 끊김도 없다. */
 
-/* ══════════════════════════════════
-   메트로놈 — 카드 하나, 헤어라인 하나. 강박은 면과 안쪽 링으로.
-══════════════════════════════════ */
+/* 메트로놈 — 카드 하나, 헤어라인 하나. 강박은 면과 안쪽 링으로 */
 #metro-card{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--line);overflow:hidden;transition:box-shadow .06s,background .1s;}
 #metro-card.flash-strong{animation:metroflash .22s ease-out forwards;}
 #metro-card.lit-weak{box-shadow:inset 0 0 0 1.5px rgba(var(--accent-rgb),.45);}
 #metro-hdr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:8px 12px 8px 16px;border-bottom:1px solid var(--line);gap:10px;min-height:52px;}
 #metro-hdr-label{position:relative;display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--text);font-weight:var(--fw-md);white-space:nowrap;cursor:ns-resize;touch-action:none;user-select:none;padding:8px 10px 8px 0;margin:-8px 0;}
 #metro-hdr-label .note-glyph{width:14px;height:20px;vertical-align:0;}
-#metro-hdr-title{display:none;font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 (N5) */
+#metro-hdr-title{display:none;font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 */
 #metro-card.full #metro-hdr-label{display:none;} #metro-card.full #metro-hdr-title{display:flex;}
 #beat-vis{display:flex;align-items:center;justify-content:center;gap:7px;height:22px;}
-/* grid 세 번째 칸에 **고정**한다 (v2.3.2 M8). 전용 모드에서는 #beat-vis 가 display:none 이라 grid 항목이 둘로 줄고,
-   그러면 버튼 묶음이 1fr 칸(옛 beat-vis 자리)의 왼쪽에 붙어 ♩80 바로 옆에 와 버렸다(실측 left 95 px, 카드 오른쪽 363 px) */
+/* grid 세 번째 칸에 고정 — 전용 모드에서 #beat-vis 가 display:none 이라 grid 항목이 줄어도 오른쪽 끝에 남게 */
 #metro-hdr-right{display:flex;align-items:center;gap:6px;grid-column:3;justify-self:end;}
 #metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
-/* 크기 버튼 하나 (M10) — 상태에 따라 글리프만 바꾼다: 접힘 ∧(펼치러) · 펼침 ∧(펼침2로) · 전용 ∨(접힘으로) */
+/* 크기 버튼 하나 — 상태에 따라 글리프만 바꾼다: 접힘 ∧(펼치러) · 펼침 ∧(펼침2로) · 전용 ∨(접힘으로) */
 #metro-size-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-size-btn::after{content:'';position:absolute;inset:-6px;}
-#metro-size-btn.to-full .nav-glyph.chev{transform:rotate(180deg);} /* 펼침 → 펼침2 도 '위로' — ∧ (N4) */
-/* ── 메트로놈 전용 모드 (K10) = 펼침의 2단계 (v2.3.3 N1) ──
-   "메트로놈 켜고 연습하고 싶은데 튜너가 자꾸 왔다갔다해서 거슬린다." 튜너 카드를 숨기고 메트로놈이 그 자리까지 올라온다.
-   그 밖에는 **펼침과 똑같다**: 헤더(메뉴·REC·설정)는 그대로, 마이크도 그대로. v2.3.1(L10)에서 헤더까지 접어 52 px 을 다이얼에
-   줬었는데, 실사용에서 "화면이 확 덮인다" + 설정·REC 가 두 단계가 되는 쪽이 더 거슬렸다. 다이얼은 상한(320) 밑의 작은 폰에서만 그만큼 준다. */
+#metro-size-btn.to-full .nav-glyph.chev{transform:rotate(180deg);} /* 펼침 → 펼침2 도 '위로' — ∧ */
+/* 메트로놈 전용 모드 = 펼침의 2단계: 튜너 카드를 숨기고 메트로놈이 그 자리까지 올라온다. 헤더·마이크는 그대로 */
 #main-body.metro-full #tuner-card{display:none;}
-/* 펼침 ↔ 펼침2 ↔ 접힘 전환 (N2·N3): display:none 은 애니메이션이 안 되므로 metro.ts 가 두 카드의 높이를 픽셀로 잡아 함께 움직인다.
-   .h-anim 이 붙어 있는 동안만 height 트랜지션 — 평소엔 flex 가 높이를 정해야 하니 inline height 는 끝나면 지운다 */
+/* 펼침 ↔ 펼침2 ↔ 접힘 전환: display:none 은 애니메이션이 안 되므로 metro.ts 가 두 카드 높이를 픽셀로 잡아 움직인다. .h-anim 동안만 height 트랜지션 */
 #tuner-card.h-anim,#metro-card.h-anim{flex:none!important;transition:height var(--t-slow) var(--ease),margin-bottom var(--t-slow) var(--ease);overflow:hidden;}
 #metro-card.no-anim #metro-body-wrap,#metro-card.no-anim #metro-body-clip{transition:none!important;}
 #metro-card.full{flex:1;min-height:0;display:flex;flex-direction:column;}
 #metro-card.full #metro-body-wrap{flex:1;min-height:0;grid-template-rows:1fr;}
-#metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow:hidden;} /* 스크롤 없음 (L7) — 연주 중엔 스크롤할 손이 없다. 넘치지 않게 짜는 게 아래 규칙 */
+#metro-card.full #metro-body-clip{height:100%;opacity:1;pointer-events:auto;overflow:hidden;} /* 스크롤 없음 — 연주 중엔 스크롤할 손이 없다 */
 #metro-card.full #beat-vis{display:none;} /* 전용 모드의 박 표시는 아래 세이코식 트랙이 맡는다 */
-/* ── 전용 모드 배치 (v2.3.0) — 접힌 화면을 키운 게 아니라 이 화면을 위해 짠 것.
-   위에서부터: LED 줄 → 다이얼(가운데 BPM·용어) → [− ▶ +] → 음량 → 박자표 → 분할. 새 기능 0, 크기·자리만.
-   L7(v2.3.1): **어떤 화면에서도 스크롤이 없다.** 조작 요소(LED·버튼·음량·pill)는 터치 최소 크기로 고정(flex:0 0 auto)하고,
-   **다이얼이 남는 높이를 전부 흡수**한다(flex:1 + aspect-ratio). 전에는 다이얼이 폭 기준(min(100%,300px))이라 세로가 짧은 폰에서
-   반드시 넘쳤고 overflow-y:auto 가 조용히 잘라 스크롤로 밀었다 — 아이폰 미니에서 리듬 줄이 화면 밖으로. 화면을 조이는 축은 높이다. */
+/* 전용 모드 배치: 조작 요소는 터치 최소 크기로 고정(flex:0 0 auto), 다이얼이 남는 높이를 전부 흡수(flex:1 + aspect-ratio). 어떤 화면에서도 스크롤 없음 */
 #metro-card.full #metro-body{height:100%;min-height:0;justify-content:flex-start;gap:var(--s3);padding:var(--s3) var(--s4) var(--s4);}
 #metro-card.full #sweep,#metro-card.full #metro-bpm-row,#metro-card.full #metro-vol-pad,#metro-card.full #metro-grids-wrap{flex:0 0 auto;margin:0;}
-#metro-card.full #metro-bpm-wrap{display:none;}                    /* 숫자는 다이얼 가운데로 갔다 */
+#metro-card.full #metro-bpm-wrap{display:none;}                    /* 숫자는 다이얼 가운데에 */
 #metro-card.full #metro-bpm-row{justify-content:center;gap:0;}
 #metro-card.full #metro-adj-col{flex:0 0 auto;}
 #metro-card.full #metro-btn-row{gap:var(--s5);align-items:center;}
@@ -218,39 +185,31 @@ button{font-family:inherit;color:inherit;}
 #metro-card.full #metro-vol-pad input{flex:1;}
 #metro-card.full #metro-grids-wrap{gap:var(--s3);}
 #metro-card.full .m-seg{height:52px;font-size:17px;}
-/* 선택 표시 = **밝기 3단 + 얇은 빨간 테두리** (v2.3.1 L6-b → v2.3.2 M3·M9).
-   빨강이 세 가지 일(선택·실행·액센트)을 겸해 전용 모드에서 한꺼번에 소리쳤으므로 면·글자는 밝기로 옮겼는데,
-   완전히 무채색으로 두니 '선택됨' 이 너무 조용했다 → 테두리만 액센트로 되돌린다(면적이 작아 총량은 거의 안 는다).
-   전용 모드에만 두지 않고 **펼침에도** 적용한다 — 같은 카드가 크기만 다를 뿐 같은 화면이다 (M9) */
+/* 선택 표시 = 밝기 3단 + 얇은 액센트 테두리. 펼침에도 같이 적용 */
 #metro-grids-wrap .m-seg{color:var(--text-2);}
 #metro-grids-wrap .m-seg.on{border-color:var(--accent);color:var(--text);background:var(--surface-2);}
 #metro-card.full #sd-grid .note-glyph{transform:scale(1.15);}
-/* ── 세이코식 LED 줄 (K5) ──
-   세이코 SQ100 의 LED 줄 그대로: 칸 수는 **고정**(분할이 많아져도 안 넘친다), 불이 한 박에 끝→끝으로 쓸고 간다.
-   양 끝 = 정박 → 초록으로 탁. 사이 분할 자리 = 액센트색으로 탁. 첫 박은 더 크게. */
+/* 세이코식 LED 줄: 칸 수 고정, 불이 한 박에 끝→끝으로 쓸고 간다. 양 끝 = 정박(초록), 사이 분할 = 액센트, 첫 박은 더 크게 */
 .led{border-radius:50%;background:var(--line);flex-shrink:0;transition:background .05s,transform .05s,box-shadow .05s;}
-/* 히트는 **켜질 때 즉시**, 꺼질 때만 램프 (v2.3.3 N6). 위 .05s 램프가 켜질 때도 걸리면 불이 가장 커지는 순간이 소리보다 50 ms 늦다 —
-   박은 쓸고 가는 불의 방향 반전이 그 순간을 가려 주지만 세분박은 가릴 게 없어 "빨강이 늦다" 로 읽힌다. 빠른 템포(칸당 30 ms)에선 램프가 칸보다 길다 */
+/* 히트는 켜질 때 즉시, 꺼질 때만 램프 — 켜질 때도 램프가 걸리면 불이 소리보다 50 ms 늦다 */
 .led.hit-sub,.led.hit-beat,.led.hit-acc{transition:none;}
-.led.mv{background:var(--line-strong);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. L* 69(박과 동급) → 44 → **36**(v2.3.2 M4). 꺼진 점(25)과 11 차이라 위치는 읽히되 더 물러난다 */
+.led.mv{background:var(--line-strong);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. L* 36, 꺼진 점(25)과 11 차이 */
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
-.led.hit-acc{background:var(--text);transform:scale(1.7);box-shadow:0 0 16px rgba(223,227,232,.9);} /* 첫 박만 흰색 (L2): 크기(1.4 vs 1.7)만으로는 거리에서 구분이 안 됐다. 밝기 차이는 거리·각도에 강하고 색맹에도 안전. 세이코·Matrix 도 위치가 아니라 색으로 구분한다 */
+.led.hit-acc{background:var(--text);transform:scale(1.7);box-shadow:0 0 16px rgba(223,227,232,.9);} /* 첫 박만 흰색 — 크기만으로는 거리에서 구분이 안 된다. 밝기 차이는 색맹에도 안전 */
 #beat-vis .led{width:10px;height:10px;}
 #metro-card.bar #beat-vis .led{width:13px;height:13px;} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
 #sweep{display:none;padding:4px 0 0;}
 #metro-card.full #sweep{display:block;}
 #sweep-leds{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 2px;}
 #sweep-leds .led{width:20px;height:20px;}
-/* 전용 줄만 히트를 한 단 키운다 (M5) — 점 20 px·간격 24.4 px 라 여유가 있다. 헤더 줄(점 10·간격 17)은 1.7 에서 이미 이웃에 닿아 그대로 둔다.
-   한 번에 한 칸만 켜지므로 이웃을 덮을 일은 없다 */
+/* 전용 줄만 히트를 한 단 키운다 — 점 20 px·간격 24.4 px 라 여유가 있다. 헤더 줄(점 10·간격 17)은 1.7 에서 이미 이웃에 닿는다 */
 #sweep-leds .led.hit-sub{transform:scale(1.4);}
 #sweep-leds .led.hit-beat{transform:scale(1.6);}
 #sweep-leds .led.hit-acc{transform:scale(1.9);}
-/* ── 다이얼 (v2.3.0) — ui/dial.ts 가 그린다. 색은 전부 토큰: 트랙 line, 채움 text-2, 바늘 흰색, 글자 text-3 */
+/* 다이얼 — ui/dial.ts 가 그린다. 색은 전부 토큰 */
 #dial{display:none;position:relative;touch-action:none;user-select:none;cursor:grab;}
-/* 크기는 남는 높이가 정한다 (L7). align-self:center 가 핵심 — 없으면 열 flex 의 stretch 가 폭을 먼저 정해 aspect-ratio 와 싸운다.
-   min 150 은 안전장치(실측 최소는 217, 360×640 + 헤더 접힘), max 320 은 큰 화면에서 다이얼이 화면을 삼키지 않게 */
+/* 크기는 남는 높이가 정한다. align-self:center 가 없으면 stretch 가 폭을 먼저 정해 aspect-ratio 와 싸운다. min 150 안전장치, max 320 은 큰 화면용 */
 #metro-card.full #dial{display:block;flex:1 1 auto;align-self:center;width:auto;height:auto;min-height:150px;max-width:min(100%,320px);aspect-ratio:1;margin:0;}
 #dial:active{cursor:grabbing;}
 #dial-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
@@ -259,17 +218,14 @@ button{font-family:inherit;color:inherit;}
 .dial-needle{fill:#fff;stroke:var(--surface);stroke-width:3;}
 .dial-tick{stroke:var(--line-strong);stroke-width:1.5;stroke-linecap:round;}
 .dial-tick.major{stroke:var(--text-3);stroke-width:2;}
-/* 글자 — SVG 의 font-size 는 viewBox user unit 이라 다이얼이 줄면 같이 준다(217 px 에서 숫자 7 px). 그래서 **렌더 크기를 고정**한다:
-   ui/dial.ts 가 ResizeObserver 로 다이얼 px 를 재서 core/metro/dial.ts dialTypography() 의 user unit 값을 --dial-*-units 로 준다 (L7 2단계).
-   용어는 호 길이에 갇혀 무한정 키울 수 없다 — 상한(NAME_MAX_UNITS)에 걸리면 .no-names 로 아예 뺀다(정확한 용어는 가운데 숫자 밑에 있다).
-   L1: 용어 색 --deco(2.8:1) → --text-3(5.3:1). "안 거슬리게" 와 "안 보이게" 는 다르다. */
+/* SVG font-size 는 viewBox user unit 이라 다이얼이 줄면 같이 준다 — ui/dial.ts 가 다이얼 px 를 재서 --dial-*-units 로 렌더 크기를 고정. 용어가 호 길이 상한에 걸리면 .no-names */
 .dial-num{fill:var(--text-3);font-family:'DM Mono',monospace;font-size:calc(var(--dial-num-units,10.5) * 1px);letter-spacing:-.02em;}
 .dial-name{fill:var(--text-3);font-size:calc(var(--dial-name-units,8.5) * 1px);letter-spacing:.09em;text-transform:uppercase;}
 #dial.no-names .dial-name{display:none;}
 #dial-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:2px;}
 #dial-bpm{font-family:'DM Mono',monospace;font-size:clamp(44px,calc(var(--dial-px,320) * .2px),64px);font-weight:var(--fw-md);line-height:1;color:var(--text);letter-spacing:-.02em;} /* 다이얼에 비례, 44~64 */
 #dial-name{font-size:var(--fs-sm);color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;}
-/* 접기/펼치기: grid-template-rows 0fr↔1fr (v1 의 .55 s 느긋한 전이 유지) */
+/* 접기/펼치기: grid-template-rows 0fr↔1fr */
 #metro-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--t-slow) ease;}
 #metro-body-clip{min-height:0;overflow:hidden;transition:opacity .35s ease .2s;}
 #metro-body{padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2);}
@@ -296,7 +252,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .m-seg{flex:1;min-width:0;height:var(--h-seg);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-family:'DM Mono',monospace;font-size:var(--fs-base);font-weight:var(--fw-md);gap:2px;cursor:pointer;text-align:center;transition:border-color .1s,color .1s,background .1s;display:flex;align-items:center;justify-content:center;}
 .m-seg.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 
-/* ── 기준음 패널 ── */
+/* 기준음 패널 */
 .ref-oct-lbl{font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);margin-right:4px;}
 .ref-oct-btn{width:44px;height:44px;background:transparent;border:none;color:var(--text);font-size:var(--fs-xl);font-weight:var(--fw-md);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7;}
 .ref-oct-btn:active{opacity:1;}
@@ -304,9 +260,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .ref-note-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;}
 .ref-note-grid .m-seg{flex:0 1 calc(12.5% - 4px);min-width:0;height:var(--h-seg);font-size:var(--fs-md);padding:0;font-family:inherit;}
 
-/* ── 풀스크린 메뉴 ── */
-/* 닫혔을 때 visibility:hidden — 안 그러면 화면에 없는 메뉴의 버튼들이 Tab 순서와 스크린리더에 그대로 남는다 (C2).
-   inert 는 지원 하한(WebView 94)보다 높아 쓸 수 없어 visibility 로 뺀다. 전환은 페이드가 끝난 뒤(0s var(--t-std))로 미뤄 페이드아웃을 유지한다. */
+/* 풀스크린 메뉴 — 닫혔을 때 visibility:hidden 으로 Tab 순서·스크린리더에서 뺀다(inert 는 WebView 94 미만 미지원). 전환은 페이드 뒤로 미룬다 */
 #menu-overlay{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:50;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
 #menu-overlay.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #menu-panel{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s6);max-width:480px;margin:0 auto;}
@@ -325,11 +279,11 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #rec-empty{font-size:var(--fs-md);color:var(--text-3);padding:2px 0 0 2px;}
 .rec-item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s3) var(--s4);}
 .rec-item-head{display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;gap:10px;}
-.rec-item-head > div{min-width:0;} /* 긴 이름이 카드를 넓히지 않게 (flex 기본 min-width:auto 해제) — C6 */
+.rec-item-head > div{min-width:0;} /* 긴 이름이 카드를 넓히지 않게 (flex 기본 min-width:auto 해제) */
 .rec-item-name{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rec-item-meta{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);margin-top:3px;letter-spacing:.02em;}
 .rec-item-meta:empty{display:none;}
-.rec-keep-link{color:var(--text-2);text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:6px 2px;margin:-6px -2px;} /* 예고문 안의 탭 가능한 꼬리(남기기 / 자동 삭제 안 함) — 글자는 작지만 탭 영역은 패딩으로 키운다 (F2) */
+.rec-keep-link{color:var(--text-2);text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:6px 2px;margin:-6px -2px;} /* 예고문 안의 탭 가능한 꼬리 — 탭 영역은 패딩으로 키운다 */
 .rec-item-dur{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text-2);}
 .rec-item-detail{display:none;margin-top:10px;}
 .rec-item-detail.open{display:flex;flex-direction:column;gap:7px;}
@@ -346,13 +300,13 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .menu-action{width:100%;height:var(--h-control);background:var(--surface);border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-size:var(--fs-btn);font-weight:var(--fw-b);cursor:pointer;text-align:center;display:flex;align-items:center;justify-content:center;}
 .menu-action.rec-active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 
-/* ── 설정 페이지 ── */
+/* 설정 페이지 */
 #settings-version{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);text-align:center;padding-top:var(--s2);}
-#settings-tagline{font-size:var(--fs-xs);color:var(--deco);text-align:center;letter-spacing:var(--ls-caps-wide);text-transform:uppercase;margin-top:-4px;} /* 태그라인은 원거리 헤더에서 여기로 (9 px 로는 아무도 못 읽는다) */
+#settings-tagline{font-size:var(--fs-xs);color:var(--deco);text-align:center;letter-spacing:var(--ls-caps-wide);text-transform:uppercase;margin-top:-4px;}
 #settings-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:60;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
 #settings-page.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #settings-inner{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s3);max-width:480px;margin:0 auto;}
-.settings-top{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-bottom:var(--s2);} /* 메뉴와 같은 배치 (M2) */
+.settings-top{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-bottom:var(--s2);} /* 메뉴와 같은 배치 */
 .settings-title{font-size:var(--fs-xl);font-weight:var(--fw-b);color:var(--text);}
 .setting-row{display:flex;flex-direction:column;gap:var(--s3);padding:var(--s4);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);}
 .setting-lbl{font-size:var(--fs-lg);font-weight:var(--fw-b);color:var(--text);}
@@ -363,18 +317,16 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .step-btn.on{background:var(--accent-soft);color:var(--accent);}
 #cents-steps .step-btn,#notenames-steps .step-btn[data-v="1"]{font-family:'DM Mono',monospace;} /* 모노는 숫자·음이름에만 */
 
-/* ── 토스트 — 떠 있는 면 (배경에 묻히지 않게) ── */
+/* 토스트 — 떠 있는 면 (배경에 묻히지 않게) */
 #toast-host{position:fixed;bottom:var(--s6);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:200;pointer-events:none;max-width:calc(100vw - 32px);}
 .toast{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .22s,transform .22s;white-space:normal;word-break:keep-all;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.5);}
 .toast.show{opacity:1;transform:translateY(0);}
 .toast.show.actionable{pointer-events:auto;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
 
-/* ══════════════════════════════════
-   편집 페이지 — 근거리·두 손. 정보 밀도 OK.
-══════════════════════════════════ */
+/* 편집 페이지 — 근거리·두 손. 정보 밀도 OK */
 #editor-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:70;display:none;flex-direction:column;overflow:hidden;opacity:0;transition:opacity var(--t-std);}
 #editor-page.open{opacity:1;}
-/* 가장자리 스와이프 중(ui/swipeBack): 끌리는 화면의 왼쪽에 그림자 — 뒤 화면과 층이 갈린다 (iOS 와 같은 신호) */
+/* 가장자리 스와이프 중(ui/swipeBack): 끌리는 화면 왼쪽에 그림자 — 뒤 화면과 층이 갈린다 */
 #menu-overlay.swiping,#settings-page.swiping,#editor-page.swiping{box-shadow:-6px 0 24px rgba(0,0,0,.45);}
 #ed-inner{display:flex;flex-direction:column;min-height:100%;max-width:480px;margin:0 auto;width:100%;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 #ed-top{padding:var(--page-top) var(--s5) 0;flex-shrink:0;}
@@ -394,7 +346,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #ed-zoom-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 #ed-cur{font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--text);font-weight:var(--fw-md);letter-spacing:.02em;}
 #ed-dur{font-family:'DM Mono',monospace;font-size:var(--fs-md);color:var(--text-2);}
-#ed-track{position:relative;height:56px;cursor:pointer;margin-bottom:4px;touch-action:none;} /* 스크럽 조작면 — 드래그가 세로 스크롤로 새지 않게 (C7) */
+#ed-track{position:relative;height:56px;cursor:pointer;margin-bottom:4px;touch-action:none;} /* 스크럽 조작면 — 드래그가 세로 스크롤로 새지 않게 */
 #ed-wave{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;}
 #ed-track-rail{position:absolute;top:50%;left:0;right:0;height:5px;background:var(--line);border-radius:3px;transform:translateY(-50%);}
 #ed-progress{position:absolute;top:50%;left:0;width:0%;height:5px;background:var(--text-2);border-radius:3px;transform:translateY(-50%);pointer-events:none;}
@@ -408,7 +360,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #ed-pos-handle::after{content:'';position:absolute;left:50%;bottom:-7px;width:14px;height:14px;border-radius:50%;background:var(--text);transform:translateX(-50%);box-shadow:0 1px 4px rgba(0,0,0,.25);}
 #ed-pos-hit{position:absolute;inset:-16px;}
 #ed-ab-times{display:none;justify-content:space-between;margin-top:var(--s3);}
-/* 시각은 검정, A/B 글자만 빨강 — 편집기 한 화면에 빨강이 12곳이던 것을 의미 있는 것(핸들·선택·재생)만 남긴다 */
+/* 시각은 검정, A/B 글자만 빨강 */
 #ed-a-time,#ed-b-time{font-family:'DM Mono',monospace;font-size:var(--fs-sm);color:var(--text);font-weight:var(--fw-md);cursor:pointer;padding:8px 2px;margin:-8px 0;}
 #ed-a-time::first-letter,#ed-b-time::first-letter{color:var(--accent);font-weight:var(--fw-b);}
 .ed-ab-time-group{display:inline-flex;align-items:center;gap:0;}
@@ -419,9 +371,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #ed-speed-ctrl{flex:1;display:flex;flex-direction:column;border-left:1px solid var(--line);padding-left:14px;}
 #ed-speed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
 #ed-speed-lbl{font-size:var(--fs-md);font-weight:var(--fw-md);color:var(--text);}
-/* 값 라벨은 버튼이다(탭 → 프리셋 순환): 빨간 글자는 이 앱에서 '선택됨' 이지 '누르세요' 가 아니므로 컴팩트 글자 버튼으로 */
+/* 값 라벨은 버튼이다(탭 → 프리셋 순환). 빨간 글자는 이 앱에서 '선택됨' 이지 '누르세요' 가 아니다 */
 #ed-speed-val{font-family:'DM Mono',monospace;color:var(--text);padding:0 10px;letter-spacing:0;}
-#ed-speed{width:100%;flex:none;} /* 세로 flex 안에서는 flex:1 이 높이를 0 으로 접는다 → 트랙만 남아 히트 높이가 4 px 이 됨 */
+#ed-speed{width:100%;flex:none;} /* 세로 flex 안에서는 flex:1 이 높이를 0 으로 접어 히트 높이가 4 px 이 된다 */
 #ed-ab-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s2);padding:0 var(--s5) var(--s4);flex-shrink:0;}
 .ed-ab-btn{height:var(--h-tall);padding:0 8px;background:var(--surface);border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text-2);font-family:inherit;font-size:var(--fs-base);font-weight:var(--fw-md);cursor:pointer;text-align:center;line-height:1.4;transition:border-color .1s,color .1s;}
 .ed-ab-btn b{font-family:'DM Mono',monospace;font-weight:var(--fw-md);}
@@ -447,7 +399,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 @media (min-width: 700px){
   #hdr,#main-body{max-width:680px;}
   #main-body{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:1;min-height:0;width:100%;}
-  #main-body.metro-full{grid-template-columns:1fr;} /* 전용 모드에서 튜너가 숨으면 메트로놈이 두 칸을 다 쓴다 — 왼쪽 반 칸에 갇히지 않게 (L7, 태블릿 실측) */
+  #main-body.metro-full{grid-template-columns:1fr;} /* 전용 모드에서 튜너가 숨으면 메트로놈이 두 칸을 다 쓴다 */
   #beat-vis{gap:8px;height:24px;}
   #metro-bpm-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   #metro-bpm-wrap{flex:1;}

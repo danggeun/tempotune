@@ -42,7 +42,7 @@ describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
     mkdirSync(src, { recursive: true })
     for (const [d, px] of Object.entries(ADAPTIVE_PX)) {
       mkdirSync(join(res, `mipmap-${d}`), { recursive: true })
-      // 생성기가 내놓던 작은 전경 (xxxhdpi 192 px 고정) 을 흉내
+      // 생성기가 내놓는 작은 전경 (192 px 고정) 을 흉내
       writeFileSync(join(res, `mipmap-${d}`, 'ic_launcher_foreground.png'), PNG.sync.write(new PNG({ width: 192, height: 192 })))
       writeFileSync(join(src, `ic_launcher_foreground-${d}.png`), PNG.sync.write(new PNG({ width: px, height: px })))
     }
@@ -57,7 +57,7 @@ describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
     expect(r).toEqual({ copied: 5, xml: 2, skipped: false })
     for (const [d, px] of Object.entries(ADAPTIVE_PX)) {
       const p = PNG.sync.read(readFileSync(join(res, `mipmap-${d}`, 'ic_launcher_foreground.png')))
-      expect(p.width).toBe(px) // 192 고정이었던 것이 108/162/216/324/432 로
+      expect(p.width).toBe(px)
     }
     expect(readFileSync(join(res, 'mipmap-anydpi-v26', 'ic_launcher.xml'), 'utf8')).not.toMatch(/inset/)
   })
@@ -81,8 +81,7 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 �
       expect([p.width, p.height]).toEqual([px, px])
     }
   })
-  // v2.2.0: 원본 그림(베타 사용자의 메트로놈+소리굽쇠)을 66 % 안전영역에 맞춘다. 눈에 띄려면
-  // 보이는 72dp 의 절반 이상은 차야 한다 — "깔아 놓고도 있는 줄 몰랐다"(베타 피드백 #1) 재발 방지선.
+  // 눈에 띄려면 보이는 72dp 의 절반 이상은 차야 한다
   test.skipIf(!existsSync(dir))('보이는 72dp 기준 그림 폭 ≥ 55 %', () => {
     for (const [d] of files) {
       const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_foreground-${d}.png`)))
@@ -111,9 +110,7 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 �
   })
 })
 
-// 실제로 어긋난 적이 있다(v2.1.0): 타일색을 바꿨는데 package.json 의 cap:assets 에는 옛 색이 남아
-// 런처의 adaptive 배경만 다른 색이 될 뻔했다. 두 곳은 손으로 맞추는 값이라 테스트로 묶는다.
-// v2.2.0 부터 타일색의 원천은 resources/icon-src.png 의 모서리 픽셀이다(gen-icons 가 거기서 읽는다).
+// 타일색의 원천은 resources/icon-src.png 의 모서리 픽셀(gen-icons 가 거기서 읽는다). package.json 의 cap:assets 색은 손으로 맞추는 값
 describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
   const src = new URL('../resources/icon-src.png', import.meta.url)
   test.skipIf(!existsSync(src))('icon-src 의 크림 = package.json 의 adaptive 배경색', () => {
@@ -127,11 +124,7 @@ describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
   })
 })
 
-// K8 — maskable 아이콘의 안전영역. 안드로이드 런처는 자기 마스크(원·스퀘어클)를 덧씌우고,
-// 규격은 "중앙 지름 80 % 원 안에 내용이 있어야 한다" 이다. 그 바깥은 잘릴 수 있다.
-// 실제로 어긋난 적이 있다: content 0.58 은 필요한 원이 80.3 % 라 규격을 0.3 %p 넘겼고,
-// 사용자가 "양끝이 거의 끝에 붙을 정도" 라고 했다. 폭만 보던 위 테스트는 이걸 못 잡았다 —
-// 잉크는 가로로 넓고 세로로 낮아서, **폭이 아니라 대각선(= 필요한 원 지름)** 이 걸리는 값이다.
+// maskable 규격: 중앙 지름 80 % 원 안에 내용이 있어야 한다. 잉크가 가로로 넓어 폭이 아니라 대각선(= 필요한 원 지름)이 걸리는 값
 describe('K8 — maskable 아이콘은 안전영역 안에 여백을 남긴다', () => {
   const file = new URL('../www/public/icons/icon-maskable-512.png', import.meta.url)
   test.skipIf(!existsSync(file))('필요한 원 지름 ≤ 76 % (규격 80 % 에 최소 4 %p 여유)', () => {

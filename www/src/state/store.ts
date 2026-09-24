@@ -1,7 +1,4 @@
-/**
- * 최소 상태 스토어. 프레임워크 없이 "상태 → 구독자" 흐름만 제공한다.
- * 왜: UI가 오디오 내부 변수를 직접 읽지 않게 하고(설계서 §C1), 값이 바뀔 때만 DOM을 만지게 하기 위해.
- */
+/** 최소 상태 스토어 — 프레임워크 없이 "상태 → 구독자" 흐름만 제공한다 */
 export type Listener<T> = (value: T, prev: T) => void
 export type Unsubscribe = () => void
 

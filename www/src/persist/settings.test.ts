@@ -4,12 +4,12 @@ import { RMS_LEVELS } from '../state/index.ts'
 
 describe('parseStored', () => {
   test('empty / broken → {}', () => { expect(parseStored(null)).toEqual({}); expect(parseStored('{oops')).toEqual({}); expect(parseStored('"x"')).toEqual({}) })
-  // 픽스처는 **진짜 v1(main.js) 값**이어야 한다. 이전 픽스처는 rms 에 v2 값(.008)을 써서 v1 매핑 결함을 덮지 못했다 (B8)
+  // 픽스처는 실제 v1 값이어야 한다
   test('v1 format migrates (TTL 무시)', () => {
     const v1 = { cents: 10, rms: .005, smooth: .05, wakelock: false, aimode: true, bpm: 120, timeSig: 3, subDiv: 'd', refHz: 415, vol: .5, savedAt: 0 }
     expect(parseStored(JSON.stringify(v1))).toEqual({ tolCents: 10, rmsMin: RMS_LEVELS[2], smoothing: .06, wakeLock: false, bpm: 120, timeSig: 3, subDiv: 'd', refHz: 415, metroVol: .5 })
   })
-  // 감도는 **숫자가 아니라 사용자가 고른 단계**를 옮긴다. 값은 v2.0.2 에서 전 단계가 내려갔다 (약음기)
+  // 감도는 숫자가 아니라 단계 인덱스로 옮긴다
   test('v1(.015/.010/.005) 감도가 같은 단계로 옮겨진다', () => {
     expect(parseStored(JSON.stringify({ rms: .015 })).rmsMin).toBe(RMS_LEVELS[0]) // 낮음
     expect(parseStored(JSON.stringify({ rms: .010 })).rmsMin).toBe(RMS_LEVELS[1]) // 보통
@@ -38,7 +38,7 @@ describe('parseStored', () => {
 
 describe('parseStored hardening', () => {
   test('bpm clamped and rounded', () => {
-    // 범위는 CFG.metro (v2.3.2 M7: 40~200). 옛 저장값이 범위 밖이면 여기서 끌어들인다
+    // 범위 밖 저장값은 CFG.metro 범위로 끌어들인다
     expect(parseStored(JSON.stringify({ v: 2, bpm: -5 })).bpm).toBe(40)
     expect(parseStored(JSON.stringify({ v: 2, bpm: 999 })).bpm).toBe(200)
     expect(parseStored(JSON.stringify({ v: 2, bpm: 20 })).bpm).toBe(40) // 옛 범위(20~220)로 저장된 값도 새 범위로 끌어들인다
@@ -46,7 +46,7 @@ describe('parseStored hardening', () => {
     expect(parseStored(JSON.stringify({ bpm: 80.6 })).bpm).toBe(81)
     expect(parseStored(JSON.stringify({ v: 2, bpm: 'x' })).bpm).toBeUndefined()
   })
-  // 6/8 은 세분이 없다 — 따로 저장된 옛 값이 들어오면 시퀀서(12틱)와 스윕(2박)이 어긋났다 (감사 B7)
+  // 6/8 은 세분이 없다
   test('6/8 이면 subDiv 는 1 로 정규화 (v1·v2)', () => {
     expect(parseStored(JSON.stringify({ v: 2, timeSig: 6, subDiv: 'd' }))).toMatchObject({ timeSig: 6, subDiv: 1 })
     expect(parseStored(JSON.stringify({ timeSig: 6, subDiv: 2, savedAt: 0 }))).toMatchObject({ timeSig: 6, subDiv: 1 })
