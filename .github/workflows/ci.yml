@@ -38,7 +38,7 @@ jobs:
         with: { name: dist-capacitor, path: dist, retention-days: 7 }
 
   e2e:
-    name: e2e (fake mic WAV, 38 scenarios)
+    name: e2e (fake mic WAV, ~60 scenarios)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: check

@@ -46,4 +46,10 @@ describe('parseStored hardening', () => {
     expect(parseStored(JSON.stringify({ bpm: 80.6 })).bpm).toBe(81)
     expect(parseStored(JSON.stringify({ v: 2, bpm: 'x' })).bpm).toBeUndefined()
   })
+  // 6/8 은 세분이 없다 — 따로 저장된 옛 값이 들어오면 시퀀서(12틱)와 스윕(2박)이 어긋났다 (감사 B7)
+  test('6/8 이면 subDiv 는 1 로 정규화 (v1·v2)', () => {
+    expect(parseStored(JSON.stringify({ v: 2, timeSig: 6, subDiv: 'd' }))).toMatchObject({ timeSig: 6, subDiv: 1 })
+    expect(parseStored(JSON.stringify({ timeSig: 6, subDiv: 2, savedAt: 0 }))).toMatchObject({ timeSig: 6, subDiv: 1 })
+    expect(parseStored(JSON.stringify({ v: 2, timeSig: 4, subDiv: 3 }))).toMatchObject({ timeSig: 4, subDiv: 3 })
+  })
 })

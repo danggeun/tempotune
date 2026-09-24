@@ -24,6 +24,8 @@ if (args.serve) {
   execSync('npx vite build --base=/', { cwd: ROOT, stdio: 'ignore' })
   server = spawn('npx', ['vite', 'preview', '--base=/', '--port', String(PORT)], { cwd: ROOT, stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (Windows 는 shell 로)
   await waitForServer(`http://localhost:${PORT}/`)
+  const killServer = () => { try { process.kill(-server.pid, 'SIGTERM') } catch { try { server.kill() } catch { /* */ } } }
+  process.on('exit', killServer); process.on('SIGINT', () => { killServer(); process.exit(130) }); process.on('uncaughtException', e => { console.error(e); killServer(); process.exit(1) })
 }
 
 const exe = process.env.CHROMIUM_PATH || undefined
@@ -51,7 +53,7 @@ for (const scheme of ['dark']) {
   for (const [name, prep] of Object.entries(SCENES)) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
     const page = await ctx.newPage()
-    await page.goto(`http://localhost:${PORT}/`); await page.waitForTimeout(1500)
+    await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(400) // 폰트가 늦게 오면 글자가 재배치돼 픽셀이 어긋난다 — 고정 대기 대신 fonts.ready
     await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;caret-color:transparent!important}' })
     await prep(page)
     const file = join(OUT, `${scheme}_${name}.png`)
@@ -74,6 +76,7 @@ for (const scheme of ['dark']) {
   }
 }
 await browser.close(); if (server) { try { process.kill(-server.pid, 'SIGTERM') } catch { server.kill() } }
+
 
 let bad = 0
 for (const r of results) {

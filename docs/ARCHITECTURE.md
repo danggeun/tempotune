@@ -16,7 +16,7 @@ www/src/
   platform/    웹 / Capacitor 분기 (상태바, wake lock, 전체화면, 파일 저장, 뒤로가기)
   core/        순수 알고리즘. 브라우저 API 금지, 전부 단위 테스트:
                pitch/(fft, yinFast, spectrum, tracker, dual, analyzer) · playing/detector · metro/(sequencer, arrival, sweep, dial — 다이얼 수학 + 글자 크기 dialTypography) · hzReadout
-               note(도레미/CDE), wav, peaks, format, recPolicy(보관 정책)
+               note(도레미/CDE), wav, peaks, format, recPolicy(보관 정책), hist·trace(튜너 히스토리/트레이스), softclip·playbackGain(재생 보정), container(파일 내용으로 확장자), yin(참조 구현 — 번들 미포함)
 ```
 
 허용된 의존 (`scripts/check-deps.mjs` 가 import 문을 검사, `npm run check` 에 포함):
@@ -81,7 +81,7 @@ Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin �
 | 뒤로가기 | — | `@capacitor/app` backButton: 편집기 → 설정 → 메뉴 → 팝업 순으로 닫고, 메인에서는 `minimizeApp` |
 | Service Worker | 등록 (프리캐시, prompt 모드 — 유휴일 때만 적용) | 등록 안 함 (파일이 로컬) |
 
-빌드는 두 종류: `npm run build` (base `/tempotune/`, Pages) 와 `npm run build:cap` (base `/`, Google Fonts 링크 제거, Capacitor `webDir: dist`).
+빌드는 두 종류: `npm run build` (base `/tempotune/`, Pages) 와 `npm run build:cap` (base `/`, Capacitor `webDir: dist`).
 
 ## 5. 검증 백본 — "사람이 연주하지 않고 확신하는 법"
 
@@ -94,7 +94,7 @@ Capacitor 는 `androidScheme: https` 를 쓴다. **이 값을 바꾸면 origin �
 | 디자인 비교 | `scripts/ux-compare.mjs` | 여러 dist(+오버라이드 CSS)를 같은 시나리오로 찍어 나란히 |
 | 모듈 경계 | `scripts/check-deps.mjs` | §1 표 위반, `core` 의 브라우저 API 사용 |
 
-CI(`.github/workflows/ci.yml`)가 push/PR 마다 check → build(두 base) → e2e → shots 를 돌린다. `deploy-pages.yml` 은 `main` push 때 Pages 배포.
+CI(`.github/workflows/ci.yml`)가 push/PR 마다 check → build(두 base) → e2e → shots 를 돌린다. `deploy-pages.yml` 은 `main` push 때 Pages 배포 — **CI 와 독립**이라 CI 가 빨개도 배포된다(2.4.0 에서 게이팅 예정). e2e 는 `--only <정규식>` 으로 일부만 돌릴 수 있고, 트레이스 회귀는 `test-assets/trace/*.json` 고정 입력을 쓴다.
 
 ## 6. Android 릴리즈
 

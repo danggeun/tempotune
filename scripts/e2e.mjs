@@ -20,6 +20,9 @@ if (!existsSync(join(SIG, 'violin_A4.wav'))) execSync('node scripts/gen-signals.
 
 // 정적 서버 (vite preview 는 outDir 고정이라 직접 띄운다)
 const server = spawn('npx', ['-y', 'serve', '-s', '-l', String(PORT), DIST], { stdio: 'ignore', detached: process.platform !== 'win32', shell: process.platform === 'win32' }) // detached: 프로세스 그룹째 종료 (자식 serve 잔존 방지)
+// 비정상 종료(예외·Ctrl-C)에도 serve 를 남기지 않는다 — 남으면 다음 실행이 옛 dist 를 검사한다 (감사)
+const killServer = () => { try { process.kill(-server.pid, 'SIGTERM') } catch { try { server.kill() } catch { /* */ } } }
+process.on('exit', killServer); process.on('SIGINT', () => { killServer(); process.exit(130) }); process.on('uncaughtException', e => { console.error(e); killServer(); process.exit(1) }); process.on('unhandledRejection', e => { console.error(e); killServer(); process.exit(1) })
 await waitForServer(`http://localhost:${PORT}/`)
 
 const exe = process.env.CHROMIUM_PATH || undefined
@@ -36,7 +39,7 @@ async function scenario(name, wav, fn, ctxOpts = {}) {
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  page.on('console', m => { if (m.type() === 'error' && !/tfhub|tensorflow|fonts.googleapis|ERR_|Failed to load resource/.test(m.text())) errors.push(m.text()) })
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) }) // 404·ERR_* 도 실패다 — 빌드에서 청크가 빠지면 여기서 잡힌다 (감사; 옛 tfhub 필터 제거)
   try { await fn(page, ctx); assert.deepEqual(errors, [], 'console/page errors'); results.push([name, 'ok']) }
   catch (e) { results.push([name, 'FAIL: ' + (e.message || e).toString().split('\n').slice(0, 3).join(' / ')]) }
   await browser.close()
@@ -593,6 +596,32 @@ await scenario('ref tone: toggle on/off, octave label both places, 도↑', 'vio
   assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '5')
   for (let i = 0; i < 3; i++) await p.click('#menu-overlay .ref-oct-btn:nth-of-type(2)'); assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '6', 'clamp 6')
 })
+// N7 (v2.3.3): 아이폰 웹은 켜자마자 마이크를 열지 않고 시작 버튼을 받는다 — 그 탭 안에서 화면 켜짐 + 마이크. UA 로 isIOS() 를 흉내 낸다
+const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'
+await scenario('ios: 첫 실행은 시작 버튼 — 탭 전엔 마이크가 닫혀 있고, 탭하면 열리고 버튼이 걷힌다 (N7)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await sleep(p, 900)
+  const before = await p.evaluate(() => ({ hint: document.getElementById('tuner-card').classList.contains('tap-hint'), sub: document.getElementById('tuner-start-sub').textContent, mic: window.__tt.stats().micOpen, btnVisible: getComputedStyle(document.getElementById('tuner-start')).display !== 'none' }))
+  assert.deepEqual(before, { hint: true, sub: '마이크 사용을 물어볼게요', mic: false, btnVisible: true }, '탭 전: 시작 버튼 + 부제, 마이크는 닫힘')
+  await p.click('#tuner-start-btn'); await waitUntil(p, () => window.__tt.stats().micOpen, 4000, '탭하면 마이크가 열린다')
+  await sleep(p, 300)
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), false, '열리면 버튼이 걷힌다')
+  await waitNote(p, t => t.note === '라')
+}, { userAgent: IOS_UA })
+await scenario('lifecycle: 마이크를 여는 도중에 숨겨지면 뒤에서 열린 채 남지 않고, 돌아오면 다시 연다 (감사 A5·B12)', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  // 숨김 → 마이크 놓음 → 보임(재개 시작) → 재개가 끝나기 전에 다시 숨김 → 보임
+  await p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')) })
+  await waitUntil(p, () => !window.__tt.stats().micOpen, 3000, '숨기면 마이크를 놓는다')
+  await p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')) })
+  await sleep(p, 30) // getUserMedia 를 기다리는 창
+  await p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')) })
+  await sleep(p, 1500)
+  assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), false, '숨겨진 채로는 열려 있지 않다 (A5)')
+  await p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')) })
+  await waitUntil(p, () => window.__tt.stats().micOpen, 5000, '돌아오면 다시 연다')
+  await sleep(p, 400)
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), false, '돌아가는 튜너 위에 시작 버튼이 남지 않는다 (B12)')
+})
 await scenario('mic off: closeMic resets tuner and shows MIC button', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.evaluate(() => { document.dispatchEvent(new Event('__nop')) })
@@ -1067,7 +1096,7 @@ await scenario('tuner trace: 음정이 크게 흔들린 연주에서는 가짜 �
   assert.ok(d.skipped >= 1, `±40 ¢ 로 흔들린 연주에서는 가짜 통과선을 끊어야 한다 (끊김 ${d.skipped})`)
 })
 
-try { process.kill(-server.pid, 'SIGTERM') } catch { server.kill() }
+killServer()
 let fail = 0
 for (const [n, r] of results) { if (r !== 'ok' && !r.startsWith('NO')) fail++; console.log((r === 'ok' ? '  ok   ' : r.startsWith('NO') ? '  note ' : '  FAIL ') + n + (r === 'ok' ? '' : '  → ' + r)) }
 console.log(`\n${results.length - fail} passed, ${fail} failed`)
