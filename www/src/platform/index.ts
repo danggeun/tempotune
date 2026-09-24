@@ -37,15 +37,24 @@ export function onBackButton(handler: () => boolean): void {
 }
 
 // ── 화면 켜짐 유지 ──
-let wakeLock: WakeLockSentinel | null = null
+let wakeLock: WakeLockSentinel | null = null, wakeGen = 0
 let wakeWarned = false, wakeWarn: ((m: string) => void) | null = null
 export function onWakeLockUnsupported(fn: (m: string) => void): void { wakeWarn = fn }
+/**
+ * iOS 웹은 첫 요청에 DOM 탭(transient activation)이 필요하다 — WebKit WakeLock.cpp. 그래서 main.ts 가 아이폰 첫 실행을 시작 버튼으로 받고
+ * 그 핸들러에서 await 전에 이걸 부른다(요청 자체는 동기). 실패는 삼킨다: 저전력 모드·백그라운드·활성화 없음 — 다음 syncWake 에서 다시 시도된다.
+ */
 export async function acquireWakeLock(): Promise<void> {
   if (wakeLock && !wakeLock.released) return // 이미 쥐고 있으면 다시 요청하지 않는다 — 앞의 센티널을 놓지 못해 새는 것을 막는다 (R7)
   if (!('wakeLock' in navigator)) { if (!wakeWarned) { wakeWarned = true; wakeWarn?.('이 브라우저는 화면 켜짐 유지를 지원하지 않아요') } return }
-  try { wakeLock = await navigator.wakeLock.request('screen') } catch { /* 배터리 절약 모드·백그라운드 — 다음 visible 에서 재시도 */ }
+  const gen = ++wakeGen
+  try {
+    const s = await navigator.wakeLock.request('screen')
+    if (gen !== wakeGen) { s.release().catch(() => {}); return } // 기다리는 사이 release 가 왔다 — 고아 센티널을 쥐지 않는다 (감사)
+    wakeLock = s
+  } catch { /* 위 주석 */ }
 }
-export function releaseWakeLock(): void { wakeLock?.release().catch(() => {}); wakeLock = null } // 이미 해제된 센티널이면 reject — 잡지 않으면 unhandled rejection (R7)
+export function releaseWakeLock(): void { wakeGen++; wakeLock?.release().catch(() => {}); wakeLock = null } // catch: 이미 풀린 센티널·문서 상태에 따라 reject 할 수 있다
 
 // ── 전체화면 (웹 전용) ──
 export function toggleFullscreen(onUnsupported: () => void): void {

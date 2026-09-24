@@ -71,8 +71,8 @@ export function startRec(): RecResult {
     const st = recListStore.get(); recListStore.set({ items: [item, ...st.items], rev: st.rev + 1 })
     if (cappedNotice) { errorFn?.(cappedNotice); cappedNotice = null }
   }
+  try { rec.start() } catch (e) { return { ok: false, error: '녹음을 시작하지 못했어요 — 마이크를 껐다 켜주세요' + (e instanceof Error ? ` (${e.name})` : '') } } // 트랙이 막 죽은 순간 InvalidStateError 가 클릭 핸들러로 새던 것 (감사 B6)
   recorder = rec
-  rec.start()
   const myPeaks = startPeakCapture() // 이 세션의 피크 배열 (다음 세션이 새 배열을 만들어도 참조가 유지된다)
   sessionStore.set({ recording: true, recElapsedSec: 0 })
   if (timerInt) clearInterval(timerInt)
@@ -122,11 +122,12 @@ export async function deleteRec(item: RecItem): Promise<boolean> {
 /** 삭제 취소용: 항목을 원래 자리에 되돌리고 DB 에 다시 저장 */
 export async function restoreDeleted(item: RecItem, at: number): Promise<void> {
   const st = recListStore.get(); const items = st.items.slice()
-  const back: RecItem = { ...item, url: URL.createObjectURL(item.blob) }
+  const back: RecItem = { ...item, id: null, url: URL.createObjectURL(item.blob) } // 옛 id 를 들고 있지 않는다 — 저장 전에 편집/이름 변경이 끼면 죽은 키에 쓰던 것 (감사 B5)
   items.splice(Math.min(at, items.length), 0, back)
   recListStore.set({ items, rev: st.rev + 1 })
   const id = await dbSave({ name: back.name, dur: back.dur, blob: back.blob, mime: back.mime, ts: back.ts }, { bookmarks: back.bookmarks, ab: back.ab, peaks: back.peaks, ext: back.ext, peak: back.peak, keep: back.keep }).catch(() => null)
-  const st2 = recListStore.get(); const i = st2.items.indexOf(back); if (i >= 0) { const items2 = st2.items.slice(); items2[i] = { ...back, id }; recListStore.set({ items: items2, rev: st2.rev }) }
+  // 그 사이 patchRec 이 객체를 바꿨을 수 있다 → blob 동일성으로 찾는다 (ensurePeaks 와 같은 방식)
+  const st2 = recListStore.get(); const i = st2.items.findIndex(x => x.blob === back.blob); if (i >= 0) { const items2 = st2.items.slice(); items2[i] = { ...items2[i]!, id }; recListStore.set({ items: items2, rev: st2.rev }) }
 }
 /** 편집 상태(북마크/A-B/파형/속도)·이름을 메모리와 IndexedDB(meta) 에 반영. 새 항목 객체를 반환 */
 export function patchRec(item: RecItem, patch: Partial<Pick<RecItem, 'name' | 'bookmarks' | 'ab' | 'peaks' | 'speed' | 'keep'>>): RecItem | null {

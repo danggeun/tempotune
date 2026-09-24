@@ -2,10 +2,11 @@
  * 오디오 엔진 — 단일 AudioContext 와 마이크 캡처 파이프라인의 생명주기 (설계서 §B1, §B7).
  *
  * 컨텍스트는 하나다. 처음 필요할 때(메트로놈 시작·기준음·마이크) 만들고 앱이 살아 있는 동안 유지한다.
- * 마이크를 끄면 소스/워클릿/워커만 정리하고 컨텍스트는 남긴다 → 메트로놈·기준음은 영향 없음.
+ * 마이크를 끄면 소스/워클릿/워커만 정리하고 컨텍스트는 남긴다 → 메트로놈은 영향 없음. (기준음은 beforeClose 훅에서 스스로 멈춘다 — refTone.ts)
  * 마이크 파이프라인: 마이크 → AudioWorklet(capture) → MessagePort → Worker(analysis) → tunerStore
  */
 import { tunerStore, settingsStore } from '../state/index.ts'
+import { isNative } from '../platform/index.ts'
 import type { WorkerIn, WorkerOut } from './messages.ts'
 import type { AnalyzerSettings } from '../core/pitch/analyzer.ts'
 import captureWorkletUrl from './capture.worklet.ts?worker&url'
@@ -58,7 +59,7 @@ export const audioSupported = (): boolean => typeof AudioWorkletNode !== 'undefi
 /** 단일 컨텍스트. 없으면 만든다. 사용자 제스처 안에서 부르면 바로 running, 밖이면 suspended 일 수 있다. */
 export function getContext(): AudioContext {
   if (!A.ac || A.ac.state === 'closed') {
-    audioSessionHint(!!A.micStream) // 컨텍스트를 만들기 전에 의도를 선언한다 (iOS 는 첫 노드에서 카테고리를 굳힌다)
+    audioSessionHint(!!A.micStream) // 컨텍스트를 만들기 전에 의도를 선언한다. 이후 openMic/closeMic 이 매번 다시 선언한다 (K7)
     A.ac = new (ACCtor())({ latencyHint: 'interactive' }); A.captureLoaded = false; A.sampleRate = A.ac.sampleRate
     // 전화·다른 앱의 오디오 포커스 등으로 컨텍스트가 멈추면(iOS 'interrupted', Android 'suspended') 알린다 — UI 가 "일시정지" 표시/복구
     A.ac.onstatechange = () => { for (const f of stateListeners) f(A.ac!.state as AudioContextState | 'interrupted') }
@@ -92,6 +93,14 @@ let opening = false
 let micGen = 0 // 세션 토큰: openMic 도중 closeMic 이 끼어들면(트랙 ended·무활동·워커 오류) 늦게 깨어난 await 뒤에서 옛 세션을 이어가지 않게
 export type MicResult = { ok: true } | { ok: false; error: string }
 
+/** 지금 getUserMedia 를 기다리는 중인가 — 숨김·편집기가 이 창에 끼어들면 cancelOpen() 으로 그 세션을 무효화한다 (감사 A5) */
+export const isOpening = (): boolean => opening
+/** 진행 중인 openMic 을 무효화한다. 늦게 깨어난 gUM 은 gen 이 바뀐 걸 보고 트랙을 끄고 'busy' 로 끝난다 */
+export function cancelOpen(): void { if (opening) micGen++ }
+/** 진행 중인 열기가 끝날 때까지 (최대 maxMs). 'busy' 를 받은 쪽이 이걸 기다렸다가 한 번 더 열면 된다 (감사 B12) */
+export function untilOpenSettled(maxMs = 6000): Promise<void> {
+  return new Promise(res => { const t0 = Date.now(); const tick = (): void => { if (!opening || Date.now() - t0 > maxMs) res(); else setTimeout(tick, 50) }; tick() })
+}
 export async function openMic(): Promise<MicResult> {
   if (opening) return { ok: false, error: 'busy' }
   if (A.micStream) return { ok: true }
@@ -145,7 +154,7 @@ export async function openMic(): Promise<MicResult> {
 export function micErrorMessage(e: unknown): string {
   const name = e instanceof Error ? e.name : ''
   const msg = e instanceof Error ? e.message : String(e)
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return isNativeGuess() ? '마이크 권한이 꺼져 있어요 — 설정 › 앱 › TempoTune › 권한에서 마이크를 허용해주세요' : '마이크가 차단돼 있어요 — 주소창의 자물쇠(사이트 설정)에서 마이크를 허용해주세요'
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return isNative() ? '마이크 권한이 꺼져 있어요 — 설정 › 앱 › TempoTune › 권한에서 마이크를 허용해주세요' : '마이크가 차단돼 있어요 — 주소창의 자물쇠(사이트 설정)에서 마이크를 허용해주세요'
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return '마이크를 찾을 수 없어요'
   if (name === 'NotReadableError' || name === 'TrackStartError') return '다른 앱이 마이크를 쓰고 있어요 — 그 앱을 닫고 다시 시도해주세요'
   if (name === 'SecurityError') return '이 페이지에서는 마이크를 쓸 수 없어요 (HTTPS 필요)'
@@ -153,7 +162,6 @@ export function micErrorMessage(e: unknown): string {
   if (/audio session/i.test(msg)) return '마이크를 다시 열지 못했어요 — 앱을 새로고침하면 복구됩니다'
   return msg || '알 수 없는 오류'
 }
-const isNativeGuess = () => typeof window !== 'undefined' && !!(window as unknown as { Capacitor?: unknown }).Capacitor
 export const isPermissionError = (msg: string): boolean => /권한|차단/.test(msg)
 
 function teardownMic(): void {
@@ -181,4 +189,4 @@ export function resumeIfRunning(): void {
 /** 메트로놈 클릭 구간을 워커에 알려 그 창의 프레임을 버리게 한다 (같은 컨텍스트 시계) */
 export function muteAnalysis(fromT: number, untilT: number, at: number): void { if (A.worker) sendToWorker({ type: 'mute', from: fromT, until: untilT, at }) }
 
-settingsStore.subscribe(() => { if (A.worker) sendToWorker({ type: 'settings', settings: analyzerSettings() }) })
+settingsStore.select(s => `${s.rmsMin}|${s.smoothing}|${s.refHz}|${s.tolCents}`, () => { if (A.worker) sendToWorker({ type: 'settings', settings: analyzerSettings() }) }) // BPM 등 무관한 변경마다 워커에 보내지 않는다 (감사)

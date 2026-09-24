@@ -8,7 +8,7 @@ import { settingsStore, tunerStore, metroStore, refToneStore, CFG } from './stat
 import { loadSettings, startSettingsAutosave, onPersistError } from './persist/settings.ts'
 import { openRecDb, onDbError } from './persist/recordingsDb.ts'
 import { clearLegacyStorage } from './persist/legacy.ts'
-import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError } from './audio/engine.ts'
+import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError, isOpening, cancelOpen, untilOpenSettled } from './audio/engine.ts'
 import { startAnalysis, lastFrameMs, metroCalibMs } from './audio/analysis.ts'
 import { playbackActive, playbackDiag } from './audio/playback.ts'
 import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
@@ -55,7 +55,9 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
  * 가벼운 탭 안내로 받는다.
  */
 const tryOpenMic = async (popupOnDenied = false): Promise<boolean> => {
-  const r = await openMic()
+  let r = await openMic()
+  // 'busy' = 다른 열기가 진행 중. 그걸 실패로 보고 시작 버튼을 띄우면 곧 열릴 튜너 위에 버튼이 남는다(감사 B12) → 끝나길 기다렸다 한 번 더
+  if (!r.ok && r.error === 'busy') { await untilOpenSettled(); r = A.micStream ? { ok: true } : await openMic() }
   // 자동 재개가 끝났다(성공이든 실패든). 'busy' 는 여는 도중 또 숨겨진 것 — 다음 복귀에서 재시도되므로 재개 중 상태를 유지한다 (L4)
   if (r.ok || r.error !== 'busy') tunerStore.set({ micReopening: false })
   if (!r.ok && r.error !== 'busy') {
@@ -113,7 +115,7 @@ on(document, 'visibilitychange', () => {
       micReleasedByHide = true; releasingForHide = true
       tunerStore.set({ micReopening: true }) // closeMic 전에 — 닫히는 순간 renderEmpty 가 이 값을 본다 (L4)
       try { closeMic() } finally { releasingForHide = false }
-    }
+    } else if (isOpening()) { cancelOpen(); micReleasedByHide = true; tunerStore.set({ micReopening: true }) } // getUserMedia 를 기다리는 중에 숨겨짐 — 무효화하지 않으면 뒤에서 열린 채 남는다 (감사 A5)
     return
   }
   resumeIfRunning(); syncWake()
@@ -142,9 +144,11 @@ let micReleasedByEditor = false
       micReleasedByEditor = true; releasingForEditor = true
       tunerStore.set({ micReopening: true }) // 편집기를 나오면 스스로 다시 연다 — 그 0.2~0.5 초 동안 "켜라" 고 하지 않는다 (L4)
       try { closeMic() } finally { releasingForEditor = false }
-    } else if (!open && micReleasedByEditor) {
+    } else if (open && isOpening()) { cancelOpen(); micReleasedByEditor = true; tunerStore.set({ micReopening: true }) } // 감사 A5
+    else if (!open && micReleasedByEditor) {
       micReleasedByEditor = false
-      if (document.visibilityState === 'visible') void tryOpenMic()
+      // 못 열면 숨김 경로와 같이 시작 버튼으로 받는다 — 전엔 조용히 실패해 "MIC 를 켜면 시작해요" 만 남았다 (감사 B13)
+      if (document.visibilityState === 'visible') tryOpenMic().then(ok => { if (!ok && !A.micStream) showTapHint(tryOpenMic) })
     }
   }
   new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ['class'] })
@@ -161,7 +165,7 @@ onContextState(state => {
     interruptedTimer = null
     if (A.ac && A.ac.state !== 'running' && document.visibilityState === 'visible') {
       if (metroStore.get().playing) { stopMetro(); toast('오디오가 중단되어 메트로놈을 멈췄어요') }
-      else if (tunerStore.get().running) toast('오디오가 중단됐어요 — 화면을 탭하면 다시 시작해요')
+      else if (tunerStore.get().running) { toast('오디오가 중단됐어요 — 화면을 탭하면 다시 시작해요'); showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) } // 말만 하고 핸들러가 없던 것 (감사 A6)
     }
   }, 1500)
 })

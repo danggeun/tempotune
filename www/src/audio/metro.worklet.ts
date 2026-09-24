@@ -27,6 +27,7 @@ class MetroProcessor extends AudioWorkletProcessor {
     const out = outputs[0]?.[0]; if (!out) return true
     out.fill(0)
     const events = this.seq.render(out, currentFrame)
+    if (events.length === 0) { const chs0 = outputs[0]!; for (let c = 1; c < chs0.length; c++) chs0[c]!.set(out); return true } // 블록마다 패턴 복사를 만들지 않는다 (오디오 스레드 GC, 감사)
     const muted = this.seq.getPattern().muted
     for (const ev of events) this.port.postMessage({ type: 'click', tick: ev.tick, kind: ev.kind, t: currentTime + (ev.sample - currentFrame) / sampleRate, dur: CLICK_DUR_S, muted })
     // 다른 채널에 복사 (스테레오 출력)

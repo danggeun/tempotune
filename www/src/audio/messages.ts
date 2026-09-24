@@ -6,7 +6,6 @@ export interface ChunkMsg { type: 'chunk'; chunk: Float32Array; /** 청크 끝�
 /** 워커 → 워클릿: 다 쓴 버퍼 반납 (오디오 스레드의 할당/GC 를 피한다) */
 export interface RecycleMsg { type: 'recycle'; buf: ArrayBuffer }
 /** 메인 → 워클릿: 워커로 가는 포트 전달 */
-export interface PortMsg { type: 'port'; port: MessagePort }
 
 /** 메인 → 워커 */
 export type WorkerIn =
