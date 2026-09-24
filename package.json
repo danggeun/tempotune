@@ -1,6 +1,6 @@
 {
   "name": "tempotune",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "TempoTune — 현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집 (PWA + Capacitor Android)",
   "private": true,
   "license": "MIT",
