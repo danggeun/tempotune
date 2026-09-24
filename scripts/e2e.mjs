@@ -53,9 +53,16 @@ const swipeDown = async (p, sel = '#metro-hdr') => {
   const x = b.x + b.width / 2, y = b.y + Math.min(20, b.height / 2)
   await p.mouse.move(x, y); await p.mouse.down()
   for (let i = 1; i <= 6; i++) await p.mouse.move(x, y + (60 * i) / 6)
-  await p.mouse.up(); await sleep(p, 700)
+  await p.mouse.up(); await settled(p)
 }
-/** 조건이 참이 될 때까지 폴링. 비동기 동작(마이크 재개 등)을 sleep 으로 어림잡지 않기 위한 것 */
+/** 메트로놈 크기 전환(접힘/펼침/펼침2)이 끝날 때까지 — 고정 sleep 대신 상태를 본다 */
+const settled = async (p) => {
+  await waitUntil(p, () => !document.querySelector('.h-anim') && !document.getElementById('metro-card').classList.contains('no-anim'), 3000, 'size animation')
+  await p.evaluate(() => new Promise(r => { const w = document.getElementById('metro-body-wrap'); const done = () => { w.removeEventListener('transitionend', done); r(null) }; w.addEventListener('transitionend', done); setTimeout(done, 650) }))
+  await p.waitForTimeout(50)
+}
+const sizeTap = async (p) => { await p.click('#metro-size-btn'); await settled(p) }
+/** 조건이 참이 될 때까지 폴링 */
 const waitUntil = async (p, fn, ms = 4000, what = 'condition') => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) { if (await p.evaluate(fn)) return true; await p.waitForTimeout(100) }
@@ -135,7 +142,7 @@ await scenario('metro: play/stop 이 접힘을 바꾸지 않는다 (U1), header 
   const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
   assert.equal(await collapsedEl(), true, 'collapsed after load on phone')
   assert.equal(await p.evaluate(() => document.getElementById('metro-size-btn').classList.contains('to-expand')), true, '접힘이면 버튼은 ∧(펼치러)')
-  await p.click('#metro-size-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false)
+  await sizeTap(p); assert.equal(await collapsedEl(), false)
   assert.equal(await p.evaluate(() => document.getElementById('metro-size-btn').classList.contains('to-full')), true, '펼침이면 버튼은 ⤢(전용으로)')
   await p.click('#metro-play-btn'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
@@ -153,14 +160,14 @@ await scenario('metro: play/stop 이 접힘을 바꾸지 않는다 (U1), header 
   assert.equal(await collapsedEl(), true, 'U1: 정지해도 접힘은 그대로')
   assert.equal(await hdr(), 'none', '정지하면 헤더 재생 버튼은 사라진다')
   // 접힌 채 재생 → 접힌 채로 남는다
-  await p.click('#metro-size-btn'); await sleep(p, 700); assert.equal(await collapsedEl(), false)
+  await sizeTap(p); assert.equal(await collapsedEl(), false)
   await swipeDown(p); assert.equal(await collapsedEl(), true)
-  await p.click('#metro-size-btn'); await sleep(p, 700); await p.click('#metro-play-btn'); await sleep(p, 300)
+  await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 300)
   assert.equal(await collapsedEl(), false, 'U1: 펼친 채 재생 — 여전히 펼침')
   await p.click('#metro-play-btn'); await sleep(p, 300)
 })
 await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots count', 'silence_lowfloor.wav', async p => {
-  await p.goto(URL_); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 600)
+  await p.goto(URL_); await sleep(p, 500); await sizeTap(p)
   const bpm = () => p.evaluate(() => +document.getElementById('metro-bpm').textContent)
   await p.click('.m-adj:nth-child(2)'); assert.equal(await bpm(), 81)
   await p.click('.m-adj:nth-child(1)'); await p.click('.m-adj:nth-child(1)'); assert.equal(await bpm(), 79)
@@ -181,7 +188,7 @@ await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots
 // 전에는 화면의 스윕 방향이 리셋되지 않아 바꾸는 순간의 방향에 따라 좌/우가 갈렸다.
 await scenario('metro: 재생 중 박자를 바꿔도 첫 박은 왼쪽부터 (M12)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
-  await p.click('#metro-size-btn'); await sleep(p, 600); await p.click('#metro-size-btn'); await sleep(p, 700) // 전용 모드 (13칸 줄이 크게 보인다)
+  await sizeTap(p); await sizeTap(p) // 전용 모드 (13칸 줄이 크게 보인다)
   await p.click('#metro-play-btn'); await sleep(p, 300)
   /** 다음 정박(hit-acc)이 몇 번 칸에서 나는지 */
   const firstBeatCell = async () => p.evaluate(async () => {
@@ -204,7 +211,7 @@ await scenario('metro: 재생 중 박자를 바꿔도 첫 박은 왼쪽부터 (M
   await p.click('#metro-play-btn')
 })
 await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다 (K3)', 'silence_lowfloor.wav', async p => {
-  await p.goto(URL_); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 600)
+  await p.goto(URL_); await sleep(p, 500); await sizeTap(p)
   await p.click('[data-ts="1"]')
   assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '1', '정박 버튼이 켜진다')
   // 재생해도 어느 틱에서도 액센트(hit-acc)가 나오지 않아야 한다 — 이게 이 모드의 전부다
@@ -217,7 +224,7 @@ await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다 (K3)
 })
 await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤더·마이크는 그대로 (N1), LED 가 끝→끝으로 쓸고 양 끝에서 초록 (K10·K5)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  await p.click('#metro-size-btn'); await sleep(p, 600); await p.click('#metro-size-btn'); await sleep(p, 700) // 접힘 → 펼침 → 전용 (순환, M10)
+  await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용 (순환, M10)
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true)
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none', '튜너 카드 숨김')
   // N1: 펼침과 같다 — 헤더는 그대로, 마이크도 놓지 않는다 (v2.3.2 까지는 둘 다 접었다: L10·K10)
@@ -261,7 +268,7 @@ await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤�
   assert.equal(await p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed')), false, '스와이프는 한 단계 — 펼침까지')
   await swipeDown(p) // 펼침 → 접힘
   assert.equal(await p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed')), true, '한 번 더 밀면 접힘')
-  await p.click('#metro-size-btn'); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 500) // 접힘 → 펼침 → 전용
+  await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용
   // 나가면 튜너가 돌아온다. 마이크는 애초에 놓지 않았으니(N1) "MIC 를 켜면 시작해요" 가 뜰 일 자체가 없다 — 한 프레임도
   await p.click('#metro-size-btn')
   const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 800) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; await new Promise(r => setTimeout(r, 16)) } return hint })
@@ -276,13 +283,13 @@ await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤�
   await p.keyboard.press('Space'); await sleep(p, 400)
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■', 'Space 로 재생 시작')
   assert.equal(await flashesWhile(), true, '접혔을 때는 카드가 박마다 칠해진다 — 띠 하나뿐이라 이게 원거리 신호다')
-  await p.click('#metro-size-btn'); await sleep(p, 700) // 펼침
+  await sizeTap(p) // 펼침
   assert.equal(await flashesWhile(), false, '펼치면 LED 줄이 박을 말하므로 화면은 칠하지 않는다 (M9)')
   await p.click('#metro-play-btn')
 })
 await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝에서 멈춤, 용어·눈금 (v2.3.0)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
-  await p.click('#metro-size-btn'); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 700) // 접힘 → 펼침 → 전용
+  await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용
   // 그림: 40~200 을 5 마다 눈금(33), 20 마다 숫자(9: 40·60·…·200), 이정표 용어 4(Largo 부터), 점 줄은 없다 (M7)
   const n = await p.evaluate(() => ({ tick: document.querySelectorAll('#dial-svg .dial-tick').length, num: document.querySelectorAll('#dial-svg .dial-num').length, name: document.querySelectorAll('#dial-svg .dial-name').length, beats: document.getElementById('sweep-beats') }))
   assert.deepEqual(n, { tick: 33, num: 9, name: 4, beats: null })
@@ -329,8 +336,7 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
   await p.addStyleTag({ content: `#app{padding-top:${top}px!important;padding-bottom:${bot}px!important}` })
   // 크기 버튼은 순환이라, 넓은 화면(항상 펼침)과 폰은 전용까지 걸리는 횟수가 다르다 → 될 때까지 누른다 (M10)
-  for (let i = 0; i < 3 && !(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full'))); i++) { await p.click('#metro-size-btn'); await sleep(p, 500) }
-  await sleep(p, 400) // N2: 높이 애니메이션(.55s)이 끝난 뒤 잰다
+  for (let i = 0; i < 3 && !(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full'))); i++) { await sizeTap(p) }
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true, '전용 모드 진입')
   const r = await p.evaluate(() => {
     const clip = document.getElementById('metro-body-clip'), card = document.getElementById('metro-card').getBoundingClientRect()
@@ -369,7 +375,7 @@ await scenario('settings: persist across reload (cents, smooth, rms, wakelock, b
   await p.click('#menu-btn'); await p.click('#settings-open-btn')
   await p.click('#cents-steps .step-btn[data-v="25"]'); await p.click('#smooth-steps .step-btn[data-v="3"]'); await p.click('#rms-steps .step-btn[data-v="1"]')
   await p.click('#wakelock-steps .step-btn[data-v="0"]')
-  await p.click('#settings-back-btn'); await p.click('.menu-close-btn'); await p.click('#metro-size-btn'); await sleep(p, 600)
+  await p.click('#settings-back-btn'); await p.click('.menu-close-btn'); await sizeTap(p)
   await p.click('.m-adj:nth-child(2)'); await p.click('[data-ts="3"]')
   await sleep(p, 800)
   await p.reload(); await sleep(p, 800)
@@ -381,6 +387,31 @@ await scenario('settings: persist across reload (cents, smooth, rms, wakelock, b
 })
 
 // ── 녹음 / 편집 ──
+// 녹음 중 조각이 IDB 에 남아 있으면(앱이 죽었다) 다음 실행에서 항목으로 복구된다
+await scenario('rec: 끝내지 못한 녹음의 조각이 다음 실행에서 복구된다', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  // 짧게 녹음해 진짜 조각(헤더가 있는 첫 블롭)을 얻고, 그걸 '끝나지 않은 세션' 인 것처럼 chunks 에 넣는다
+  await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
+  const seeded = await p.evaluate(async () => {
+    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) })
+    const rows = await new Promise(r => { const g = db.transaction('recordings').objectStore('recordings').getAll(); g.onsuccess = () => r(g.result) })
+    if (!rows.length) return 'no recording'
+    const src = rows[0], session = Date.now() - 30000
+    const st = db.transaction('chunks', 'readwrite').objectStore('chunks')
+    st.add({ session, t: session + 10000, mime: src.mime, blob: src.blob }); st.add({ session, t: session + 20000, mime: src.mime, blob: src.blob })
+    await new Promise(r => { st.transaction.oncomplete = r })
+    return 'ok'
+  })
+  assert.equal(seeded, 'ok')
+  const before = await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item').length)
+  await p.reload(); await waitNote(p, t => t.note === '라'); await sleep(p, 1500)
+  const names = await p.evaluate(() => Array.from(document.querySelectorAll('#rec-list .rec-item-name')).map(e => e.textContent))
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item').length), before + 1, '복구된 항목 하나가 늘어난다: ' + names.join(','))
+  assert.ok(names.some(n => /복구/.test(n)), '이름에 복구 표시: ' + names.join(','))
+  assert.equal(await p.evaluate(async () => { const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) }); return new Promise(r => { const g = db.transaction('chunks').objectStore('chunks').count(); g.onsuccess = () => r(g.result) }) }), 0, '복구 뒤 조각은 비운다')
+  await p.reload(); await waitNote(p, t => t.note === '라'); await sleep(p, 800)
+  assert.equal(await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item').length), before + 1, '다시 켜도 중복 복구는 없다')
+})
 await scenario('rec: start/stop → list item, persists reload, rename persists (phase1 fix), delete', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 1500)
@@ -440,7 +471,7 @@ await scenario('rec: 남기기 — 예고문 안에서만, 토글·유지·설�
   assert.equal(await link(), null, '예고 전에는 남기기 글자도 없다 (정보는 있는 것만)')
   // 녹음을 27일 전으로 돌려 예고 구간(마지막 7일)에 넣는다
   await p.evaluate(async () => {
-    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 3); q.onsuccess = () => r(q.result) })
+    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) })
     const tx = db.transaction('recordings', 'readwrite'), st = tx.objectStore('recordings')
     const rows = await new Promise(r => { const g = st.getAll(); g.onsuccess = () => r(g.result) })
     for (const row of rows) { row.ts -= 27 * 86400000; st.put(row) }
@@ -468,7 +499,7 @@ await scenario('rec: 남기기 — 예고문 안에서만, 토글·유지·설�
   // 31일 전 = 기한 지난 항목을 남긴 상태에서 해제하면 미리 알린다 (되돌리기)
   await p.click('#rec-list .rec-keep-link'); await sleep(p, 300)
   await p.evaluate(async () => {
-    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 3); q.onsuccess = () => r(q.result) })
+    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) })
     const tx = db.transaction('recordings', 'readwrite'), st = tx.objectStore('recordings')
     const rows = await new Promise(r => { const g = st.getAll(); g.onsuccess = () => r(g.result) })
     for (const row of rows) { row.ts -= 5 * 86400000; st.put(row) }
@@ -550,7 +581,7 @@ await scenario('metro: 재생 중에 화면이 넓어지면 헤더 재생 버튼
   const collapsed = () => p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed'))
   // 로드 직후 폰에서는 접혀 있다. 접힌 채 재생을 시작한다 (헤더 버튼이 나오는 유일한 조건)
   assert.equal(await collapsed(), true, '폰: 로드 직후 접힘')
-  await p.click('#metro-size-btn'); await sleep(p, 700); await p.click('#metro-play-btn'); await sleep(p, 300)
+  await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 300)
   await swipeDown(p)
   assert.equal(await collapsed(), true, '재생 중 스와이프로 접기')
   assert.equal(await hdr(), 'flex', '폰: 접힌 채 재생 중 헤더 버튼')
@@ -560,7 +591,7 @@ await scenario('metro: 재생 중에 화면이 넓어지면 헤더 재생 버튼
   assert.equal(await hdr(), 'flex', '다시 폰: 헤더 버튼 복귀')
   assert.equal(await collapsed(), true, 'U1: 폭이 바뀌어도 접힘은 사용자가 정한 그대로')
   // 폰에서 재생 중에 일부러 펼친 카드는, 높이만 바뀌는 resize(안드로이드 주소창 숨김·키보드)에 다시 접히면 안 된다
-  await p.click('#metro-size-btn'); await sleep(p, 700); assert.equal(await collapsed(), false, '재생 중 수동 펼침')
+  await sizeTap(p); assert.equal(await collapsed(), false, '재생 중 수동 펼침')
   await p.setViewportSize({ width: 390, height: 700 }); await sleep(p, 600)
   assert.equal(await collapsed(), false, '높이만 바뀐 resize 에는 접히지 않는다')
   await p.click('#metro-play-btn'); await sleep(p, 600)
@@ -651,7 +682,7 @@ await scenario('detect: sustained violin counts (after ~0.3 s attack)', 'violin_
 
 await scenario('metro+tuner: note keeps showing while metronome clicks (mute ranges only drop click windows)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  await p.click('#metro-size-btn'); await sleep(p, 600); await p.click('#metro-play-btn'); await sleep(p, 2500)
+  await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 2500)
   let shown = 0; for (let i = 0; i < 10; i++) { if ((await tunerText(p)).note === '라') shown++; await sleep(p, 120) }
   assert.ok(shown >= 6, 'note visible in most samples while clicking: ' + shown + '/10')
   await p.click('#metro-play-btn') // U1: 펼친 채 재생 중이라 헤더 버튼은 없다
@@ -681,7 +712,7 @@ await scenario('metro accuracy: worklet renders 120 bpm clicks with ≤1-sample 
 })
 function sr48(s) { return Math.round(48000 * s) }
 await scenario('metro: bpm change while playing does not restart (beats keep coming, playing stays)', 'silence_lowfloor.wav', async p => {
-  await p.goto(URL_); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 600)
+  await p.goto(URL_); await sleep(p, 500); await sizeTap(p)
   await p.click('#metro-play-btn'); await sleep(p, 900)
   // 헤더 ♩BPM 라벨을 드래그해 올린다 (2 px/BPM → 60 px = +30). 헤더는 접힘과 무관하게 항상 보인다
   const box = await p.locator('#metro-hdr-label').boundingBox()
@@ -839,7 +870,7 @@ await scenario('offline: service worker precaches everything; reload with networ
   await ctx.setOffline(false)
 })
 await scenario('lifecycle: context suspended externally while metronome plays → auto-resume on visible', 'silence_lowfloor.wav', async p => {
-  await p.goto(URL_); await sleep(p, 500); await p.click('#metro-size-btn'); await sleep(p, 600); await p.click('#metro-play-btn'); await sleep(p, 800)
+  await p.goto(URL_); await sleep(p, 500); await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 800)
   assert.equal(await p.evaluate(() => window.__tt.stats().acState), 'running')
   // 외부 suspend 직후의 'suspended' 는 단언하지 않는다 — 앱이 statechange 에서 **즉시** 되살리므로(main.ts onContextState)
   // 그 순간을 잡는 검사는 경합이다(v2.0.2 에서 '가끔 실패' 로 기록됐던 원인). 검사할 것은 "결국 running 으로 돌아오는가" 다.
@@ -855,7 +886,7 @@ const setVisibility = (p, state) => p.evaluate(st => { Object.defineProperty(doc
 await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고 메트로놈도 멈춘다 — 타이머는 계속 (P1·M11)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await p.click('.menu-close-btn'); await sleep(p, 300)
-  await p.click('#metro-size-btn'); await sleep(p, 500); await p.click('#metro-play-btn'); await sleep(p, 500)
+  await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 500)
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '시작: 마이크 열림')
   // 숨김 → 마이크는 놓고, **메트로놈은 멈추고**(M11: 안드로이드에서 나간 앱이 계속 울렸다), 타이머는 그대로 돈다
   await setVisibility(p, 'hidden'); await sleep(p, 400)
