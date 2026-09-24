@@ -15,7 +15,7 @@ import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
-import { mountTuner, showTapHint, setHistSec, histDiag } from './ui/tuner.ts'
+import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag } from './ui/tuner.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { onMetroError } from './audio/metronome.ts'
@@ -57,7 +57,12 @@ mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 const tryOpenMic = async (popupOnDenied = false): Promise<boolean> => {
   let r = await openMic()
   // 'busy' = 다른 열기가 진행 중. 그걸 실패로 보고 시작 버튼을 띄우면 곧 열릴 튜너 위에 버튼이 남는다(감사 B12) → 끝나길 기다렸다 한 번 더
-  if (!r.ok && r.error === 'busy') { await untilOpenSettled(); r = A.micStream ? { ok: true } : await openMic() }
+  if (!r.ok && r.error === 'busy') {
+    await untilOpenSettled()
+    if (A.micStream) r = { ok: true }
+    else if (document.visibilityState !== 'visible') return false // 기다리는 사이 숨겨졌다 — 뒤에서 열지 않는다(A5). 복귀 핸들러가 다시 부른다
+    else { r = await openMic(); if (!r.ok && r.error === 'busy') return false } // 또 busy = 다른 호출이 열고 있다 → 그쪽에 맡긴다(안내 없음)
+  }
   // 자동 재개가 끝났다(성공이든 실패든). 'busy' 는 여는 도중 또 숨겨진 것 — 다음 복귀에서 재시도되므로 재개 중 상태를 유지한다 (L4)
   if (r.ok || r.error !== 'busy') tunerStore.set({ micReopening: false })
   if (!r.ok && r.error !== 'busy') {
@@ -66,7 +71,7 @@ const tryOpenMic = async (popupOnDenied = false): Promise<boolean> => {
     return false
   }
   // 권한 프롬프트를 거치는 동안 사용자 제스처가 만료되면 컨텍스트가 suspended 로 남는다 (iOS/Firefox) → 탭 안내 (모든 경로에서)
-  setTimeout(() => { if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }, 400)
+  setTimeout(async () => { for (let i = 0; i < 5 && A.ac && A.ac.state !== 'running'; i++) await new Promise(r => setTimeout(r, 250)); if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }, 400) // resume 이 느리면 1.5 s 까지 기다린 뒤에만 (B12)
   return r.ok
 }
 /** 권한 상태. 사파리는 microphone 을 지원하지 않아 null 이 나온다 — 그때는 '모른다' 로 다룬다 */
@@ -120,7 +125,7 @@ on(document, 'visibilitychange', () => {
   }
   resumeIfRunning(); syncWake()
   // 다시 열릴 때까지 플래그를 유지한다 — 여는 도중에 또 숨겨져 'busy' 로 끝나도 다음 복귀에서 다시 시도된다
-  if (micReleasedByHide) tryOpenMic().then(ok => { if (ok) micReleasedByHide = false; else if (document.visibilityState === 'visible' && !A.micStream) showTapHint(tryOpenMic) })
+  if (micReleasedByHide) tryOpenMic().then(ok => { if (ok) micReleasedByHide = false; else if (document.visibilityState === 'visible' && !A.micStream && !isOpening()) showTapHint(tryOpenMic) }) // isOpening: 다른 호출이 여는 중이면 그 위에 버튼을 띄우지 않는다 (B12)
 })
 /**
  * 편집기가 열려 있는 동안에는 마이크를 놓는다 (K6).
@@ -148,7 +153,7 @@ let micReleasedByEditor = false
     else if (!open && micReleasedByEditor) {
       micReleasedByEditor = false
       // 못 열면 숨김 경로와 같이 시작 버튼으로 받는다 — 전엔 조용히 실패해 "MIC 를 켜면 시작해요" 만 남았다 (감사 B13)
-      if (document.visibilityState === 'visible') tryOpenMic().then(ok => { if (!ok && !A.micStream) showTapHint(tryOpenMic) })
+      if (document.visibilityState === 'visible') tryOpenMic().then(ok => { if (!ok && !A.micStream && !isOpening()) showTapHint(tryOpenMic) })
     }
   }
   new MutationObserver(sync).observe(page, { attributes: true, attributeFilter: ['class'] })
@@ -156,7 +161,7 @@ let micReleasedByEditor = false
 // 전화·다른 앱 오디오 등으로 컨텍스트가 멈추면: 화면에 보일 때 재개를 시도하고, 그래도 안 되면 메트로놈을 멈추고 알린다
 let interruptedTimer: ReturnType<typeof setTimeout> | null = null
 onContextState(state => {
-  if (state === 'running') { if (interruptedTimer) { clearTimeout(interruptedTimer); interruptedTimer = null } return }
+  if (state === 'running') { if (interruptedTimer) { clearTimeout(interruptedTimer); interruptedTimer = null } if (A.micStream) hideTapHint(); return } // 마이크가 열려 있고 컨텍스트가 돌면 시작 버튼은 할 일이 없다 — 늦은 resume 뒤에 남던 버튼 (B12)
   if (state === 'closed') return
   if (!metroStore.get().playing && !tunerStore.get().running) return // 유휴 suspend 는 정상
   if (document.visibilityState === 'visible') resumeIfRunning()

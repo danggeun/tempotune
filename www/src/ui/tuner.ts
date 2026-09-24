@@ -150,6 +150,12 @@ export function showTapHint(onTap: () => Promise<boolean>, sub = ''): void {
   card.addEventListener('click', handler)
 }
 
+/** 시작 버튼을 거둔다 — 마이크가 열려 있고 컨텍스트가 돌면 버튼은 할 일이 없다 (B12: 돌아가는 튜너 위에 버튼이 남지 않게) */
+export function hideTapHint(): void {
+  const card = q('tuner-card')
+  if (tapHandler) { card.removeEventListener('click', tapHandler); tapHandler = null }
+  card.classList.remove('tap-hint')
+}
 export function mountTuner(): void {
   readTokens() // 앱은 다크 고정 — 시스템 테마 변화를 따라갈 일이 없다
   // 매 분석 프레임(≈43 Hz): 히스토리는 프레임마다 쌓고, 그리기는 rAF 에 한 번만 (vsync 와 비동기인 워커 프레임을 코얼레싱)
