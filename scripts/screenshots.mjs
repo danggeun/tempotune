@@ -53,7 +53,7 @@ for (const scheme of ['dark']) {
   for (const [name, prep] of Object.entries(SCENES)) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
     const page = await ctx.newPage()
-    await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(400) // 폰트가 늦게 오면 글자가 재배치돼 픽셀이 어긋난다 — 고정 대기 대신 fonts.ready
+    await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(1000) // 폰트(fonts.ready) + 첫 접힘 트랜지션(250 ms 뒤 시작, .55 s)이 끝난 뒤 — 그 전엔 카드가 반쯤 접힌 채 찍힌다
     await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;caret-color:transparent!important}' })
     await prep(page)
     const file = join(OUT, `${scheme}_${name}.png`)
