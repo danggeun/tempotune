@@ -11,7 +11,7 @@ import { clearLegacyStorage } from './persist/legacy.ts'
 import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleCheck, onContextState, isPermissionError, isOpening, cancelOpen, untilOpenSettled } from './audio/engine.ts'
 import { startAnalysis, lastFrameMs, metroCalibMs } from './audio/analysis.ts'
 import { playbackActive, playbackDiag } from './audio/playback.ts'
-import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
+import { restoreRecordings, recoverInProgress, onRecorderError } from './audio/recorder.ts'
 import { initStatusBar, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
@@ -213,7 +213,7 @@ void (async () => {
 })()
 
 // ── 녹음 복원 ──
-openRecDb().then(restoreRecordings).catch(() => toast('녹음 저장소를 열 수 없어요 — 녹음은 이번 세션에만 남아요'))
+openRecDb().then(restoreRecordings).then(recoverInProgress).then(n => { if (n) toast(`저장되지 않았던 녹음 ${n}개를 복구했어요`) }).catch(() => toast('녹음 저장소를 열 수 없어요 — 녹음은 이번 세션에만 남아요'))
 
 // ── Service Worker (웹 PWA 만): 새 버전은 앱이 유휴일 때 적용해 리로드 — 연습 중에 화면이 갈리지 않게 ──
 if (!isNative() && 'serviceWorker' in navigator) {

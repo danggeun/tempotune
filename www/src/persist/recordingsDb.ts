@@ -4,9 +4,9 @@
  *   meta:       {id, name?, bookmarks, ab, peaks, speed?}          — 편집 상태, 자주 바뀜 (blob 을 다시 쓰지 않게 분리)
  * v1(필드 없음) → v2(같은 행에 bookmarks/ab) → v3(meta 분리) 마이그레이션.
  */
-export const REC_DB = 'tempotune_rec', REC_STORE = 'recordings', META_STORE = 'meta'
+export const REC_DB = 'tempotune_rec', REC_STORE = 'recordings', META_STORE = 'meta', CHUNK_STORE = 'chunks'
 export const LEGACY_REC_DB = 'gopractice_rec' // v2.1.0 이름 변경 전. 버리고 간다 (persist/legacy.ts)
-export const REC_DB_VERSION = 3
+export const REC_DB_VERSION = 4 // v4: chunks — 녹음 중 조각 (앱이 죽어도 다음 실행에서 복구)
 import { REC_TTL, expires } from '../core/recPolicy.ts'
 import { settingsStore } from '../state/index.ts'
 export { REC_TTL }
@@ -29,6 +29,7 @@ export function openRecDb(): Promise<IDBDatabase> {
       const d = (e.target as IDBOpenDBRequest).result, tx = (e.target as IDBOpenDBRequest).transaction!
       const recs = d.objectStoreNames.contains(REC_STORE) ? tx.objectStore(REC_STORE) : d.createObjectStore(REC_STORE, { keyPath: 'id', autoIncrement: true })
       const meta = d.objectStoreNames.contains(META_STORE) ? tx.objectStore(META_STORE) : d.createObjectStore(META_STORE, { keyPath: 'id' })
+      if (!d.objectStoreNames.contains(CHUNK_STORE)) d.createObjectStore(CHUNK_STORE, { keyPath: 'seq', autoIncrement: true }).createIndex('session', 'session')
       if (e.oldVersion < 3) { // v1/v2 행의 편집 필드를 meta 로 옮기고 행에서는 제거
         const cur = recs.openCursor()
         cur.onsuccess = () => {
@@ -88,4 +89,26 @@ export async function dbLoadAll(): Promise<RecFull[]> {
     keep.push({ ...r, name: m?.name ?? r.name, bookmarks: m?.bookmarks ?? [], ab: m?.ab ?? null, peaks: m?.peaks, speed: m?.speed, ext: m?.ext, peak: m?.peak, keep: m?.keep })
   }
   return keep
+}
+
+// ── 녹음 중 조각 ──
+export interface ChunkRow { seq?: number; session: number; t: number; mime: string; blob: Blob }
+export async function dbChunkAdd(row: ChunkRow): Promise<void> {
+  if (!db) return
+  try { await req(store(CHUNK_STORE, 'readwrite').add(row)) } catch { /* 용량 부족 — 메모리의 조각으로 stop 때 저장된다 */ }
+}
+export async function dbChunksClear(session: number): Promise<void> {
+  if (!db) return
+  try {
+    const s = store(CHUNK_STORE, 'readwrite'), keys = (await req(s.index('session').getAllKeys(session))) as IDBValidKey[]
+    for (const k of keys) await req(s.delete(k))
+  } catch { /* 다음 실행의 복구가 중복 항목을 만들 수 있다 — 그쪽에서 걸러낸다 */ }
+}
+/** 세션별 조각 (seq 순). 비어 있으면 빈 Map */
+export async function dbChunksLoad(): Promise<Map<number, ChunkRow[]>> {
+  const out = new Map<number, ChunkRow[]>()
+  if (!db) return out
+  const rows = (await req(store(CHUNK_STORE, 'readonly').getAll())) as ChunkRow[]
+  for (const r of rows.sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) { const g = out.get(r.session); if (g) g.push(r); else out.set(r.session, [r]) }
+  return out
 }

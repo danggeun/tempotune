@@ -2,7 +2,7 @@
  * 녹음 (MediaRecorder) + 녹음 목록 상태. v1 startRec/stopRec/deleteRec 를 옮겼다.
  */
 import { recListStore, sessionStore, type RecItem } from '../state/index.ts'
-import { dbSave, dbDelete, dbPatchMeta, dbLoadAll } from '../persist/recordingsDb.ts'
+import { dbSave, dbDelete, dbPatchMeta, dbLoadAll, dbChunkAdd, dbChunksClear, dbChunksLoad, type ChunkRow } from '../persist/recordingsDb.ts'
 import { computePeaks, peakOf } from '../core/peaks.ts'
 import { containerOf, extFromMime, type RecContainer } from '../core/container.ts'
 import { isIOS, isSafari } from '../platform/index.ts'
@@ -18,6 +18,8 @@ export const recExt = (item: Pick<RecItem, 'ext' | 'mime'>): RecContainer => ite
 export function recFileName(item: RecItem): string { return 'tempotune_' + item.name + '.' + recExt(item) }
 
 export type RecResult = { ok: true } | { ok: false; error: string }
+/** 조각 간격. 앱이 죽어도 이만큼만 잃는다 */
+export const REC_SLICE_MS = 10_000
 export function startRec(): RecResult {
   if (!A.micStream) return { ok: false, error: '마이크를 먼저 켜주세요' }
   if (recorder && recorder.state !== 'inactive') return { ok: false, error: '이미 녹음 중이에요' }
@@ -44,7 +46,7 @@ export function startRec(): RecResult {
   let rec: MediaRecorder
   try { rec = new MediaRecorder(A.micStream, opts) } catch (e) { return { ok: false, error: '이 기기에서는 녹음을 지원하지 않아요' + (e instanceof Error ? ` (${e.name})` : '') } }
   const parts: Blob[] = []
-  rec.ondataavailable = e => { if (e.data.size > 0) parts.push(e.data) }
+  rec.ondataavailable = e => { if (e.data.size > 0) { parts.push(e.data); void dbChunkAdd({ session: t0, t: Date.now(), mime: rec.mimeType, blob: e.data }) } }
   rec.onerror = () => { errorFn?.('녹음 중 오류가 나서 저장했어요'); if (recorder === rec) stopRec() }
   // 저장 경로의 어떤 단계가 실패해도 **녹음 자체는 잃지 않는다**: 파형·피크·확장자는 부가 정보라
   // 없어도 재생·편집·다운로드가 된다(편집기는 peaks 가 없으면 오디오에서 계산). blob 을 못 만들 때만 포기한다. (D4)
@@ -68,10 +70,11 @@ export function startRec(): RecResult {
     const item: RecItem = { id: null, url: URL.createObjectURL(blob), name, dur: Math.round((Date.now() - t0) / 1000), blob, mime: rec.mimeType, ext, peak, ts: t0, bookmarks: [], ab: null, peaks }
     item.id = await dbSave({ name: item.name, dur: item.dur, blob: item.blob, mime: item.mime, ts: item.ts }, { bookmarks: [], ab: null, peaks, ext, peak }).catch(() => null)
     if (item.id == null) errorFn?.('녹음을 저장하지 못했어요 — 이번 세션에만 남아 있어요') // 용량 부족·프라이빗 모드 등: 조용한 실패 금지
+    else void dbChunksClear(t0)
     const st = recListStore.get(); recListStore.set({ items: [item, ...st.items], rev: st.rev + 1 })
     if (cappedNotice) { errorFn?.(cappedNotice); cappedNotice = null }
   }
-  try { rec.start() } catch (e) { return { ok: false, error: '녹음을 시작하지 못했어요 — 마이크를 껐다 켜주세요' + (e instanceof Error ? ` (${e.name})` : '') } } // 트랙이 막 죽은 순간 InvalidStateError 가 클릭 핸들러로 새던 것 (감사 B6)
+  try { rec.start(REC_SLICE_MS) } catch (e) { return { ok: false, error: '녹음을 시작하지 못했어요 — 마이크를 껐다 켜주세요' + (e instanceof Error ? ` (${e.name})` : '') } } // 트랙이 막 죽은 순간 InvalidStateError 가 클릭 핸들러로 새던 것 (감사 B6)
   recorder = rec
   const myPeaks = startPeakCapture() // 이 세션의 피크 배열 (다음 세션이 새 배열을 만들어도 참조가 유지된다)
   sessionStore.set({ recording: true, recElapsedSec: 0 })
@@ -146,6 +149,27 @@ export async function restoreRecordings(): Promise<void> {
   if (!rows.length) return
   const items: RecItem[] = rows.map(r => ({ id: r.id ?? null, url: URL.createObjectURL(r.blob), name: r.name, dur: r.dur, blob: r.blob, mime: r.mime, ext: r.ext, peak: r.peak, ts: r.ts, bookmarks: r.bookmarks, ab: r.ab, peaks: r.peaks, speed: r.speed, keep: r.keep }))
   const st = recListStore.get(); recListStore.set({ items: [...st.items, ...items], rev: st.rev + 1 })
+}
+/** 지난 실행에서 끝내지 못한 녹음(조각)을 항목으로 되살린다. 되살린 개수를 돌려준다 */
+export async function recoverInProgress(): Promise<number> {
+  const groups = await dbChunksLoad().catch(() => new Map<number, ChunkRow[]>())
+  let n = 0
+  for (const [session, chunks] of groups) {
+    if (sessionStore.get().recording && chunks[0]?.session === session) continue
+    const mime = chunks[0]!.mime, blob = new Blob(chunks.map(c => c.blob), { type: mime || 'audio/mp4' })
+    const last = chunks[chunks.length - 1]!.t, dur = Math.max(1, Math.round((last - session) / 1000))
+    const d = new Date(session)
+    const name = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}_복구`
+    let ext: RecContainer
+    try { ext = containerOf(new Uint8Array(await blob.slice(0, 16).arrayBuffer()), mime) } catch { ext = extFromMime(mime) }
+    const item: RecItem = { id: null, url: URL.createObjectURL(blob), name, dur, blob, mime, ext, peak: undefined, ts: session, bookmarks: [], ab: null, peaks: undefined }
+    item.id = await dbSave({ name, dur, blob, mime, ts: session }, { bookmarks: [], ab: null, ext }).catch(() => null)
+    if (item.id == null) continue
+    await dbChunksClear(session)
+    const st = recListStore.get(); recListStore.set({ items: [item, ...st.items], rev: st.rev + 1 })
+    n++
+  }
+  return n
 }
 
 onMic('beforeClose', () => { if (sessionStore.get().recording) stopRec() })
