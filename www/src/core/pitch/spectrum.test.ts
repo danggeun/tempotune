@@ -30,7 +30,7 @@ describe('spectrum', () => {
   })
 })
 
-describe('중음(더블스톱) 해석 — 실측 발견 B1', () => {
+describe('중음(더블스톱) 해석', () => {
   const SR = 48000, WN = 4096
   const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
   const mi = (n: string) => { const m = /^([A-G]#?)(-?\d)$/.exec(n)!; return NOTE.indexOf(m[1]!) + (+m[2]! + 1) * 12 }

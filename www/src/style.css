@@ -196,7 +196,7 @@ button{font-family:inherit;color:inherit;}
 .led.mv{background:var(--line-strong);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. L* 36, 꺼진 점(25)과 11 차이 */
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
-.led.hit-acc{background:var(--text);transform:scale(1.7);box-shadow:0 0 16px rgba(223,227,232,.9);} /* 첫 박만 흰색 — 크기만으로는 거리에서 구분이 안 된다. 밝기 차이는 색맹에도 안전 */
+.led.hit-acc{background:var(--text);transform:scale(1.4);box-shadow:0 0 10px rgba(223,227,232,.6);} /* 첫 박은 박과 같은 크기, 흰색으로만 구분 */
 #beat-vis .led{width:10px;height:10px;}
 #metro-card.bar #beat-vis .led{width:13px;height:13px;} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
 #sweep{display:none;padding:4px 0 0;}
@@ -206,7 +206,7 @@ button{font-family:inherit;color:inherit;}
 /* 전용 줄만 히트를 한 단 키운다 — 점 20 px·간격 24.4 px 라 여유가 있다. 헤더 줄(점 10·간격 17)은 1.7 에서 이미 이웃에 닿는다 */
 #sweep-leds .led.hit-sub{transform:scale(1.4);}
 #sweep-leds .led.hit-beat{transform:scale(1.6);}
-#sweep-leds .led.hit-acc{transform:scale(1.9);}
+#sweep-leds .led.hit-acc{transform:scale(1.6);}
 /* 다이얼 — ui/dial.ts 가 그린다. 색은 전부 토큰 */
 #dial{display:none;position:relative;touch-action:none;user-select:none;cursor:grab;}
 /* 크기는 남는 높이가 정한다. align-self:center 가 없으면 stretch 가 폭을 먼저 정해 aspect-ratio 와 싸운다. min 150 안전장치, max 320 은 큰 화면용 */

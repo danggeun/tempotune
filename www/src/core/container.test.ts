@@ -18,7 +18,7 @@ describe('container', () => {
     expect(extFromMime('')).toBe('m4a')
     expect(extFromMime(undefined)).toBe('m4a')
   })
-  test('내용이 mime 보다 우선 — mimeType 이 비거나 틀려도 이름이 맞는다 (B13)', () => {
+  test('내용이 mime 보다 우선 — mimeType 이 비거나 틀려도 이름이 맞는다', () => {
     expect(containerOf(ftyp, '')).toBe('m4a')
     expect(containerOf(ftyp, 'audio/webm')).toBe('m4a') // 내용이 이긴다
     expect(containerOf(ebml, 'audio/mp4')).toBe('webm')

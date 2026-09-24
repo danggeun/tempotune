@@ -72,7 +72,7 @@ function run(x: Float32Array): Array<{ midi: number; dualMidi: number; dualCents
 }
 const hz = (m: number, c = 0): number => 440 * Math.pow(2, (m - 69) / 12 + c / 1200)
 
-describe('analyzer: 중음 표시 (B17)', () => {
+describe('analyzer: 중음 표시', () => {
   test('단음은 절대 중음으로 뜨지 않는다 (솔3·레4·라4·미5)', () => {
     for (const m of [55, 62, 69, 76]) {
       const fr = run(mixTone([[hz(m), 1]])).filter(f => f.midi >= 0)

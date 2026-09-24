@@ -74,7 +74,7 @@ function pipeline(sig: Float32Array, marks: Array<{ sample: number }>, outLat: n
 }
 const shownAfter = (o: ReturnType<typeof pipeline>, t: number) => o.filter(f => f.t > t && f.midi >= 0).length
 
-describe('M1: 메트로놈 클릭 도착 시각 자가 보정 (앱과 같은 흐름)', () => {
+describe('메트로놈 클릭 도착 시각 자가 보정 (앱과 같은 흐름)', () => {
   const { buf, marks } = renderMetro(8)
   test.each([[0.08], [0.12], [0.20]])('입력 지연 오차 +%s s: 보정 없으면 정박마다 음이 뜨고, 보정하면 수렴 뒤 0 이다', (err) => {
     const sig = room(buf, 0.1, 0.03 + err) // 앱은 outLat 0.03 만 안다
@@ -97,7 +97,7 @@ describe('M1: 메트로놈 클릭 도착 시각 자가 보정 (앱과 같은 흐
   })
 })
 
-describe('pending 상한 (R8)', () => {
+describe('pending 상한', () => {
   test('update 가 오지 않아도 64개를 넘지 않는다', () => {
     const a = createArrival()
     for (let i = 0; i < 100; i++) a.expect(i * 0.75)

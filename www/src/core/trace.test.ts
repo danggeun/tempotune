@@ -67,7 +67,7 @@ describe('buildSegments', () => {
 })
 
 
-describe('keepInTrace — 유지 프레임 허용 폭 (v2.0.3 T1)', () => {
+describe('keepInTrace — 유지 프레임 허용 폭', () => {
   test('무음은 안 쌓는다', () => { expect(keepInTrace(-1, 0)).toBe(false) })
   test('방금 측정한 값은 쌓는다', () => { expect(keepInTrace(440, 0)).toBe(true) })
   test('활 바꿈 수준의 짧은 유지(≤ TRACE_HELD_MAX)는 잇는다', () => {

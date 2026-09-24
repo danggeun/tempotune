@@ -39,7 +39,7 @@ const SCENES = [
     await p.click('#ed-play-btn'); await p.waitForTimeout(700); await p.click('#ed-a-btn'); await p.waitForTimeout(900); await p.click('#ed-b-btn'); await p.waitForTimeout(200); await p.click('#ed-bm-add-btn'); await p.waitForTimeout(600)
     await p.click('#ed-loop-btn'); await p.waitForTimeout(300)
   }],
-  ['settings', 'silence_lowfloor.wav', async p => { await p.click('#menu-btn'); await p.waitForTimeout(300); await p.click('#settings-open-btn'); await p.waitForTimeout(500) }],
+  ['settings', 'silence_lowfloor.wav', async p => { await p.click('#settings-hdr-btn'); await p.waitForTimeout(500) }],
   ['editor_zoom', 'violin_scale_Amaj.wav', async p => {
     await waitNote(p); await p.click('#rec-hdr-btn'); await p.waitForTimeout(7000); await p.click('#rec-hdr-btn'); await p.waitForTimeout(800)
     await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await p.waitForTimeout(1500)

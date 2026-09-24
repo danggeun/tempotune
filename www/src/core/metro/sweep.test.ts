@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest'
 import { beatCount, beatDurS, ticksPerBeat, isBeatStart, sweepX } from './sweep.ts'
 
 /** 세이코식: 끝에서 박, 사이에서 분할, 박마다 방향 반전. 소리(sequencer)와 같은 틱 격자를 써야 한다. */
-describe('세이코식 박 표시 (K5)', () => {
+describe('세이코식 박 표시', () => {
   test('큰 박 개수 — 6/8 은 둘, 정박 모드는 하나', () => {
     expect(beatCount({ timeSig: 4 })).toBe(4)
     expect(beatCount({ timeSig: 6 })).toBe(2)

@@ -60,7 +60,7 @@ describe('다이얼 — 템포 용어', () => {
   })
 })
 
-describe('다이얼 — 글자 크기 (L7 2단계)', () => {
+describe('다이얼 — 글자 크기', () => {
   test('렌더 크기 고정: user unit 은 다이얼 px 에 반비례', () => {
     const a = dialTypography(320), b = dialTypography(160)
     expect(a.numUnits).toBeCloseTo(11); expect(b.numUnits).toBeCloseTo(22)

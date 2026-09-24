@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest'
 import { histLenFor } from './hist.ts'
 
 describe('histLenFor', () => {
-  test('창 길이는 샘플레이트가 달라도 같은 초 (B11: 프레임 개수로 고정하면 기기마다 달랐다)', () => {
+  test('창 길이는 샘플레이트가 달라도 같은 초', () => {
     for (const sr of [44100, 48000, 32000, 96000]) {
       const n = histLenFor(sr, 4.0)
       expect(n * 1024 / sr).toBeCloseTo(4.0, 1)

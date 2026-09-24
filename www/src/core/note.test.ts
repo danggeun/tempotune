@@ -12,7 +12,7 @@ describe('note math', () => {
   test('enharmonic table', () => { expect(ENHARMONIC['도♯']).toBe('레♭'); expect(ENHARMONIC['라']).toBeUndefined() })
 })
 
-describe('noteLabel — 보조 줄은 다른 체계 하나 (L8)', () => {
+describe('noteLabel — 보조 줄은 다른 체계 하나', () => {
   const G = 67, As = 70 // 솔4, 라♯4
   test('도레미: 자연음은 영문 하나, 반음은 영문/영문 이명동음', () => {
     expect(noteLabel(G, 'ko')).toEqual({ name: '솔', secondary: 'G' })

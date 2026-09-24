@@ -18,7 +18,6 @@ export const overlayOpen = (): boolean =>
 export function mountMenu(): void {
   on(q('menu-btn'), 'click', toggleMenu)
   on(qs('.menu-close-btn'), 'click', toggleMenu)
-  on(q('settings-open-btn'), 'click', openSettings)
   on(q('settings-hdr-btn'), 'click', openSettings)
   on(q('settings-back-btn'), 'click', closeSettings)
   // 가장자리 스와이프 = 뒤로: 메뉴 → 본화면, 설정 → 메뉴

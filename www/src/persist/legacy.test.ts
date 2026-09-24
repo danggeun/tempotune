@@ -5,7 +5,7 @@ import { LEGACY_SETTINGS_KEYS } from './settings.ts'
 import { SETTINGS_KEY } from './settings.ts'
 
 /** 사용자 데이터를 지우는 코드다. "옛 것만 지우고, 한 번만 돌고, 실패해도 안 죽는다" 를 못 박는다. */
-describe('버려진 저장소 청소 (v2.1.0 이름 변경)', () => {
+describe('버려진 저장소 청소', () => {
   let store: Record<string, string>
   let deleted: string[]
   beforeEach(() => {

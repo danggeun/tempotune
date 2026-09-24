@@ -49,7 +49,7 @@ describe('tracker', () => {
     expect(r.midi).toBe(70); expect(Math.abs(1200 * Math.log2(r.hz / 466.16))).toBeLessThan(15)
   })
 
-  test('표시 일관성: cents(= dispA − 라벨 중심)는 항상 ±50 ¢ 안 (B14)', () => {
+  test('표시 일관성: cents(= dispA − 라벨 중심)는 항상 ±50 ¢ 안', () => {
     // 재현: 한 방향으로 4프레임 이상 움직이면 적응 부스트가 dispA 를 새 음까지 끌어다 놓는데,
     // 라벨은 switchFrames 만큼 기다린다 → 그 사이 화면에 두 음의 간격(100~190 ¢)이 찍혔다.
     const t = createTracker()

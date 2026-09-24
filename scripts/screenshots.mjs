@@ -38,7 +38,7 @@ const SCENES = {
   main: async p => {},
   metro_open: async p => { await p.click('#metro-size-btn'); await p.waitForTimeout(600) },
   menu: async p => { await p.click('#menu-btn'); await p.waitForTimeout(600) },
-  settings: async p => { await p.click('#menu-btn'); await p.waitForTimeout(400); await p.click('#settings-open-btn'); await p.waitForTimeout(500) },
+  settings: async p => { await p.click('#settings-hdr-btn'); await p.waitForTimeout(500) },
   editor: async p => { await p.evaluate(() => { const e = document.getElementById('editor-page'); e.style.display = 'flex'; e.classList.add('open') }); await p.waitForTimeout(300) },
   // 권한 미결정 상태의 첫 진입 팝업 (별도 컨텍스트: 마이크 권한 없음)
   popup: Object.assign(async p => { await p.waitForTimeout(300) }, { ctx: { permissions: [] } }),

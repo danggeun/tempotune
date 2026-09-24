@@ -30,7 +30,7 @@ describe('analyzer: 기준음(refHz) 보정', () => {
   })
 })
 
-describe('스펙트럼 정합 페널티 (실측 발견 B2)', () => {
+describe('스펙트럼 정합 페널티', () => {
   /** 두 음이 겹친 신호 — 가상 기본음이 생기는 상황을 합성으로 재현 */
   function doubleStop(sr: number, n: number, f1: number, f2: number): Float32Array {
     const x = new Float32Array(n)
@@ -47,7 +47,7 @@ describe('스펙트럼 정합 페널티 (실측 발견 B2)', () => {
     const sr = 48000, N = 4096
     const a = createAnalyzer({ sampleRate: sr })
     a.setSettings({ rmsMin: .014, smoothing: .14, refHz: 440, tolCents: 15 })
-    // A4(440) + E5(659.26) — 완전5도. 가상 기본음은 약 220 Hz(A3) 자리에 생길 수 있다.
+    // A4(440) + E5(659.26) — 완전5도. 가상 기본음은 약 220 Hz 자리에 생길 수 있다.
     const x = doubleStop(sr, sr, 440, 659.26)
     const shown: number[] = []
     for (let end = N; end <= x.length; end += 1024) shown.push(a.process(x.subarray(end - N, end)).hz)

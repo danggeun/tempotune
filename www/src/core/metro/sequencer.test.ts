@@ -78,7 +78,7 @@ describe('sequencer', () => {
     }
     return { peak, rms: Math.sqrt(e / len) }
   }
-  test('클릭 에너지가 v2.0.1 보다 커졌다 — 피크는 천장을 넘지 않고 (A-2)', () => {
+  test('클릭 에너지가 v2.0.1 보다 커졌다 — 피크는 천장을 넘지 않고', () => {
     const now = oneClick(1.0, 1), before = v201Accent(1.0)
     // 피크는 둘 다 천장 근처. v2.0.1 은 min(1,·) 로 클립되어 실측 −0.5 dBFS, 현재는 트랜지언트 때문에
     // 리미터 전 +0.6 dBFS 까지 간다 → 출력단 소프트 리미터가 받아낸다(아래 테스트).
