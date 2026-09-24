@@ -95,8 +95,12 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
         const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
         if (typeof navigator.share === 'function' && nav.canShare?.({ files: [file] })) {
           try { await navigator.share({ files: [file], title: safe }); return { ok: true } }
-          catch (e) { if (e instanceof Error && e.name === 'AbortError') return { ok: true } /* 취소는 오류가 아니다 */ }
-          // 그 밖의 거부(NotAllowedError 등)는 아래 다운로드로 폴백
+          catch (e) {
+            if (e instanceof Error && e.name === 'AbortError') return { ok: true } /* 취소는 오류가 아니다 */
+            // 홈 화면 앱에서는 <a download> 폴백이 **조용히 아무것도 안 한다** — ok:true 로 돌려주면 "저장" 눌렀는데 무반응이 된다 (감사 A3).
+            // 사파리 탭에서는 다운로드가 되므로 그때만 폴백한다
+            if ((navigator as Navigator & { standalone?: boolean }).standalone) return { ok: false, error: '공유 창을 열지 못했어요 — 다시 탭해주세요' }
+          }
         }
       }
       const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = safe

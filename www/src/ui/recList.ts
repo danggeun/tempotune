@@ -4,7 +4,9 @@ import { fmtT } from '../core/format.ts'
 import { deleteRec, restoreDeleted, recFileName, patchRec } from '../audio/recorder.ts'
 import { expires, warnDaysLeft } from '../core/recPolicy.ts'
 import { PAUSE_GLYPH, PLAY_GLYPH } from './dom.ts'
-import { saveFile } from '../platform/index.ts'
+import { saveFile, isIOS } from '../platform/index.ts'
+import { bufToWav } from '../core/wav.ts'
+import { recExt } from '../audio/recorder.ts'
 import { attachGain, beforePlay, afterStop, detachGain } from '../audio/playback.ts'
 import { toast } from './toast.ts'
 import { q, on } from './dom.ts'
@@ -24,14 +26,14 @@ function getPlayer(idx: number): HTMLAudioElement {
     attachGain(a, item.peak) // 녹음 레벨 보정 (B12c). 게인이 1 이면 요소를 건드리지 않는다
     a.ontimeupdate = () => {
       const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, tm = document.getElementById('rec-time-' + idx)
-      if (sk && a!.duration) { sk.max = String(a!.duration); sk.value = String(a!.currentTime) }
+      if (sk && a!.duration) { sk.max = String(isFinite(a!.duration) ? a!.duration : item.dur); sk.value = String(a!.currentTime) } // 크로미움 WebM 은 duration 이 Infinity (crbug 642012) — 그러면 슬라이더가 100 기준으로 깨진다 (감사 B4)
       if (tm) tm.textContent = fmtT(a!.currentTime)
     }
     a.onended = () => {
       afterStop(a!)
       setPlayBtn(idx, false)
       const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null; if (sk) sk.value = '0'
-      const tm = document.getElementById('rec-time-' + idx); if (tm) tm.textContent = '0:00'
+      const tm = document.getElementById('rec-time-' + idx); if (tm) tm.textContent = fmtT(0)
       a!.currentTime = 0
     }
     players[idx] = a
@@ -45,6 +47,33 @@ function playPause(idx: number): void {
 }
 function seek(idx: number): void { const sk = document.getElementById('rec-seek-' + idx) as HTMLInputElement | null, a = getPlayer(idx); if (sk && a.duration) a.currentTime = +sk.value }
 /** Audio 요소를 놓을 때 src 도 비운다 — WebView 는 동시 미디어 플레이어 수에 상한이 있어 붙잡고 있으면 재생이 조용히 실패한다 (리뷰) */
+/** 옛 webm 녹음을 아이폰에서 열 수 있게 WAV 로 변환할 상한 (디코드 메모리: 48 kHz 모노 10분 ≈ 115 MB) */
+export const WAV_RESCUE_MAX_SEC = 600
+/**
+ * 아이폰에서 파일을 건네는 공용 마무리 (감사 A3): 디코드·변환처럼 **await 를 거친 뒤**에는 탭의 활성화 창이 지나 공유 시트가 거부된다.
+ * 그래서 준비가 끝나면 "탭해서 저장" 토스트를 띄우고, 그 탭 안에서 saveFile 을 부른다. 안드로이드·데스크톱은 바로 저장.
+ */
+export function handOff(blob: Blob, name: string): void {
+  const go = (): void => { void saveFile(blob, name).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }) }
+  if (isIOS()) toast('준비됐어요 · 탭해서 저장', 8000, go); else go()
+}
+/**
+ * 다운로드 — 편집기의 ⤓ 와 목록의 다운로드가 같은 경로 (감사 A4: 목록은 iOS webm 구제를 건너뛰어 아이폰이 못 여는 파일이 나갔다).
+ * 보통은 원본 그대로. **아이폰 + 내용이 webm**(v2.0.2 이전 녹음)이면 WAV 로 변환해 건넨다 (B13 구제).
+ */
+export async function downloadRec(item: RecItem): Promise<void> {
+  if (isIOS() && recExt(item) === 'webm') {
+    if (item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 변환할 수 없어요 — 컴퓨터에서 열어주세요'); return }
+    toast('아이폰에서 열 수 있게 WAV 로 변환 중…')
+    try {
+      const arrayBuf = await (await fetch(item.url)).arrayBuffer()
+      const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf)
+      handOff(new Blob([bufToWav(decoded)], { type: 'audio/wav' }), 'tempotune_' + item.name + '.wav')
+    } catch (e) { toast('변환 실패: ' + (e instanceof Error ? e.message : String(e))) }
+    return
+  }
+  const r = await saveFile(item.blob, recFileName(item)); if (!r.ok) toast('저장 실패: ' + r.error)
+}
 export function releaseAudio(a: HTMLAudioElement): void { detachGain(a); try { a.pause(); a.removeAttribute('src'); a.load() } catch { /* */ } }
 export function stopPlayer(idx: number): void { const a = players[idx]; if (a) { releaseAudio(a); delete players[idx] } }
 
@@ -159,7 +188,7 @@ export function mountRecList(openEditor: (item: RecItem) => void, beforeDelete: 
         })
         break
       }
-      case 'download': { e.preventDefault(); if (item) saveFile(item.blob, recFileName(item)).then(r => { if (!r.ok) toast('저장 실패: ' + r.error) }); break }
+      case 'download': { e.preventDefault(); if (item) void downloadRec(item); break }
     }
   })
   on(list, 'input', (e: Event) => { const t = e.target as HTMLElement; if (t.dataset.action === 'seek') seek(+t.dataset.idx!) })

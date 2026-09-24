@@ -7,12 +7,13 @@
 import { fmtT } from '../core/format.ts'
 import { bufToWav } from '../core/wav.ts'
 import { computePeaks } from '../core/peaks.ts'
+import { playbackGain } from '../core/playbackGain.ts'
+import { softClipCurve } from '../core/softclip.ts'
 import { recListStore, type RecItem } from '../state/index.ts'
-import { patchRec, recExt, recFileName } from '../audio/recorder.ts'
-import { saveFile, isIOS } from '../platform/index.ts'
+import { patchRec } from '../audio/recorder.ts'
 import { attachGain, beforePlay, afterStop } from '../audio/playback.ts'
 import { q, on, reflow, PLAY_GLYPH, PAUSE_GLYPH } from './dom.ts'
-import { displayName, releaseAudio } from './recList.ts'
+import { displayName, releaseAudio, downloadRec, handOff, WAV_RESCUE_MAX_SEC } from './recList.ts'
 import { toast } from './toast.ts'
 import { hideMenu, showMenuInstant } from './menu.ts'
 import { attachSwipeBack } from './swipeBack.ts'
@@ -361,45 +362,29 @@ function addBookmark(): void {
 
 async function exportAB(): Promise<void> {
   if (ed.ptA === null || ed.ptB === null || !ed.item) { toast('A, B 지점을 먼저 설정해주세요'); return }
+  // 녹음 **전체**를 디코드한다 — 60분이면 ~690 MB PCM 이라 아이폰 탭이 죽는다. 다른 디코드 경로(파형·WAV 구제)와 같은 상한 (감사 A1)
+  if (ed.item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 구간을 잘라낼 수 없어요 — 컴퓨터에서 열어주세요'); return }
+  const item = ed.item
   try {
-    const arrayBuf = await (await fetch(ed.item.url)).arrayBuffer()
+    const arrayBuf = await (await fetch(item.url)).arrayBuffer()
     const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf) // 단일 컨텍스트 원칙: 디코드용 AudioContext 를 새로 만들지 않는다
     const sr = decoded.sampleRate, ch = decoded.numberOfChannels
-    const s0 = Math.floor(ed.ptA * sr), s1 = Math.floor(ed.ptB * sr), len = s1 - s0
+    const s0 = Math.floor(ed.ptA * sr), s1 = Math.min(decoded.length, Math.floor(ed.ptB * sr)), len = s1 - s0 // B 가 반올림된 dur 를 넘으면 끝이 무음이 되던 것
     if (len <= 0) { toast('구간이 너무 짧아요'); return }
     const offAC = new OfflineAudioContext(ch, len, sr); const buf = offAC.createBuffer(ch, len, sr)
     for (let c = 0; c < ch; c++) buf.copyToChannel(decoded.getChannelData(c).slice(s0, s1), c)
-    const src = offAC.createBufferSource(); src.buffer = buf; src.connect(offAC.destination); src.start()
+    const src = offAC.createBufferSource(); src.buffer = buf
+    // 앱 안 재생과 같은 보정(B12c: 게인 + 소프트 리미터) — 전엔 원본을 내보내 공유한 파일이 앱에서 듣던 것보다 훨씬 작았다 (감사 B11)
+    const g = playbackGain(item.peak)
+    if (g > 1.01) { const gain = offAC.createGain(); gain.gain.value = g; const shaper = offAC.createWaveShaper(); shaper.curve = softClipCurve(); shaper.oversample = '2x'; src.connect(gain); gain.connect(shaper); shaper.connect(offAC.destination) }
+    else src.connect(offAC.destination)
+    src.start()
     const rendered = await offAC.startRendering()
-    const blob = new Blob([bufToWav(rendered)], { type: 'audio/wav' })
-    const r = await saveFile(blob, 'tempotune_' + ed.item.name + '_cut.wav')
-    if (!r.ok) toast('저장 실패: ' + r.error)
+    handOff(new Blob([bufToWav(rendered)], { type: 'audio/wav' }), 'tempotune_' + item.name + '_cut.wav') // 아이폰: 탭 안에서 공유 (감사 A3)
   } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
 }
-/** 옛 webm 녹음을 아이폰에서 열 수 있게 WAV 로 변환할 상한 (디코드 메모리: 48 kHz 모노 10분 ≈ 115 MB) */
-const WAV_RESCUE_MAX_SEC = 600
-/**
- * 다운로드. 보통은 원본을 그대로 건넨다.
- * 예외 (B13 구제): **아이폰 + 내용이 webm** 이면 그 파일은 iOS 에서 열 수도 보낼 수도 없다 —
- * v2.0.2 이전에 이 폰에서 녹음된 것들이다. 그때만 WAV 로 변환해 건넨다. 새 녹음은 m4a 라 이 경로를 타지 않는다.
- */
-async function downloadWhole(): Promise<void> {
-  if (!ed.item) return
-  const item = ed.item
-  if (isIOS() && recExt(item) === 'webm') {
-    if (item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 변환할 수 없어요 — 컴퓨터에서 열어주세요') ; return }
-    toast('아이폰에서 열 수 있게 WAV 로 변환 중…')
-    try {
-      const arrayBuf = await (await fetch(item.url)).arrayBuffer()
-      const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf)
-      const blob = new Blob([bufToWav(decoded)], { type: 'audio/wav' })
-      const r = await saveFile(blob, 'tempotune_' + item.name + '.wav')
-      if (!r.ok) toast('저장 실패: ' + r.error)
-      return
-    } catch (e) { toast('변환 실패: ' + (e instanceof Error ? e.message : String(e))); return }
-  }
-  const r = await saveFile(item.blob, recFileName(item)); if (!r.ok) toast('저장 실패: ' + r.error)
-}
+/** 다운로드 — 목록과 같은 경로 (recList.downloadRec) */
+async function downloadWhole(): Promise<void> { if (ed.item) await downloadRec(ed.item) }
 
 export function mountEditor(): void {
   // 가장자리 스와이프 = 닫기 (v2.3.0). 파형 스크럽·핸들·속도 슬라이더 위에서 시작하면 잡지 않는다 — 그건 그들 것.
