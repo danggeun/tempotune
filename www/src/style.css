@@ -52,7 +52,7 @@
   --t-fast:.08s;--t-std:.2s;--t-slow:.55s;--ease:cubic-bezier(.4,0,.2,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;} /* 안드로이드 크롬 탭: 카드를 아래로 미는 제스처가 '당겨서 새로고침' 이 되지 않게 (감사 B3) */
 button{font-family:inherit;color:inherit;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -72,7 +72,6 @@ button{font-family:inherit;color:inherit;}
 .note-glyph.g2{width:22px;}.note-glyph.g4{width:40px;}.note-glyph.g3{width:29px;height:17.5px;}.note-glyph.gd{width:26px;} /* L5: g4 44→48, gd 30→31 viewBox 에 맞춰 폭도 비례 */
 .note-glyph .flag{display:none;}
 #sd-grid.compound .note-glyph .flag{display:block;}
-.note-dot{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;margin-left:3px;vertical-align:-2px;}
 
 /* ── 팝업 ── */
 #mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);}
@@ -179,17 +178,11 @@ button{font-family:inherit;color:inherit;}
 #metro-hdr-title{display:none;font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 (N5) */
 #metro-card.full #metro-hdr-label{display:none;} #metro-card.full #metro-hdr-title{display:flex;}
 #beat-vis{display:flex;align-items:center;justify-content:center;gap:7px;height:22px;}
-.bd{border-radius:50%;background:var(--line);transition:background .04s,transform .04s,box-shadow .04s;flex-shrink:0;}
-.bd.beat{width:15px;height:15px;}.bd.subdiv{width:8px;height:8px;}
-#metro-card.bar .bd.beat{width:20px;height:20px;}#metro-card.bar .bd.subdiv{width:10px;height:10px;} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
-.bd.lit-a{background:var(--accent);transform:scale(1.5);box-shadow:0 0 10px var(--accent);}
-.bd.lit-b{background:var(--accent);transform:scale(1.25);box-shadow:0 0 5px var(--accent);}
-.bd.lit-s{background:var(--accent);opacity:.75;transform:scale(1.1);}
 /* grid 세 번째 칸에 **고정**한다 (v2.3.2 M8). 전용 모드에서는 #beat-vis 가 display:none 이라 grid 항목이 둘로 줄고,
    그러면 버튼 묶음이 1fr 칸(옛 beat-vis 자리)의 왼쪽에 붙어 ♩80 바로 옆에 와 버렸다(실측 left 95 px, 카드 오른쪽 363 px) */
 #metro-hdr-right{display:flex;align-items:center;gap:6px;grid-column:3;justify-self:end;}
 #metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
-/* 크기 버튼 하나 (M10) — 상태에 따라 글리프만 바꾼다: 접힘 ∧(펼치러) · 펼침 ⤢(전용으로) · 전용 ∨(접힘으로) */
+/* 크기 버튼 하나 (M10) — 상태에 따라 글리프만 바꾼다: 접힘 ∧(펼치러) · 펼침 ∧(펼침2로) · 전용 ∨(접힘으로) */
 #metro-size-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-size-btn::after{content:'';position:absolute;inset:-6px;}
 #metro-size-btn.to-full .nav-glyph.chev{transform:rotate(180deg);} /* 펼침 → 펼침2 도 '위로' — ∧ (N4) */
@@ -304,7 +297,6 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .m-seg.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 
 /* ── 기준음 패널 ── */
-.ref-oct-row{display:flex;align-items:center;gap:6px;margin-bottom:12px;}
 .ref-oct-lbl{font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);margin-right:4px;}
 .ref-oct-btn{width:44px;height:44px;background:transparent;border:none;color:var(--text);font-size:var(--fs-xl);font-weight:var(--fw-md);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7;}
 .ref-oct-btn:active{opacity:1;}
@@ -456,7 +448,6 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   #hdr,#main-body{max-width:680px;}
   #main-body{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:1;min-height:0;width:100%;}
   #main-body.metro-full{grid-template-columns:1fr;} /* 전용 모드에서 튜너가 숨으면 메트로놈이 두 칸을 다 쓴다 — 왼쪽 반 칸에 갇히지 않게 (L7, 태블릿 실측) */
-  .bd.beat{width:17px;height:17px;}.bd.subdiv{width:9px;height:9px;}
   #beat-vis{gap:8px;height:24px;}
   #metro-bpm-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   #metro-bpm-wrap{flex:1;}

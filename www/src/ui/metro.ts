@@ -85,7 +85,10 @@ function applyFull(): void {
   // N2·N3: 펼침 ↔ 펼침2 ↔ 접힘이 접힘 ↔ 펼침처럼 스르륵 움직여야 한다. 튜너 카드는 CSS 로 display:none 이 되는데 그건 애니메이션이
   // 안 되므로, 전환 전후의 두 카드 높이를 재서 픽셀로 함께 움직인다(합이 일정해 화면이 안 튄다). 폰 세로 배치에서만 — 태블릿은 옆으로 나란하다.
   const anim = isPhoneLayout() && !matchMedia('(prefers-reduced-motion: reduce)').matches
+  // 570 ms 안에 또 누르면(감사 B1): 이전 애니메이션의 인라인 높이·.h-anim 이 남아 있어 그 위에서 재면 `after` 가 중간값이 된다.
+  // `before` 는 지금 보이는 높이(이어가기 위해) — 그 뒤 인라인을 걷어내고 최종을 잰다.
   const before = anim ? { t: tuner.offsetHeight, m: card.offsetHeight, collapsed: wrap.classList.contains('collapsed') } : null
+  if (before) { clearAnim(tuner); clearAnim(card) }
   card.classList.add('no-anim') // 최종 높이를 재려면 본체 접힘 트랜지션이 즉시 끝나 있어야 한다
   q('main-body').classList.toggle('metro-full', full)
   card.classList.toggle('full', full)
@@ -105,13 +108,18 @@ function applyFull(): void {
   animHeight(card, before.m, after.m, ['0px', '0px'])
 }
 const animTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>()
+/** 애니메이션 잔재(인라인 높이·margin·display·.h-anim·타이머)를 즉시 걷어낸다 — 최종 높이를 재기 전에, 그리고 끝났을 때 */
+function clearAnim(el: HTMLElement): void {
+  const t = animTimers.get(el); if (t) { clearTimeout(t); animTimers.delete(el) }
+  el.classList.remove('h-anim'); el.style.height = ''; el.style.marginBottom = ''; el.style.display = ''
+}
 /** 인라인 height 로 from → to. --t-slow(.55s) 뒤에 인라인을 전부 지워 flex 가 다시 높이를 정하게 한다. 도중에 또 누르면 현재 높이에서 이어간다 */
 function animHeight(el: HTMLElement, from: number, to: number, mb: [string, string]): void {
-  const t = animTimers.get(el); if (t) clearTimeout(t)
+  clearAnim(el)
   el.style.height = from + 'px'; el.style.marginBottom = mb[0]; el.classList.add('h-anim')
   reflow(el)
   el.style.height = to + 'px'; el.style.marginBottom = mb[1]
-  animTimers.set(el, setTimeout(() => { el.classList.remove('h-anim'); el.style.height = ''; el.style.marginBottom = ''; el.style.display = ''; animTimers.delete(el) }, 570))
+  animTimers.set(el, setTimeout(() => clearAnim(el), 570))
 }
 let flashTimer: ReturnType<typeof setTimeout> | null = null
 function flashBeat(tick: number): void {
@@ -135,7 +143,7 @@ function attachDrag(el: HTMLElement): void {
   on(window, 'mouseup', () => { sw = false })
   on(el, 'touchstart', (e: TouchEvent) => { sw = true; sy = e.touches[0]!.clientY; sb = settingsStore.get().bpm }, { passive: true })
   on(window, 'touchmove', (e: TouchEvent) => { if (sw) setBPM(sb + Math.round((sy - e.touches[0]!.clientY) / CFG.metro.swipePxPerBpm)) }, { passive: true })
-  on(window, 'touchend', () => { sw = false })
+  on(window, 'touchend', () => { sw = false }); on(window, 'touchcancel', () => { sw = false }) // 알림 내림 등 OS 가 끊어도 다음 터치가 옛 기준점으로 튀지 않게 (감사 B8)
 }
 
 /** 지금 실제로 접혀 보이는가 — 넓은 화면·전용 모드에서는 collapsed 상태값과 무관하게 펼쳐져 있다 */
@@ -172,7 +180,7 @@ export function mountMetro(): void {
   // 크기 버튼 하나로 순환: 접힘 → 펼침 → 전용 → 접힘 (v2.3.2 M10). 글리프가 늘 **다음 목적지**를 가리킨다
   on(q('metro-size-btn'), 'click', sizeUp)
   // 내려가는 길은 카드를 아래로 미는 스와이프 — 순환만 두면 '펼침 → 접힘'(제일 잦은 전환)이 두 탭이 된다
-  const ignore = '#metro-hdr-label, #dial, input[type=range], button, .m-seg'
+  const ignore = '#metro-hdr-label, #metro-bpm-wrap, #dial, input[type=range], button, .m-seg' // 본체 BPM ↕ 드래그도 제외 — 빠져 있어 20 BPM 내리면 카드가 접혔다 (감사 A7)
   attachSwipeStep(q('metro-hdr'), { onStep: sizeDown, ignore })
   attachSwipeStep(q('metro-body'), { onStep: sizeDown, ignore })
   qsa('.m-adj, .m-adj-pad').forEach(b => on(b, 'click', () => adjBPM(b.textContent === '−' ? -1 : 1)))
@@ -184,7 +192,7 @@ export function mountMetro(): void {
   on(document, 'keydown', (e: KeyboardEvent) => {
     const t = e.target as HTMLElement
     // 포커스된 버튼의 Space 는 그 버튼의 것 (설정 뒤로가기 등에서 메트로놈이 켜지지 않게)
-    if (e.code !== 'Space' || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON') return
+    if (e.code !== 'Space' || e.repeat || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON') return // repeat: 누르고 있으면 재생/정지가 반복되던 것 (감사 B9)
     // 메뉴·설정·팝업·편집기가 떠 있으면 Space 는 메트로놈의 것이 아니다 (C1). 편집기에서는 편집기 재생이 받는다
     if (overlayOpen() || isEditorOpen()) return
     e.preventDefault(); const r = toggleMetro(); if (!r.ok) toast(r.error)
@@ -199,6 +207,7 @@ export function mountMetro(): void {
     qsa('[data-ts]').forEach(b => b.classList.toggle('on', +b.dataset.ts! === ts))
     const is68 = ts === 6; const sd = q('sd-grid')
     sd.style.opacity = is68 ? '.3' : '1'; sd.style.pointerEvents = is68 ? 'none' : 'auto'
+    qsa<HTMLButtonElement>('[data-sd]').forEach(b => { b.disabled = is68 }) // pointer-events 만으로는 키보드(Tab+Enter)가 뚫렸다 (감사 B7)
     q('sd-grid').classList.toggle('compound', is68) // 6/8: 세분 1 을 8분음표로 표시 (CSS 가 깃발을 보여준다)
     buildBeatVis()
   }, { immediate: true })
@@ -219,8 +228,10 @@ export function mountMetro(): void {
     if (resizeT) clearTimeout(resizeT)
     resizeT = setTimeout(() => { const phone = isPhoneLayout(); if (phone !== lastPhone) { lastPhone = phone; syncLayout() } }, 150)
   })
-  metroStore.select(s => s.collapsed, () => { syncSizeBtn(); syncLayout() }) // 헤더 재생 버튼이 접힘에 달려 있다
+  // full 구독을 collapsed 보다 **먼저** 건다 (감사 B2): sizeUp 이 { full:false, collapsed:true } 를 한 번에 놓는데, 등록 순서대로 돌아
+  // collapsed 쪽이 먼저 .collapsed 를 붙이면 applyFull 이 "전에도 접혀 있었다" 고 보고 본체 접힘 트랜지션을 되살리지 못했다(빈 카드만 줄었다).
   metroStore.select(s => s.full, () => { applyFull(); syncSizeBtn() })
+  metroStore.select(s => s.collapsed, () => { syncSizeBtn(); syncLayout() }) // 헤더 재생 버튼이 접힘에 달려 있다
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
   // 초기 상태 (v1): 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션
@@ -241,7 +252,7 @@ function sizeDown(): void {
   if (full) metroStore.set({ full: false, collapsed: false })
   else if (!collapsed) metroStore.set({ collapsed: true })
 }
-/** 버튼 글리프·라벨 = **다음 목적지**. 접힘 ∧(펼치러) · 펼침 ⤢(전용으로) · 전용 ∨(접힘으로) */
+/** 버튼 글리프·라벨 = **다음 목적지**. 접힘 ∧(펼치러) · 펼침 ∧(펼침2로) · 전용 ∨(접힘으로) */
 function syncSizeBtn(): void {
   const { collapsed, full } = metroStore.get(), btn = q('metro-size-btn')
   const toExpand = !full && collapsed, toFull = !full && !collapsed

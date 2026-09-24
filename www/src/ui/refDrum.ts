@@ -28,7 +28,7 @@ export function mountRefDrum(): void {
   on(window, 'mouseup', () => { if (drag) { drag = false; snap() } })
   on(outer, 'touchstart', (e: TouchEvent) => { drag = true; startY = e.touches[0]!.clientY; startDrumY = y; inner.style.transition = 'none' }, { passive: true })
   on(window, 'touchmove', (e: TouchEvent) => { if (drag) setY(clampY(startDrumY + (e.touches[0]!.clientY - startY))) }, { passive: true })
-  on(window, 'touchend', () => { if (drag) { drag = false; snap() } })
+  on(window, 'touchend', () => { if (drag) { drag = false; snap() } }); on(window, 'touchcancel', () => { if (drag) { drag = false; snap() } }) // 감사 B8
 
   // 외부(설정 복원)에서 refHz 가 바뀌면 드럼 위치 반영. 드래그 중에는 건드리지 않는다.
   settingsStore.select(s => s.refHz, hz => { if (!drag && yToHz(y) !== hz) setY(hzToY(hz), false) }, { immediate: true })

@@ -26,5 +26,5 @@ export function mountMenu(): void {
   on(q('settings-back-btn'), 'click', closeSettings)
   // 가장자리 스와이프 = 뒤로 (v2.3.0): 메뉴 → 본화면, 설정 → 메뉴. 버튼은 그대로 있다
   attachSwipeBack(q('menu-overlay'), { onBack: hideMenu })
-  attachSwipeBack(q('settings-page'), { onBack: closeSettings, ignore: 'input[type=range]' })
+  attachSwipeBack(q('settings-page'), { onBack: closeSettings }) // 설정에는 더 이상 range 입력이 없다 (감사)
 }
