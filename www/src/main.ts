@@ -110,11 +110,11 @@ settingsStore.select(s => s.wakeLock, syncWake)
 //     화면 잠금도 hidden 을 내지만, '화면 항상 켜짐'(기본 켜짐)이 연습 중 화면을 지켜 준다.
 // 복귀: 컨텍스트 재개 + 밀린 청크 폐기 + wake lock 재획득 + **놓았던 마이크를 다시 연다**(권한은 같은 세션이라 다시 묻지 않는다;
 //       못 열면 기존과 같은 '탭하여 시작' 안내).
-let micReleasedByHide = false
+let micReleasedByHide = false, pendingToast: string | null = null
 on(document, 'visibilitychange', () => {
   if (document.visibilityState !== 'visible') {
     // Android 는 백그라운드 앱의 마이크를 무음으로 만든다(포그라운드 서비스 없이는) → 녹음이 무음 파일이 되기 전에 저장 (리뷰 #2)
-    if (isNative() && sessionStore.get().recording) { stopRec(); toast('앱이 뒤로 가서 녹음을 저장했어요') }
+    if (isNative() && sessionStore.get().recording) { stopRec(); pendingToast = '앱이 뒤로 가서 녹음을 저장했어요' }
     if (metroStore.get().playing) stopMetro() // M11: 나간 앱이 계속 딱딱거리지 않게
     if (A.micStream && !sessionStore.get().recording) {
       micReleasedByHide = true; releasingForHide = true
@@ -124,6 +124,7 @@ on(document, 'visibilitychange', () => {
     return
   }
   resumeIfRunning(); syncWake()
+  if (pendingToast) { toast(pendingToast); pendingToast = null }
   // 다시 열릴 때까지 플래그를 유지한다 — 여는 도중에 또 숨겨져 'busy' 로 끝나도 다음 복귀에서 다시 시도된다
   if (micReleasedByHide) tryOpenMic().then(ok => { if (ok) micReleasedByHide = false; else if (document.visibilityState === 'visible' && !A.micStream && !isOpening()) showTapHint(tryOpenMic) }) // isOpening: 다른 호출이 여는 중이면 그 위에 버튼을 띄우지 않는다 (B12)
 })
@@ -218,7 +219,11 @@ openRecDb().then(restoreRecordings).catch(() => toast('녹음 저장소를 열 �
 if (!isNative() && 'serviceWorker' in navigator) {
   const idle = () => !tunerStore.get().running && !metroStore.get().playing && !sessionStore.get().recording && !isEditorOpen()
   const updateSW = registerSW({
-    onNeedRefresh() { const tryApply = () => { if (idle()) void updateSW(true); else setTimeout(tryApply, 60 * 1000) }; tryApply() },
+    onNeedRefresh() {
+      if (idle()) { void updateSW(true); return }
+      toast('새 버전이 준비됐어요 · 탭해서 적용', 10000, () => void updateSW(true))
+      const tryApply = () => { if (idle()) void updateSW(true); else setTimeout(tryApply, 60 * 1000) }; setTimeout(tryApply, 60 * 1000)
+    },
     // 브라우저는 SW 갱신을 '탐색할 때' 만 확인한다 — 튜너를 켜두고 며칠 쓰는 사용법(PWA 를 홈 화면에 둔 경우)에서는
     // 탐색이 일어나지 않아 새 버전이 영영 안 온다. 1시간마다 직접 확인한다. 적용은 여전히 유휴일 때만(위 onNeedRefresh). (R5)
     onRegisteredSW(_url, reg) { if (reg) setInterval(() => { void reg.update().catch(() => {}) }, 60 * 60 * 1000) },

@@ -22,5 +22,5 @@ export function mountSettings(): void {
   settingsStore.select(s => s.wakeLock, v => markSteps('wakelock-steps', v ? 1 : 0), { immediate: true })
   settingsStore.select(s => s.noteNames, v => markSteps('notenames-steps', v === 'en' ? 1 : 0), { immediate: true })
   settingsStore.select(s => s.autoDelete, v => markSteps('autodelete-steps', v ? 1 : 0), { immediate: true })
-  q('settings-version').textContent = `TempoTune ${__APP_VERSION__}` // 베타 피드백에 버전이 있어야 대화가 된다
+  q('settings-version').textContent = `TempoTune ${__APP_VERSION__}${__APP_SHA__ ? ' · ' + __APP_SHA__ : ''}`
 }

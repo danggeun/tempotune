@@ -20,22 +20,10 @@ export const beatDurS = (p: P): number => (60 / p.bpm) * (p.timeSig === 6 ? 1.5 
 /** 큰 박 하나 안의 틱 수 */
 export const ticksPerBeat = (p: Pick<Pattern, 'timeSig' | 'subDiv'>): number => totalTicks(p) / beatCount(p)
 
-/** 틱이 몇 번째 큰 박에 속하나 (0-based) */
-export const beatIndex = (p: Pick<Pattern, 'timeSig' | 'subDiv'>, tick: number): number => Math.floor(tick / ticksPerBeat(p))
 
 /** 이 틱이 큰 박의 시작인가 — 막대가 끝에 닿는 순간 */
 export const isBeatStart = (p: Pick<Pattern, 'timeSig' | 'subDiv'>, tick: number): boolean => tick % ticksPerBeat(p) === 0
 
-/**
- * 한 박 안에서 분할이 울리는 위치 (0~1, 끝점 제외). 트랙 위에 눈금으로 그린다.
- *   2분할 → [.5]   3분할 → [⅓, ⅔]   붓점(점8분+16분) → [.75]   6/8 → [⅓, ⅔]
- */
-export function subMarkers(p: Pick<Pattern, 'timeSig' | 'subDiv'>): number[] {
-  if (p.timeSig === 6) return [1 / 3, 2 / 3]
-  if (p.subDiv === 'd') return [0.75]
-  const n = p.subDiv
-  return Array.from({ length: n - 1 }, (_, k) => (k + 1) / n)
-}
 
 /**
  * 막대의 가로 위치 (0 = 왼쪽 끝, 1 = 오른쪽 끝).

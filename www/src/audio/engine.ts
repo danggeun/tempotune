@@ -127,7 +127,7 @@ export async function openMic(): Promise<MicResult> {
     A.worker = w
     const ch = new MessageChannel()
     w.postMessage({ type: 'init', sampleRate: ac.sampleRate, port: ch.port1, settings: analyzerSettings() } satisfies WorkerIn, [ch.port1])
-    await waitWorkerReady(w, 3000)
+    await waitWorkerReady(w, 8000)
     if (stale()) throw new Error('busy')
     // 세션마다 워커를 캡처 — 종료 직전 큐에 남은 이전 세션 프레임이 새 세션에 섞이지 않게
     w.onmessage = (e: MessageEvent<WorkerOut>) => { if (A.worker === w) frameHandler?.(e.data) }

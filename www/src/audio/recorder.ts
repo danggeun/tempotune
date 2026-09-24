@@ -5,7 +5,7 @@ import { recListStore, sessionStore, type RecItem } from '../state/index.ts'
 import { dbSave, dbDelete, dbPatchMeta, dbLoadAll } from '../persist/recordingsDb.ts'
 import { computePeaks, peakOf } from '../core/peaks.ts'
 import { containerOf, extFromMime, type RecContainer } from '../core/container.ts'
-import { isIOS } from '../platform/index.ts'
+import { isIOS, isSafari } from '../platform/index.ts'
 import { A, onMic } from './engine.ts'
 
 const MAX_REC_SEC = 60 * 60
@@ -34,7 +34,7 @@ export function startRec(): RecResult {
   //   `audio/mp4;codecs=mp4a.40.2`(AAC 명시)는 Chromium 이 false 를 돌려준다.
   // 그래서 **iOS 에서만** mp4 를 앞세운다(Safari 의 mp4 = AAC). 그 밖의 플랫폼은 v2.0.1 순서 그대로 —
   // 안드로이드 출력은 한 글자도 바뀌지 않는다.
-  const mimes = isIOS()
+  const mimes = isIOS() || isSafari()
     ? ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', '']
     : ['audio/webm;codecs=opus', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm', '']
   const mime = mimes.find(m => !m || MediaRecorder.isTypeSupported(m)) || ''

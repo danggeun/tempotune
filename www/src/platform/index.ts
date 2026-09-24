@@ -12,6 +12,8 @@ export const isNative = (): boolean => typeof window !== 'undefined' && !!window
  * **iOS 에서만** 쓴다 — 다른 플랫폼의 즉시 다운로드 동작은 그대로 둔다 (기존 기능 유지).
  * iPadOS 13+ 는 'MacIntel' 로 위장하므로 터치 포인트로 가른다.
  */
+/** Safari(iOS 포함). 크로미움계는 UA 에 Chrome/CriOS 가 있다 */
+export const isSafari = (): boolean => typeof navigator !== 'undefined' && /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|Chromium|Edg|FxiOS/.test(navigator.userAgent)
 export const isIOS = (): boolean => {
   if (typeof navigator === 'undefined') return false
   const p = navigator.platform || ''
