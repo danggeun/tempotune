@@ -12,7 +12,7 @@ import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleChe
 import { startAnalysis, lastFrameMs, metroCalibMs } from './audio/analysis.ts'
 import { playbackActive, playbackDiag } from './audio/playback.ts'
 import { restoreRecordings, onRecorderError } from './audio/recorder.ts'
-import { initStatusBar, isNative, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
+import { initStatusBar, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
 import { mountTuner, showTapHint, setHistSec, histDiag } from './ui/tuner.ts'
@@ -184,15 +184,22 @@ on(q('fullscreen-btn'), 'click', () => toggleFullscreen(() => toast('이 기기�
 //   · 권한이 확실히 denied → 안내 팝업 (설정에서 풀어야 하므로 경로를 알려줘야 한다)
 //   · 그 외(prompt · 모름) → 바로 시도. 실패하면 탭 안내로 받고, 탭한 뒤에도 denied 면 그때 팝업.
 // 사파리는 권한 API 가 없어 항상 '모름' 이다 → 자동 시도 → 실패 시 탭 안내. 매번 뜨던 팝업이 사라진다.
+// iOS 웹(사파리·홈 화면 앱)은 예외 (v2.3.3 N7): WebKit 의 WakeLock.cpp 는 화면 켜짐 요청에 **DOM 터치(transient activation)** 를 요구하고,
+// 그 허가는 페이지 객체에만 남아 앱을 껐다 켜면 사라진다. OS 권한 시트의 "허용" 은 DOM 터치가 아니다. 그래서 손대지 않고 마이크를
+// 열면(U2) 그 뒤 어떤 요청도 거부돼 튜닝 중 화면이 꺼졌다. iOS 웹에서는 첫 탭을 받고 **그 탭 안에서** 화면 켜짐을 먼저 쥔 뒤
+// 마이크를 연다 — 사용자에겐 "탭 → 허용" 한 흐름. 안드로이드·데스크톱은 이 문이 없어 그대로 자동.
+const startInGesture = async (): Promise<boolean> => {
+  if (settingsStore.get().wakeLock) void acquireWakeLock() // await 전에 — 요청 자체는 동기라 이 탭의 활성화 창 안에서 나간다
+  if (await tryOpenMic()) return true
+  if (await micPermission() === 'denied') showMicPopup(true) // 탭까지 했는데 안 되면 진짜 차단이다
+  return false
+}
 void (async () => {
   const state = await micPermission()
   if (state === 'denied') { showMicPopup(true); return }
+  if (isIOS() && !isNative() && settingsStore.get().wakeLock) { showTapHint(startInGesture, '마이크 사용을 물어볼게요'); return }
   if (await tryOpenMic()) return
-  showTapHint(async () => {
-    if (await tryOpenMic()) return true
-    if (await micPermission() === 'denied') showMicPopup(true) // 탭까지 했는데 안 되면 진짜 차단이다
-    return false
-  })
+  showTapHint(startInGesture)
 })()
 
 // ── 녹음 복원 ──

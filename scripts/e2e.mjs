@@ -842,7 +842,7 @@ await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고 메트로�
   assert.equal(hintOnReturn, false, '복귀 재개 중에도 "켜라" 고 말하지 않는다 (L4)')
   await waitUntil(p, () => window.__tt.stats().micOpen === true, 5000, '복귀: 마이크 다시 열림')
   await waitNote(p, t => t.note === '라', 5000)
-  assert.equal(await p.evaluate(() => document.getElementById('tuner-note').textContent !== '탭하여 시작'), true, '복귀: 탭 안내 없이 바로')
+  assert.equal(await p.evaluate(() => !document.getElementById('tuner-card').classList.contains('tap-hint')), true, '복귀: 시작 버튼 없이 바로')
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶', '복귀: 메트로놈이 저절로 다시 켜지지는 않는다 (놀라게 하지 않는다)')
 })
 await scenario('lifecycle: 웹에서 녹음 중이면 숨겨져도 마이크를 놓지 않는다 (녹음이 끊기면 안 된다) (P1)', 'violin_A4.wav', async p => {

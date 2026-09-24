@@ -142,6 +142,11 @@ button{font-family:inherit;color:inherit;}
 #tuner-note.tune{color:var(--ok);text-shadow:0 0 20px rgba(var(--ok-rgb),1),0 0 40px rgba(var(--ok-rgb),.7),0 0 80px rgba(var(--ok-rgb),.4);}
 #tuner-note.empty{color:var(--tuner-empty);font-size:64px;letter-spacing:.05em;}
 #tuner-note.empty.hint{font-size:var(--fs-xl);letter-spacing:.02em;color:var(--tuner-text-2);font-family:inherit;font-weight:var(--fw-md);}
+/* 시작 버튼 (N7) — 마이크를 열려면 탭이 필요한 상태. 큰 음 자리에 주 동작 버튼 하나 + 다음에 벌어질 일 한 줄 */
+#tuner-start{display:none;flex-direction:column;align-items:center;gap:var(--s3);}
+#tuner-card.tap-hint #tuner-start{display:flex;} #tuner-card.tap-hint #tuner-note-main{display:none;}
+#tuner-start-btn{height:var(--h-seg);padding:0 var(--s6);min-width:132px;background:transparent;border:1px solid var(--tuner-text-3);border-radius:var(--r-md);color:var(--tuner-text-1);font-size:var(--fs-base);font-weight:var(--fw-md);letter-spacing:.04em;cursor:pointer;} /* 튜너 카드의 다른 조작(A 듣기·MIC)과 같은 외곽선 꼴 — 무대는 조용해야 한다 */
+#tuner-start-sub{font-size:var(--fs-sm);color:var(--tuner-text-2);min-height:1em;}
 #tuner-acc{position:absolute;top:4px;left:calc(100% + 2px);font-family:'DM Mono',monospace;font-size:var(--fs-d1);font-weight:var(--fw-md);color:#fff;white-space:nowrap;transition:color var(--t-fast);}
 #tuner-acc.tune{color:var(--ok);}
 #tuner-oct{position:absolute;bottom:4px;left:calc(100% + 12px);font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--tuner-text-2);white-space:nowrap;}

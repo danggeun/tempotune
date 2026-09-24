@@ -134,12 +134,18 @@ function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boo
   const t = hzReadout.push(hz, midi, performance.now()); if (t !== null) q('tuner-hz').textContent = t
 }
 
-/** "탭하여 시작" 안내 — 탭하면 onTap 을 호출, 성공(true) 시 원래 스타일로 복귀 */
-export function showTapHint(onTap: () => Promise<boolean>): void {
+/**
+ * 시작 버튼 (v2.3.3 N7, 전엔 "탭하여 시작" 글자) — 탭이 있어야 마이크를 열 수 있는 상태. 카드 어디를 눌러도 되지만 보이는 건 버튼 하나.
+ * sub: 다음에 벌어질 일 한 줄(예: 아이폰 첫 실행 "마이크 사용을 물어볼게요"). 없으면 비운다.
+ * 성공(true) 시 버튼을 거두고 원래 표시로 복귀.
+ */
+export function showTapHint(onTap: () => Promise<boolean>, sub = ''): void {
   const nEl = q('tuner-note'), card = q('tuner-card')
-  nEl.textContent = '탭하여 시작'; nEl.className = 'empty'; nEl.style.fontSize = '28px'; nEl.style.letterSpacing = '.02em'
+  nEl.textContent = '--'; nEl.className = 'empty'
+  q('tuner-start-sub').textContent = sub
+  card.classList.add('tap-hint')
   if (tapHandler) card.removeEventListener('click', tapHandler) // 호출마다 리스너가 쌓이지 않게 (리뷰)
-  const handler = async () => { if (await onTap()) { nEl.style.fontSize = ''; nEl.style.letterSpacing = ''; card.removeEventListener('click', handler); if (tapHandler === handler) tapHandler = null } }
+  const handler = async () => { if (await onTap()) { card.classList.remove('tap-hint'); card.removeEventListener('click', handler); if (tapHandler === handler) tapHandler = null } }
   tapHandler = handler
   card.addEventListener('click', handler)
 }
