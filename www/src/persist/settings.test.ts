@@ -34,6 +34,11 @@ describe('parseStored', () => {
     expect(parseStored(JSON.stringify(v2))).toEqual(rest)
   })
   test('v2 rejects bad timeSig', () => expect(parseStored(JSON.stringify({ v: 2, timeSig: 5 }))).toEqual({}))
+  test('화면 테마: dark/light 만 통과, 그 외는 무시(기본 다크)', () => {
+    expect(parseStored(JSON.stringify({ v: 2, theme: 'light' })).theme).toBe('light')
+    expect(parseStored(JSON.stringify({ v: 2, theme: 'dark' })).theme).toBe('dark')
+    expect(parseStored(JSON.stringify({ v: 2, theme: 'auto' }))).toEqual({})
+  })
 })
 
 describe('parseStored hardening', () => {

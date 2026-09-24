@@ -15,7 +15,9 @@
 <meta property="og:title" content="TempoTune — 현악기 연습">
 <meta property="og:description" content="in time, in tune. — 튜너 · 메트로놈 · 기준음 · 녹음 편집을 한 화면에서.">
 <meta property="og:image" content="https://danggeun.github.io/tempotune/icons/icon-512.png">
-<meta name="theme-color" content="#181b21"><!-- 앱은 다크 고정 -->
+<meta name="theme-color" content="#181b21">
+<!-- 저장된 테마를 첫 그리기 전에 적용한다. iOS 홈 화면 앱의 상태바 글자색은 실행 시점의 meta 로 정해진다 -->
+<script>try{var t=JSON.parse(localStorage.getItem('tempotune_settings_v1')||'{}').theme;if(t==='light'){document.documentElement.dataset.theme='light';document.querySelector('meta[name="theme-color"]').content='#eef0f3';document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content='default'}}catch(e){}</script>
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"> <!-- 없으면 브라우저가 /favicon.ico 를 요청하고, 오프라인에선 콘솔 오류가 된다 -->
 <!-- 한글은 시스템 글꼴. 외부 글꼴 요청 없음 — 라틴 폰트만 fonts.css 에서 자체 호스팅 -->
@@ -232,6 +234,15 @@
     <div class="settings-top">
       <span class="settings-title">설정</span>
       <button class="settings-close" id="settings-back-btn" aria-label="닫기"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-lbl">화면</span>
+      <span class="setting-desc">밝은 곳에서는 라이트가 잘 보여요</span>
+      <div class="step-row" id="theme-steps">
+        <button class="step-btn on" data-v="0">다크</button>
+        <button class="step-btn" data-v="1">라이트</button>
+      </div>
     </div>
 
     <!-- 허용 오차 -->

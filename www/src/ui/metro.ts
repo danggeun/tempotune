@@ -86,8 +86,7 @@ function applyFull(): void {
   reflow(card); card.classList.remove('no-anim'); reflow(card)
   wrap.style.gridTemplateRows = ''; q('metro-body-clip').style.opacity = ''
   const gap = '-' + getComputedStyle(q('main-body')).gap // 튜너가 0 이 돼도 카드 사이 gap 은 남는다 → 음수 margin 으로 같이 접는다
-  if (full) tuner.style.display = 'flex' // CSS 의 display:none 을 애니메이션 동안만 이긴다
-  animHeight(tuner, before.t, after.t, full ? ['0px', gap] : [gap, '0px'])
+  animHeight(tuner, before.t, after.t, full ? ['0px', gap] : [gap, '0px'], full ? 'flex' : '') // 펼침2로 갈 때 튜너는 CSS 로 display:none — 애니메이션 동안만 이긴다
   animHeight(card, before.m, after.m, ['0px', '0px'])
 }
 const animTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>()
@@ -96,9 +95,11 @@ function clearAnim(el: HTMLElement): void {
   const t = animTimers.get(el); if (t) { clearTimeout(t); animTimers.delete(el) }
   el.classList.remove('h-anim'); el.style.height = ''; el.style.marginBottom = ''; el.style.display = ''
 }
-/** 인라인 height 로 from → to. --t-slow(.55s) 뒤 인라인을 지워 flex 가 다시 높이를 정하게 한다 */
-function animHeight(el: HTMLElement, from: number, to: number, mb: [string, string]): void {
+/** 인라인 height 로 from → to. --t-slow(.55s) 뒤 인라인을 지워 flex 가 다시 높이를 정하게 한다.
+ *  display 는 clearAnim 뒤에 놓아야 한다 — 먼저 놓으면 clearAnim 이 지워 튜너가 애니메이션 없이 사라지고 카드만 아래에서 커진다 */
+function animHeight(el: HTMLElement, from: number, to: number, mb: [string, string], display = ''): void {
   clearAnim(el)
+  el.style.display = display
   el.style.height = from + 'px'; el.style.marginBottom = mb[0]; el.classList.add('h-anim')
   reflow(el)
   el.style.height = to + 'px'; el.style.marginBottom = mb[1]

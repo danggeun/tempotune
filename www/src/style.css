@@ -1,6 +1,5 @@
-/* TempoTune — 디자인 토큰. 컴포넌트 규칙에 색/크기 리터럴을 새로 쓰지 않는다 */
+/* TempoTune — 디자인 토큰. 컴포넌트 규칙에 색/크기 리터럴을 새로 쓰지 않는다. 색 토큰은 다크(기본)와 라이트([data-theme=light]) 두 벌 */
 :root{
-  /* 면 — 다크 고정. 시스템 설정을 따르지 않는다 */
   color-scheme:dark;
   /* 면 램프 — 단차는 지각 명도 ΔL* 5~8 (무대 4.3 → bg 9.7 → surface 15.9 → surface-2 21.1). 한색 ≈220° 는 경고색과 색상환에서 멀다 */
   --bg:#181b21;--surface:#232830;--surface-2:#2e333c;
@@ -9,14 +8,19 @@
   /* 조작 요소(버튼·세그먼트) 테두리 — 어두운 면 위 3:1 (WCAG 1.4.11). 카드·구분선은 --line */
   --line-ctl:#757d88;
   /* 글자 3단계 — text-3 도 AA(4.5:1) 를 넘긴다. 순수 장식은 --deco */
-  --text:#dfe3e8;--text-2:#a2a9b2;--text-3:#99a1aa;--deco:#616974;
+  --text:#dfe3e8;--text-2:#a2a9b2;--text-3:#99a1aa;--deco:#616974;--text-rgb:223,227,232;
+  --ink:#fff; /* 가장 센 글자·표식 (카드 라벨, 다이얼 바늘) */
   /* 액센트 — 빨강 하나, 두 값: 어두운 면 위의 글자·테두리와 흰 글자를 얹는 면 */
   --accent:#f15f54;--accent-rgb:241,95,84;--accent-soft:rgba(241,95,84,.13); /* 글자·테두리(작은 면적) — surface 위 4.59:1 */
-  --accent-fill:#cc473e; /* 솔리드 버튼(큰 면적) — 흰 글자 4.63:1 */
+  --accent-fill:#cc473e;--on-accent:#fff; /* 솔리드 버튼(큰 면적) — 흰 글자 4.63:1 */
   /* 상태 — 초록은 튜너 안에서만. --warn(주의 점)과 --mark(북마크)는 같은 색, 다른 뜻 */
-  --ok:#22c55e;--ok-rgb:34,197,94;--warn:#f59e0b;--mark:#f59e0b;--mark-rgb:245,158,11;
-  /* 튜너 카드 전용 — 항상 검정 무대 */
-  --tuner-bg:#0d0f13;--tuner-line:#1f242c;--tuner-well:#151a21;--tuner-text-1:#b6bcc4;--tuner-text-2:#949aa2;--tuner-text-3:#868c94;--tuner-empty:#2f353d; /* text-3 = 이명 — 4.6:1 */
+  --ok:#22c55e;--ok-rgb:34,197,94;--ok-text:#22c55e;--warn:#f59e0b;--mark:#f59e0b;--mark-rgb:245,158,11;
+  --tune-glow:0 0 20px rgba(34,197,94,1),0 0 40px rgba(34,197,94,.7),0 0 80px rgba(34,197,94,.4);
+  --acc-glow:0 0 10px rgba(223,227,232,.6); /* 첫 박 LED */
+  --scrim:rgba(0,0,0,.65);--shadow-rgb:0,0,0;
+  /* 튜너 카드 전용 */
+  --tuner-bg:#0d0f13;--tuner-line:#1f242c;--tuner-well:#151a21;--tuner-text-0:#d0d0d0;--tuner-text-1:#b6bcc4;--tuner-text-2:#949aa2;--tuner-text-3:#868c94;--tuner-empty:#2f353d; /* text-3 = 이명 — 4.6:1 */
+  --tuner-ink:#fff;--tuner-ink-rgb:255,255,255;--tuner-ctl:#333;
   /* 형태 */
   --r-lg:16px;--r-md:10px;--r-sm:7px;
   --gap:8px;
@@ -38,8 +42,25 @@
   /* 모션 */
   --t-fast:.08s;--t-std:.2s;--t-slow:.55s;--ease:cubic-bezier(.4,0,.2,1);
 }
+/* 라이트 — 같은 위계를 밝은 면에 옮긴다. 면은 bg < surface(흰 카드), 선택 면(surface-2)은 한 단 어둡게. 글자·조작 테두리·액센트는 bg·surface 양쪽에서 AA */
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#eef0f3;--surface:#ffffff;--surface-2:#e7eaef;
+  --line:#d8dce2;--line-strong:#bcc3cc;--line-ctl:#7b8490;
+  --text:#1b1f25;--text-2:#49515b;--text-3:#59616c;--deco:#98a0aa;--text-rgb:27,31,37;
+  --ink:#111418;
+  --accent:#bf3227;--accent-rgb:191,50,39;--accent-soft:rgba(191,50,39,.10);
+  --ok:#16a34a;--ok-rgb:22,163,74;--ok-text:#15803d;--warn:#d97706;--mark:#d97706;--mark-rgb:217,119,6;--mark-text:#b45309;
+  --tune-glow:0 0 18px rgba(22,163,74,.35);
+  --acc-glow:0 0 8px rgba(27,31,37,.3);
+  --scrim:rgba(20,24,30,.4);--shadow-rgb:20,24,30;
+  --tuner-bg:#ffffff;--tuner-line:#dde1e6;--tuner-well:#eef1f4;--tuner-text-0:#1f242b;--tuner-text-1:#3a414a;--tuner-text-2:#555d67;--tuner-text-3:#5b636d;--tuner-empty:#c7ccd3;
+  --tuner-ink:#111418;--tuner-ink-rgb:17,20,24;--tuner-ctl:#cfd4da;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;} /* 안드로이드 크롬: 카드를 아래로 미는 제스처가 '당겨서 새로고침' 이 되지 않게 */
+/* 아이폰 홈 화면 앱(iOS 26~): 상태바를 덮어 그리면(black-translucent) 100%·dvh 가 상태바 높이만큼 짧게 잡혀 아래가 빈다. lvh 만 화면 전체 높이 */
+@supports (height:100lvh){@media (display-mode:standalone){html,body{height:100lvh;}}}
 button{font-family:inherit;color:inherit;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -61,12 +82,12 @@ button{font-family:inherit;color:inherit;}
 #sd-grid.compound .note-glyph .flag{display:block;}
 
 /* 팝업 */
-#mic-popup-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);}
+#mic-popup-bg{position:fixed;inset:0;background:var(--scrim);z-index:90;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);}
 #mic-popup-bg.show{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #mic-popup{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px 22px 18px;max-width:300px;width:90%;display:flex;flex-direction:column;gap:16px;text-align:center;}
 #mic-popup-title{font-size:var(--fs-lg);font-weight:var(--fw-b);color:var(--text);}
 #mic-popup-desc{font-size:var(--fs-base);color:var(--text-2);line-height:1.6;word-break:keep-all;}
-#mic-popup-btn{height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:#fff;font-size:var(--fs-base);font-weight:var(--fw-b);cursor:pointer;}
+#mic-popup-btn{height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:var(--on-accent);font-size:var(--fs-base);font-weight:var(--fw-b);cursor:pointer;}
 #mic-popup-cancel{height:var(--h-seg);background:transparent;border:none;color:var(--text-3);font-size:var(--fs-md);cursor:pointer;}
 
 /* 앱 */
@@ -98,12 +119,12 @@ button{font-family:inherit;color:inherit;}
 @keyframes tunerbeatweak{0%{border-color:rgba(var(--accent-rgb),.6)}100%{border-color:var(--tuner-line)}}
 #tuner-hdr.beat-flash{animation:tunerbeat .5s ease-out forwards;}
 #tuner-hdr.beat-flash-weak{animation:tunerbeatweak .18s ease-out forwards;}
-#tuner-label{font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);display:flex;align-items:center;}
+#tuner-label{font-size:var(--fs-sm);color:var(--tuner-ink);font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);display:flex;align-items:center;}
 /* 오디오 상태 점 — 켜짐 = 무채색, 주의 = 앰버 펄스, 꺼짐 = 숨김 */
 #tuner-hdr-right{display:flex;align-items:center;gap:10px;}
 /* 'A 듣기' — 회색 테두리·글자, 켜짐 = 흰 테두리+흰 글자 (채움 없음) */
-#ref-a-btn{height:var(--h-chip);padding:0 9px;border-color:#333;color:var(--tuner-text-2);font-size:var(--fs-xs);font-weight:var(--fw-md);}
-#ref-a-btn.on{border-color:#fff;color:#fff;}
+#ref-a-btn{height:var(--h-chip);padding:0 9px;border-color:var(--tuner-ctl);color:var(--tuner-text-2);font-size:var(--fs-xs);font-weight:var(--fw-md);}
+#ref-a-btn.on{border-color:var(--tuner-ink);color:var(--tuner-ink);}
 /* 드럼 히트 영역: 행 전체(라벨 포함)를 잡고 상하 12 px 여유 — 보이는 크기는 그대로 */
 #ref-row{display:flex;align-items:center;gap:8px;padding:12px 8px;margin:-12px -8px;cursor:ns-resize;touch-action:none;user-select:none;}
 #ref-lbl{font-size:var(--fs-xs);color:var(--tuner-text-1);letter-spacing:var(--ls-caps);} /* 흰색은 음이름·바늘·TUNER 만 */
@@ -114,14 +135,14 @@ button{font-family:inherit;color:inherit;}
 #ref-drum-sel{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:28px;border-top:.5px solid var(--ok);border-bottom:.5px solid var(--ok);pointer-events:none;z-index:1;}
 #ref-drum-inner{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;will-change:transform;}
 .ref-drum-item{height:28px;width:100%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:var(--fs-sm);color:var(--tuner-text-3);user-select:none;flex-shrink:0;}
-.ref-drum-item.active{color:#d0d0d0;font-size:var(--fs-md);font-weight:var(--fw-md);}
+.ref-drum-item.active{color:var(--tuner-text-0);font-size:var(--fs-md);font-weight:var(--fw-md);}
 
 #tuner-body{flex:1;min-height:0;padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px;}
 #tuner-note-row{display:flex;align-items:center;justify-content:center;min-height:120px;position:relative;}
 #tuner-note-center-wrap{display:flex;flex-direction:column;align-items:center;position:relative;}
 #tuner-note-main{position:relative;display:inline-block;}
-#tuner-note{font-family:'DM Mono',monospace;font-size:min(var(--fs-d3),26vw);font-weight:var(--fw-md);line-height:1;letter-spacing:-.02em;color:#fff;display:block;transition:color var(--t-fast);}
-#tuner-note.tune{color:var(--ok);text-shadow:0 0 20px rgba(var(--ok-rgb),1),0 0 40px rgba(var(--ok-rgb),.7),0 0 80px rgba(var(--ok-rgb),.4);}
+#tuner-note{font-family:'DM Mono',monospace;font-size:min(var(--fs-d3),26vw);font-weight:var(--fw-md);line-height:1;letter-spacing:-.02em;color:var(--tuner-ink);display:block;transition:color var(--t-fast);}
+#tuner-note.tune{color:var(--ok);text-shadow:var(--tune-glow);}
 #tuner-note.empty{color:var(--tuner-empty);font-size:64px;letter-spacing:.05em;}
 #tuner-note.empty.hint{font-size:var(--fs-xl);letter-spacing:.02em;color:var(--tuner-text-2);font-family:inherit;font-weight:var(--fw-md);}
 /* 시작 버튼 — 마이크를 열려면 탭이 필요한 상태. 큰 음 자리에 버튼 하나 + 다음에 벌어질 일 한 줄 */
@@ -129,13 +150,13 @@ button{font-family:inherit;color:inherit;}
 #tuner-card.tap-hint #tuner-start{display:flex;} #tuner-card.tap-hint #tuner-note-main{display:none;}
 #tuner-start-btn{height:var(--h-seg);padding:0 var(--s6);min-width:132px;background:transparent;border:1px solid var(--tuner-text-3);border-radius:var(--r-md);color:var(--tuner-text-1);font-size:var(--fs-base);font-weight:var(--fw-md);letter-spacing:.04em;cursor:pointer;} /* A 듣기·MIC 와 같은 외곽선 꼴 */
 #tuner-start-sub{font-size:var(--fs-sm);color:var(--tuner-text-2);min-height:1em;}
-#tuner-acc{position:absolute;top:4px;left:calc(100% + 2px);font-family:'DM Mono',monospace;font-size:var(--fs-d1);font-weight:var(--fw-md);color:#fff;white-space:nowrap;transition:color var(--t-fast);}
+#tuner-acc{position:absolute;top:4px;left:calc(100% + 2px);font-family:'DM Mono',monospace;font-size:var(--fs-d1);font-weight:var(--fw-md);color:var(--tuner-ink);white-space:nowrap;transition:color var(--t-fast);}
 #tuner-acc.tune{color:var(--ok);}
 #tuner-oct{position:absolute;bottom:4px;left:calc(100% + 12px);font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--tuner-text-2);white-space:nowrap;}
 /* 중음 둘째 성부 — 비어 있으면 자리도 차지하지 않게 절대 배치. 초록 = 그 음도 맞음, 흰색 = 벗어남 */
 #tuner-dual{position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:var(--fs-sm);color:var(--tuner-text-1);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;}
 #tuner-dual.on{opacity:1;}
-#tuner-dual.tune{color:var(--ok);}
+#tuner-dual.tune{color:var(--ok-text);}
 #tuner-right{position:absolute;right:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;padding:2px 0;}
 /* Hz 는 ¢ 의 거울 자리. 값은 6칸 고정폭(core/hzReadout)이라 white-space:pre 로 앞 공백을 살린다 */
 #tuner-left{position:absolute;left:0;top:0;bottom:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:2px 0;pointer-events:none;}
@@ -148,15 +169,17 @@ button{font-family:inherit;color:inherit;}
 #metro-card{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--line);overflow:hidden;transition:box-shadow .06s,background .1s;}
 #metro-card.flash-strong{animation:metroflash .22s ease-out forwards;}
 #metro-card.lit-weak{box-shadow:inset 0 0 0 1.5px rgba(var(--accent-rgb),.45);}
-#metro-hdr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:8px 12px 8px 16px;border-bottom:1px solid var(--line);gap:10px;min-height:52px;}
+#metro-hdr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;padding:8px 12px 8px 16px;border-bottom:1px solid var(--line);gap:10px;min-height:52px;}
 #metro-hdr-label{position:relative;display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--text);font-weight:var(--fw-md);white-space:nowrap;cursor:ns-resize;touch-action:none;user-select:none;padding:8px 10px 8px 0;margin:-8px 0;}
 #metro-hdr-label .note-glyph{width:14px;height:20px;vertical-align:0;}
-#metro-hdr-title{display:none;font-size:var(--fs-sm);color:#fff;font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 */
+#metro-hdr-title{display:none;font-size:var(--fs-sm);color:var(--ink);font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 */
 #metro-card.full #metro-hdr-label{display:none;} #metro-card.full #metro-hdr-title{display:flex;}
-#beat-vis{display:flex;align-items:center;justify-content:center;gap:7px;height:22px;}
+/* LED 9칸(metro.ts HDR_LEDS). 폭이 모자라면(세 자리 BPM·좁은 폰·접힌 채 재생) 간격만 줄인다 — 고정 gap 이면 오른쪽 버튼이 카드 밖으로 밀린다.
+   max-width = 점 9개 + 간격 7px×8 이라 여유가 있을 땐 전과 같은 그림 */
+#beat-vis{display:flex;align-items:center;justify-content:space-between;height:22px;width:100%;min-width:0;max-width:calc(9*10px + 8*7px);justify-self:center;}
 /* grid 세 번째 칸에 고정 — 전용 모드에서 #beat-vis 가 display:none 이라 grid 항목이 줄어도 오른쪽 끝에 남게 */
 #metro-hdr-right{display:flex;align-items:center;gap:6px;grid-column:3;justify-self:end;}
-#metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:#fff;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
+#metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:var(--on-accent);font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 /* 크기 버튼 하나 — 상태에 따라 글리프만 바꾼다: 접힘 ∧(펼치러) · 펼침 ∧(펼침2로) · 전용 ∨(접힘으로) */
 #metro-size-btn{position:relative;width:var(--h-compact);height:var(--h-compact);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-size-btn::after{content:'';position:absolute;inset:-6px;}
@@ -196,9 +219,9 @@ button{font-family:inherit;color:inherit;}
 .led.mv{background:var(--line-strong);} /* 쓸고 가는 불 — 맥락이지 사건이 아니다. L* 36, 꺼진 점(25)과 11 차이 */
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
-.led.hit-acc{background:var(--text);transform:scale(1.4);box-shadow:0 0 10px rgba(223,227,232,.6);} /* 첫 박은 박과 같은 크기, 흰색으로만 구분 */
+.led.hit-acc{background:var(--text);transform:scale(1.4);box-shadow:var(--acc-glow);} /* 첫 박은 박과 같은 크기, 흰색으로만 구분 */
 #beat-vis .led{width:10px;height:10px;}
-#metro-card.bar #beat-vis .led{width:13px;height:13px;} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
+#metro-card.bar #beat-vis .led{width:13px;height:13px;} #metro-card.bar #beat-vis{max-width:calc(9*13px + 8*7px);} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
 #sweep{display:none;padding:4px 0 0;}
 #metro-card.full #sweep{display:block;}
 #sweep-leds{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 2px;}
@@ -215,7 +238,7 @@ button{font-family:inherit;color:inherit;}
 #dial-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
 .dial-track{fill:none;stroke:var(--line-strong);stroke-width:7;stroke-linecap:round;}
 .dial-fill{fill:none;stroke:var(--text-2);stroke-width:7;stroke-linecap:round;}
-.dial-needle{fill:#fff;stroke:var(--surface);stroke-width:3;}
+.dial-needle{fill:var(--ink);stroke:var(--surface);stroke-width:3;}
 .dial-tick{stroke:var(--line-strong);stroke-width:1.5;stroke-linecap:round;}
 .dial-tick.major{stroke:var(--text-3);stroke-width:2;}
 /* SVG font-size 는 viewBox user unit 이라 다이얼이 줄면 같이 준다 — ui/dial.ts 가 다이얼 px 를 재서 --dial-*-units 로 렌더 크기를 고정. 용어가 호 길이 상한에 걸리면 .no-names */
@@ -238,7 +261,7 @@ button{font-family:inherit;color:inherit;}
 #metro-adj-col{display:flex;flex-direction:column;gap:8px;flex:1;}
 #metro-btn-row{display:flex;gap:8px;}
 .m-adj{flex:1;height:var(--h-control);background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-#metro-play-btn{flex:1;height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#metro-play-btn{flex:1;height:var(--h-control);background:var(--accent-fill);border:none;border-radius:var(--r-md);color:var(--on-accent);font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 #metro-vol-row{display:flex;align-items:center;gap:8px;}
 .m-vol-lbl{font-size:var(--fs-sm);color:var(--text-2);font-weight:var(--fw-md);white-space:nowrap;}
 /* 슬라이더 — 트랙은 얇게, 히트는 두껍게 */
@@ -319,7 +342,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 
 /* 토스트 — 떠 있는 면 (배경에 묻히지 않게) */
 #toast-host{position:fixed;bottom:var(--s6);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:200;pointer-events:none;max-width:calc(100vw - 32px);}
-.toast{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .22s,transform .22s;white-space:normal;word-break:keep-all;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.5);}
+.toast{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-md);padding:11px 18px;font-size:var(--fs-md);opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .22s,transform .22s;white-space:normal;word-break:keep-all;text-align:center;box-shadow:0 6px 24px rgba(var(--shadow-rgb),.5);}
 .toast.show{opacity:1;transform:translateY(0);}
 .toast.show.actionable{pointer-events:auto;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
 
@@ -327,7 +350,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #editor-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:70;display:none;flex-direction:column;overflow:hidden;opacity:0;transition:opacity var(--t-std);}
 #editor-page.open{opacity:1;}
 /* 가장자리 스와이프 중(ui/swipeBack): 끌리는 화면 왼쪽에 그림자 — 뒤 화면과 층이 갈린다 */
-#menu-overlay.swiping,#settings-page.swiping,#editor-page.swiping{box-shadow:-6px 0 24px rgba(0,0,0,.45);}
+#menu-overlay.swiping,#settings-page.swiping,#editor-page.swiping{box-shadow:-6px 0 24px rgba(var(--shadow-rgb),.45);}
 #ed-inner{display:flex;flex-direction:column;min-height:100%;max-width:480px;margin:0 auto;width:100%;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 #ed-top{padding:var(--page-top) var(--s5) 0;flex-shrink:0;}
 #ed-nav{display:flex;align-items:center;gap:6px;padding:0 0 var(--s2);}
@@ -357,7 +380,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .ed-handle-hit{position:absolute;inset:-20px;}
 .bm-tick{position:absolute;top:50%;width:2px;height:22px;background:var(--mark);border-radius:1px;transform:translate(-50%,-50%);z-index:2;pointer-events:none;}
 #ed-pos-handle{position:absolute;top:0;bottom:0;left:0%;width:2px;background:var(--text);transform:translateX(-50%);z-index:5;cursor:ew-resize;touch-action:none;}
-#ed-pos-handle::after{content:'';position:absolute;left:50%;bottom:-7px;width:14px;height:14px;border-radius:50%;background:var(--text);transform:translateX(-50%);box-shadow:0 1px 4px rgba(0,0,0,.25);}
+#ed-pos-handle::after{content:'';position:absolute;left:50%;bottom:-7px;width:14px;height:14px;border-radius:50%;background:var(--text);transform:translateX(-50%);box-shadow:0 1px 4px rgba(var(--shadow-rgb),.25);}
 #ed-pos-hit{position:absolute;inset:-16px;}
 #ed-ab-times{display:none;justify-content:space-between;margin-top:var(--s3);}
 /* 시각은 검정, A/B 글자만 빨강 */
@@ -366,7 +389,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .ed-ab-time-group{display:inline-flex;align-items:center;gap:0;}
 .ed-nudge{width:44px;height:44px;margin:-12px -8px;background:none;border:none;color:var(--text-2);font-family:'DM Mono',monospace;font-size:var(--fs-lg);line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
 #ed-transport{display:flex;align-items:center;gap:var(--s2);padding:var(--s4);margin:var(--s3) var(--s5) var(--s4);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);flex-shrink:0;}
-#ed-play-btn{width:var(--h-tall);height:var(--h-tall);background:var(--accent-fill);border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding-left:3px;}
+#ed-play-btn{width:var(--h-tall);height:var(--h-tall);background:var(--accent-fill);border:none;border-radius:50%;color:var(--on-accent);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding-left:3px;}
 #ed-play-btn.playing{font-size:var(--fs-base);letter-spacing:-.05em;padding-left:0;}
 #ed-speed-ctrl{flex:1;display:flex;flex-direction:column;border-left:1px solid var(--line);padding-left:14px;}
 #ed-speed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}

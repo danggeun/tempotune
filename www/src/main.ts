@@ -15,7 +15,8 @@ import { restoreRecordings, recoverInProgress, onRecorderError } from './audio/r
 import { initStatusBar, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
-import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag } from './ui/tuner.ts'
+import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag, retheme } from './ui/tuner.ts'
+import { mountTheme, onThemeChange } from './ui/theme.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { onMetroError } from './audio/metronome.ts'
@@ -40,6 +41,7 @@ clearLegacyStorage()
 loadSettings(); startSettingsAutosave()
 
 // 화면
+mountTheme(); onThemeChange(retheme)
 mountTuner(); mountRefDrum(); mountMetro(); mountRefPanel(); mountMenu(); mountSettings()
 mountTimer()
 mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()

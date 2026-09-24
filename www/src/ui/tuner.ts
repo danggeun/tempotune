@@ -33,27 +33,33 @@ export const histDiag = (): { len: number; sec: number; sr: number; skipped: num
 /** 캔버스 색은 CSS 토큰에서 */
 let okRgb = '34,197,94'
 let stageBg = '#0d0f13'
+let inkRgb = '255,255,255'
 function readTokens(): void {
   const cs = getComputedStyle(document.documentElement)
   okRgb = cs.getPropertyValue('--ok-rgb').trim() || okRgb
   stageBg = cs.getPropertyValue('--tuner-bg').trim() || stageBg
+  inkRgb = cs.getPropertyValue('--tuner-ink-rgb').trim() || inkRgb
 }
+/** 테마가 바뀌면 색을 다시 읽고 다시 그린다 */
+export function retheme(): void { readTokens(); drawHistory(lastInTune) }
+let lastInTune = false
 
 // 히스토리
 function drawHistory(inTune: boolean): void {
   const canvas = q<HTMLCanvasElement>('tuner-history'); if (!canvas.offsetWidth) return
   const W = canvas.offsetWidth, H = Math.max(80, canvas.offsetHeight || 100), dpr = devicePixelRatio || 1
   if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.width = W + 'px'; canvas.style.height = H + 'px' }
+  lastInTune = inTune
   const c = canvas.getContext('2d')!; c.save(); c.scale(dpr, dpr)
   c.fillStyle = stageBg; c.fillRect(0, 0, W, H)
   if (inTune) { c.fillStyle = `rgba(${okRgb},.07)`; c.fillRect(0, 0, W, H) }
   const ppc = (W / 2) / 50, tol = settingsStore.get().tolCents, N = hist.length, rH = H / N
   lastSkipped = 0
   c.fillStyle = `rgba(${okRgb},.38)`; c.fillRect(W / 2 - tol * ppc, 0, tol * 2 * ppc, H) // 띠는 '영역' — 트레이스보다 뒤로
-  c.strokeStyle = 'rgba(255,255,255,.38)'; c.lineWidth = 1
+  c.strokeStyle = `rgba(${inkRgb},.38)`; c.lineWidth = 1
   c.beginPath(); c.moveTo(W / 2, 0); c.lineTo(W / 2, H); c.stroke()
   // ♭ / ♯ 방향 표시 — 최신 값이 맨 아래라 아래쪽에
-  c.fillStyle = 'rgba(255,255,255,.42)'; c.font = "14px 'DM Mono', monospace"; c.textBaseline = 'bottom'
+  c.fillStyle = `rgba(${inkRgb},.42)`; c.font = "14px 'DM Mono', monospace"; c.textBaseline = 'bottom'
   c.textAlign = 'left'; c.fillText('\u266d', 8, H - 7)
   c.textAlign = 'right'; c.fillText('\u266f', W - 8, H - 7)
   c.lineWidth = 3; c.lineCap = 'round' // 90 cm 에서 보이는 굵기
@@ -66,7 +72,7 @@ function drawHistory(inTune: boolean): void {
     const x0 = W / 2 + Math.max(-50, Math.min(50, v0)) * ppc, x1 = W / 2 + Math.max(-50, Math.min(50, v1)) * ppc
     c.globalAlpha = .22 + (i / (N - 1)) * .78
     // 트레이스는 항상 흰색 — 초록 선은 초록 띠 위에서 대비가 가장 낮아진다. '선이 띠 안' = '맞음' 이라 정보 손실은 없다
-    c.strokeStyle = '#ffffff'
+    c.strokeStyle = `rgb(${inkRgb})`
     c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke()
   }
   c.globalAlpha = 1; c.restore()
@@ -130,7 +136,7 @@ export function hideTapHint(): void {
   card.classList.remove('tap-hint')
 }
 export function mountTuner(): void {
-  readTokens() // 앱은 다크 고정 — 시스템 테마 변화를 따라갈 일이 없다
+  readTokens()
   // 매 분석 프레임(≈43 Hz)마다 히스토리를 쌓고, 그리기는 rAF 에 한 번만
   let dirty = false, raf: number | null = null
   const paint = () => {

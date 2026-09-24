@@ -57,10 +57,11 @@ export const ARC_LABELS: ReadonlyArray<readonly [string, number, number]> = [
 
 /** 글자 크기: SVG font-size 는 viewBox user unit 이라 렌더 픽셀을 고정하고 user unit 을 다이얼 크기에 반비례로 준다 */
 export const DIAL_VIEWBOX = 320
-/** 목표 px. NAME_MAX_UNITS = 제일 좁은 Largo 구간(반지름 94 에서 호 약 55 unit) ÷ "LARGO" 폭(약 3.55 × font); 넘으면 용어를 뺀다 */
-export const NUM_TARGET_PX = 11, NAME_TARGET_PX = 10.5, NAME_MAX_UNITS = 15
+/** 목표 px. NAME_MAX_UNITS = 제일 좁은 Largo 구간(반지름 94 에서 호 약 55 unit) ÷ "LARGO" 폭(약 3.55 × font).
+ *  다이얼이 작으면 용어는 상한에 묶인 채 다이얼과 같이 줄고, 렌더 크기가 NAME_MIN_PX 아래로 가면 뺀다 */
+export const NUM_TARGET_PX = 11, NAME_TARGET_PX = 10.5, NAME_MAX_UNITS = 15, NAME_MIN_PX = 9
 export function dialTypography(dialPx: number): { numUnits: number; nameUnits: number; showNames: boolean } {
   const k = DIAL_VIEWBOX / Math.max(1, dialPx)
   const nameUnits = NAME_TARGET_PX * k
-  return { numUnits: NUM_TARGET_PX * k, nameUnits: Math.min(nameUnits, NAME_MAX_UNITS), showNames: nameUnits <= NAME_MAX_UNITS }
+  return { numUnits: NUM_TARGET_PX * k, nameUnits: Math.min(nameUnits, NAME_MAX_UNITS), showNames: NAME_MAX_UNITS / k >= NAME_MIN_PX }
 }

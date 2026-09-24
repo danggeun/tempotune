@@ -69,11 +69,12 @@ describe('다이얼 — 글자 크기', () => {
   test('숫자가 늘 용어보다 크다 — 값이 주인공, 용어는 이정표', () => {
     for (const px of [320, 308, 244, 217]) { const t = dialTypography(px); expect(t.numUnits).toBeGreaterThan(t.nameUnits) }
   })
-  test('용어는 상한(15 unit)까지만 커지고, 넘으면 감춘다 — 경계 224 px', () => {
+  test('용어는 상한(15 unit)까지만 커지고, 그보다 작은 다이얼에서는 같이 줄다가 9 px 아래면 감춘다 — 경계 192 px', () => {
     expect(dialTypography(244).showNames).toBe(true)
-    expect(dialTypography(217).showNames).toBe(false)
-    expect(dialTypography(217).nameUnits).toBe(15) // 감춰도 값은 상한에 고정 (다시 커지면 바로 쓸 수 있게)
-    const edge = (10.5 * 320) / 15 // = 224
+    expect(dialTypography(214).showNames).toBe(true)  // 아이폰 실측 크기
+    expect(dialTypography(214).nameUnits).toBe(15)    // 렌더 10 px
+    expect(dialTypography(168).showNames).toBe(false) // iPhone SE
+    const edge = (9 * 320) / 15 // = 192
     expect(dialTypography(edge + 0.5).showNames).toBe(true)
     expect(dialTypography(edge - 0.5).showNames).toBe(false)
   })

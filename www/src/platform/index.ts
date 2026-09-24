@@ -12,14 +12,18 @@ export const isIOS = (): boolean => {
   return /iPad|iPhone|iPod/.test(p) || (p === 'MacIntel' && navigator.maxTouchPoints > 1) || /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
-/** Capacitor 상태바를 앱 배경색에 맞춘다. 웹에서는 no-op. */
+/** 앱(Capacitor)이면 body 에 표식. 상태바 색은 setStatusBarTheme */
 export function initStatusBar(): void {
   if (!isNative()) return
   document.body.classList.add('capacitor')
+}
+/** 상태바 글자색·배경을 테마에 맞춘다. 웹은 meta theme-color, 앱은 Capacitor StatusBar */
+export function setStatusBarTheme(theme: 'dark' | 'light', bg: string): void {
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
+  if (!isNative()) return
   import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-    // 앱은 다크 고정 — 시스템 테마를 따라가지 않는다
-    StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-    StatusBar.setBackgroundColor({ color: '#0f0f0f' }).catch(() => {}) // Android 15 엣지투엣지에서는 무시됨 (투명 상태바)
+    StatusBar.setStyle({ style: theme === 'light' ? Style.Light : Style.Dark }).catch(() => {})
+    StatusBar.setBackgroundColor({ color: bg }).catch(() => {}) // Android 15 엣지투엣지에서는 무시됨 (투명 상태바)
   }).catch(() => {})
 }
 

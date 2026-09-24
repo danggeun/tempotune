@@ -45,10 +45,11 @@ const SCENES = {
 }
 
 const results = []
-// 앱은 다크 고정이라 라이트로 찍어도 픽셀까지 같은 그림이 나온다 — 다크만 찍는다
-for (const scheme of ['dark']) {
+// 앱 테마는 OS 설정이 아니라 앱 설정(설정 › 화면)을 따른다 — 저장값을 심어 두 벌 찍는다
+for (const scheme of ['dark', 'light']) {
   for (const [name, prep] of Object.entries(SCENES)) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
+    if (scheme === 'light') await ctx.addInitScript(() => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: 'light' })) })
     const page = await ctx.newPage()
     await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(1000) // 첫 접힘 트랜지션(250 ms 뒤 시작, .55 s)이 끝난 뒤 — 그 전엔 카드가 반쯤 접힌 채 찍힌다
     await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;caret-color:transparent!important}' })

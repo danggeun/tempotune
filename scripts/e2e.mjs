@@ -323,6 +323,32 @@ await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝
   assert.deepEqual(xs, ['−', 'metro-play-btn', '+'])
   await p.click('#metro-size-btn')
 })
+// 접힌 채 재생: 세 자리 BPM·좁은 폰에서도 헤더 버튼이 카드 안에 있다 — LED 간격만 줄어든다
+for (const w of [360, 384]) await scenario(`layout: 접힌 채 재생 ${w}px · BPM 200 — 크기 버튼이 카드 밖으로 밀리지 않는다`, 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800)
+  const bpm = () => p.evaluate(() => +document.getElementById('metro-hdr-bpm').textContent)
+  const b = await p.locator('#metro-hdr-label').boundingBox()
+  await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await p.mouse.down()
+  for (let i = 1; i <= 30; i++) await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2 - i * 20)
+  await p.mouse.up()
+  assert.ok(await bpm() >= 100, '세 자리 BPM: ' + await bpm())
+  await p.keyboard.press('Space'); await waitUntil(p, () => document.getElementById('metro-card').classList.contains('bar'), 3000, 'bar')
+  const r = await p.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect(); const c = R('metro-card'), s = R('metro-size-btn'), pl = R('metro-play-hdr-btn'), v = R('beat-vis'), l = R('metro-hdr-label'); return { size: s.right - c.right, play: pl.left - v.right, vis: v.left - l.right } })
+  assert.ok(r.size <= -8, '크기 버튼 오른쪽 여백 ' + r.size); assert.ok(r.play >= 6 && r.vis >= 6, 'LED 줄이 이웃과 겹치지 않는다 ' + JSON.stringify(r))
+  await p.keyboard.press('Space')
+}, { viewport: { width: w, height: 800 } })
+
+// 펼침 → 펼침2: 튜너가 같이 줄어들며 카드가 위로 커진다 (튜너가 즉시 사라지면 카드가 위에서부터 아래로 커져 보인다)
+await scenario('metro: 펼침 → 펼침2 전환 동안 튜너도 함께 줄어든다', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 800); await sizeTap(p)
+  await p.click('#metro-size-btn')
+  const mid = await p.evaluate(() => ({ tuner: document.getElementById('tuner-card').offsetHeight, anims: document.getAnimations().map(a => a.effect.target.id).filter(Boolean) }))
+  assert.ok(mid.tuner > 100, '튜너가 즉시 사라지지 않는다 ' + mid.tuner)
+  assert.ok(mid.anims.includes('tuner-card') && mid.anims.includes('metro-card'), '두 카드가 함께 움직인다 ' + mid.anims)
+  await settled(p); await sleep(p, 300)
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none', '끝나면 튜너는 숨김')
+})
+
 // 화면 크기 행렬 — 펼침2 는 어떤 화면에서도 스크롤·넘침이 없고 글자가 읽혀야 한다.
 // 기기별 땜빵이 아니라 규칙(다이얼이 남는 높이를 흡수, 글자는 렌더 크기 고정)으로 닫고, 이 행렬이 회귀를 잡는다.
 // Chromium 은 env(safe-area-inset-*) 가 0 이라 노치·홈 인디케이터를 #app padding 으로 흉내 낸다(근사 — 실기기 1회 확인).
@@ -355,7 +381,7 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전�
   assert.ok(r.lastRowInside, '리듬 줄이 카드·화면 안에 있어야 한다')
   assert.ok(r.dial >= 150 && r.dial <= 320.5, `다이얼 ${r.dial}px`)
   assert.ok(r.numBoxH >= 11, `숫자 렌더 크기 유지 (bbox ${r.numBoxH}px, 10px 글자면 ≈13)`)
-  assert.equal(r.names, r.dial >= 226 ? 4 : 0, `용어는 226px 이상에서만 (다이얼 ${r.dial})`)
+  if (Math.abs(r.dial - 192) > 1) assert.equal(r.names, r.dial > 192 ? 4 : 0, `용어는 다이얼 192px 이상에서만 — 그 아래는 9px 미만 (다이얼 ${r.dial})`)
 }, { viewport: { width: w, height: h } })
 await scenario('metro: works without mic (permission denied) + spacebar', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
@@ -382,6 +408,33 @@ await scenario('settings: persist across reload (cents, smooth, rms, wakelock, b
   assert.equal(await on('#wakelock-steps'), '0')
   assert.equal(await p.evaluate(() => document.getElementById('metro-bpm').textContent), '81')
   assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '3')
+})
+
+// 화면 테마: 기본 다크, 설정에서 라이트 → 첫 그리기부터 적용·영속, 튜너 캔버스까지 다시 그림
+await scenario('theme: 다크 기본 → 라이트 전환·영속(첫 그리기 전 적용), 상태바 색, 튜너 캔버스, 다시 다크', 'violin_A4.wav', async (p, ctx) => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  const st = () => p.evaluate(() => ({ attr: document.documentElement.dataset.theme ?? null, meta: document.querySelector('meta[name="theme-color"]').content, bg: getComputedStyle(document.body).backgroundColor, card: getComputedStyle(document.getElementById('tuner-card')).backgroundColor }))
+  const canvasPx = () => p.evaluate(() => { const c = document.getElementById('tuner-history'); const d = c.getContext('2d').getImageData(2, 2, 1, 1).data; return d[0] + d[1] + d[2] })
+  let s = await st(); assert.equal(s.attr, null); assert.equal(s.meta, '#181b21')
+  assert.ok(await canvasPx() < 150, '다크 캔버스 배경')
+  await p.click('#settings-hdr-btn'); await sleep(p, 300)
+  await p.click('#theme-steps .step-btn[data-v="1"]'); await sleep(p, 200)
+  s = await st(); assert.equal(s.attr, 'light'); assert.equal(s.meta, '#eef0f3'); assert.equal(s.bg, 'rgb(238, 240, 243)')
+  await p.click('#settings-back-btn'); await sleep(p, 400)
+  assert.equal((await st()).card, 'rgb(255, 255, 255)', '튜너 카드 흰색')
+  assert.ok(await canvasPx() > 600, '라이트 캔버스 배경 — 즉시 다시 그림')
+  await sleep(p, 600)
+  // 첫 그리기 전 적용: 앱 스크립트를 막아도 head 의 인라인 스크립트만으로 라이트여야 깜빡임이 없다
+  const bare = await ctx.newPage(); await bare.route('**/assets/*.js', r => r.abort()); await bare.goto(URL_)
+  assert.equal(await bare.evaluate(() => document.documentElement.dataset.theme), 'light', '첫 그리기 전 적용')
+  assert.equal(await bare.evaluate(() => document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content), 'default', 'iOS 상태바 글자 어둡게')
+  await bare.close()
+  await p.reload()
+  await waitNote(p, t => t.note === '라')
+  assert.equal(await p.evaluate(() => document.querySelector('#theme-steps .step-btn.on').dataset.v), '1')
+  await p.click('#settings-hdr-btn'); await sleep(p, 300)
+  await p.click('#theme-steps .step-btn[data-v="0"]'); await sleep(p, 200)
+  s = await st(); assert.equal(s.attr, null); assert.equal(s.meta, '#181b21'); assert.equal(s.bg, 'rgb(24, 27, 33)')
 })
 
 // 녹음 / 편집
