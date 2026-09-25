@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Repository docs are now in English
 - Settings footer shows just the version, with the tagline centered under it
 - Note icons (♩ next to the BPM and the rhythm buttons) redrawn from a music engraving font, with stems and beams placed by engraving rules
+- New app icon — a jade metronome with a gold tuning fork on white, easier to spot on the home screen
 
 ## [2.3.8] — 2026-09-25
 - Tuner ♭/♯ looked stretched on the iPhone start screen

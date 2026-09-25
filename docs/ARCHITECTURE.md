@@ -98,7 +98,7 @@ CI (`ci.yml`): check → build → e2e; screenshots run separately. `deploy-page
 
 ```bash
 npx cap add android      # once
-npm run icons            # only when the icon source (resources/icon-src.png) changes
+npm run icons            # only when the icon sources (resources/icon*.svg) change
 npm run cap:assets       # launcher icons
 npm run cap:sync         # build:cap + cap sync + scripts/cap-manifest.mjs
 npx cap open android

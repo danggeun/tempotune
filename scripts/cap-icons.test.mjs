@@ -110,17 +110,34 @@ describe('generated foreground — full size and visible mark width', () => {
   })
 })
 
-// 타일색의 원천은 resources/icon-src.png 의 모서리 픽셀(gen-icons 가 거기서 읽는다). package.json 의 cap:assets 색은 손으로 맞추는 값
+// 타일색의 원천은 resources/icon-background.svg(→ .png). package.json 의 cap:assets 색은 손으로 맞추는 값
 describe('the icon background color is defined in one place', () => {
-  const src = new URL('../resources/icon-src.png', import.meta.url)
-  test.skipIf(!existsSync(src))('icon-src 의 크림 = package.json 의 adaptive 배경색', () => {
-    const p = PNG.sync.read(readFileSync(src)); const i = (3 * p.width + 3) * 4
+  const bgPng = new URL('../resources/icon-background.png', import.meta.url)
+  test.skipIf(!existsSync(bgPng))('icon background matches the adaptive background color in package.json', () => {
+    const p = PNG.sync.read(readFileSync(bgPng)); const i = (3 * p.width + 3) * 4
     const tile = '#' + [p.data[i], p.data[i + 1], p.data[i + 2]].map(v => v.toString(16).padStart(2, '0')).join('')
     const pkg = readFileSync(new URL('../package.json', import.meta.url), 'utf8')
     const bg = /--iconBackgroundColor\s+(#[0-9a-fA-F]{6})/.exec(pkg)?.[1]
     const bgDark = /--iconBackgroundColorDark\s+(#[0-9a-fA-F]{6})/.exec(pkg)?.[1]
     expect(bg?.toLowerCase()).toBe(tile.toLowerCase())
     expect(bgDark?.toLowerCase()).toBe(tile.toLowerCase())
+  })
+})
+
+// iOS 는 정사각 원본을 스스로 깎는다. 원본에 둥근 타일·그림자를 그려 넣으면 테두리가 두 겹이 된다
+describe('the iOS / PWA icon is full-bleed', () => {
+  const full = new URL('../resources/icon.png', import.meta.url)
+  test.skipIf(!existsSync(full))('edges match the background layer — no baked rounded frame', () => {
+    const p = PNG.sync.read(readFileSync(full)), bg = PNG.sync.read(readFileSync(new URL('../resources/icon-background.png', import.meta.url)))
+    const W = p.width, H = p.height, m = Math.round(W * 0.04)
+    const pts = []
+    for (const d of [0, m]) pts.push([d, d], [W - 1 - d, d], [d, H - 1 - d], [W - 1 - d, H - 1 - d], [W >> 1, d], [W >> 1, H - 1 - d], [d, H >> 1], [W - 1 - d, H >> 1])
+    for (const [x, y] of pts) {
+      const i = (y * W + x) * 4
+      expect(p.data[i + 3]).toBe(255)
+      const diff = Math.abs(p.data[i] - bg.data[i]) + Math.abs(p.data[i + 1] - bg.data[i + 1]) + Math.abs(p.data[i + 2] - bg.data[i + 2])
+      expect(diff, `pixel ${x},${y}`).toBeLessThan(12)
+    }
   })
 })
 
