@@ -47,6 +47,8 @@ async function scenario(name, wav, fn, ctxOpts = {}) {
 const tunerText = p => p.evaluate(() => ({ note: document.getElementById('tuner-note').textContent, acc: document.getElementById('tuner-acc').textContent, oct: document.getElementById('tuner-oct').textContent, cents: document.getElementById('tuner-cents').textContent, inTune: document.getElementById('tuner-card').classList.contains('in-tune') }))
 const waitNote = async (p, pred, ms = 4000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const t = await tunerText(p); if (pred(t)) return t; await p.waitForTimeout(100) } throw new Error('note not reached: ' + JSON.stringify(await tunerText(p))) }
 const sleep = (p, ms) => p.waitForTimeout(ms)
+/** 색·캔버스 픽셀을 다크 토큰 기준으로 재는 시나리오용 — 기본 테마는 라이트라 다크를 저장해 두고 연다 */
+const darkTheme = p => p.addInitScript(() => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: 'dark' })) })
 /** 카드를 아래로 밀어 한 단계 내리기. 헤더의 빈 가운데에서 시작한다 */
 const swipeDown = async (p, sel = '#metro-hdr') => {
   const b = await p.locator(sel).boundingBox()
@@ -221,7 +223,7 @@ await scenario('metro: beats-only mode — no bars, no first-beat accent', 'sile
   assert.equal(sawAccent, false, '정박 모드에서는 액센트가 없어야 한다')
 })
 await scenario('metro: full mode is the second expanded step — only the tuner hides, header and mic stay, LEDs sweep end to end and hit green at the ends', 'violin_A4.wav', async p => {
-  await p.addInitScript(() => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: 'dark' })) }) // 아래 색 단언은 다크 토큰 값
+  await darkTheme(p) // 아래 색 단언은 다크 토큰 값
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용 (순환, M10)
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true)
@@ -1152,6 +1154,7 @@ const maxRowRun = p => p.evaluate(() => {
   return best
 })
 await scenario('tuner trace: no horizontal line where the note changes', 'silence_lowfloor.wav', async p => {
+  await darkTheme(p) // 어두운 캔버스 위 흰 트레이스를 센다
   await p.goto(URL_); await sleep(p, 1500)
   // (1) 대조군 — midi 를 고정하면 세그먼트가 절대 생략되지 않는다 = v2.0.1 의 그림. 가로줄이 나와야 한다.
   await p.evaluate(f => window.__tt.tuner.inject(f), TRACE_FRAMES(true))
@@ -1261,6 +1264,7 @@ await scenario('playback: quiet recordings get correction gain and keep playing'
 const traceFixture = name => JSON.parse(readFileSync(join(ROOT, 'test-assets', 'trace', name + '.json'), 'utf8')).frames
   .map(f => (f.cents === null ? null : { cents: f.cents, midi: f.midi }))
 await scenario('tuner trace: an in-tune scale stays connected across note changes (real analyzer output)', 'silence_lowfloor.wav', async p => {
+  await darkTheme(p) // 어두운 캔버스 위 흰·초록 트레이스를 센다
   await p.goto(URL_); await sleep(p, 1500)
   await p.evaluate(f => window.__tt.tuner.inject(f), traceFixture('scale-80bpm'))
   await sleep(p, 250)
