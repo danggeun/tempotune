@@ -58,7 +58,6 @@ export const KO = {
   'audio.interruptedTap': '오디오가 중단됐어요 — 화면을 탭하면 다시 시작해요',
 
   // 메트로놈
-  'metro.stop': '메트로놈 정지',
   'metro.playStop': '메트로놈 재생/정지',
   'metro.expand': '메트로놈 펼치기',
   'metro.expandMore': '메트로놈 더 펼치기',

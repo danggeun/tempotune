@@ -137,17 +137,14 @@ function isCollapsedNow(): boolean {
   return isPhoneLayout() && collapsed && !full
 }
 function applyCollapse(): void {
-  const { playing } = metroStore.get()
   const effective = isCollapsedNow()
   q('metro-body-wrap').classList.toggle('collapsed', effective)
-  q('metro-card').classList.toggle('bar', effective && playing) // 접힌 채 재생: 헤더 점을 키워 원거리에서 박이 보이게
   if (effective) clearDots()
 }
 
-// 폭에 따라 달라지는 것들. 헤더 재생 버튼은 '접힌 채 재생 중' 일 때만 — 펼쳐져 있으면 본체 버튼과 겹친다
+// 폭에 따라 달라지는 것들. 헤더 재생 버튼은 접혀 있을 때만(재생·정지 둘 다) — 펼쳐져 있으면 본체 버튼과 겹친다
 function syncLayout(): void {
-  const { playing, collapsed } = metroStore.get()
-  q('metro-play-hdr-btn').style.display = isPhoneLayout() && playing && collapsed && !metroStore.get().full ? 'flex' : 'none' // 전용 모드는 본체 버튼이 보인다
+  q('metro-play-hdr-btn').style.display = isCollapsedNow() ? 'flex' : 'none'
   applyCollapse()
 }
 
@@ -192,8 +189,7 @@ export function mountMetro(): void {
   settingsStore.select(s => s.subDiv, sd => { sweepResetDir(); qsa('[data-sd]').forEach(b => b.classList.toggle('on', b.dataset.sd === String(sd))); buildBeatVis() }, { immediate: true })
 
   metroStore.select(s => s.playing, playing => {
-    const btn = q('metro-play-btn')
-    btn.textContent = playing ? '■' : '▶'
+    q('metro-play-btn').textContent = q('metro-play-hdr-btn').textContent = playing ? '■' : '▶'
     syncLayout()
     if (playing) buildBeatVis(); else sweepStop()
     applyCollapse()
@@ -210,7 +206,7 @@ export function mountMetro(): void {
   metroStore.select(s => s.lastTick, ({ tick }) => { if (!metroStore.get().playing) return; litBeat(tick); flashBeat(tick) })
 
   // 초기: 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션
-  if (isPhoneLayout()) setTimeout(() => { applyCollapse(); syncSizeBtn() }, 250)
+  if (isPhoneLayout()) setTimeout(() => { syncLayout(); syncSizeBtn() }, 250) // 접히면서 헤더 재생 버튼도 나온다
   syncSizeBtn(); onLangChange(syncSizeBtn)
 }
 

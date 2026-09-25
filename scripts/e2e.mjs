@@ -140,9 +140,21 @@ await scenario('metro: play/stop doesn’t change the size, header bpm', 'silenc
   await p.goto(URL_); await sleep(p, 900)
   const collapsedEl = () => p.evaluate(() => (document.getElementById('metro-body-wrap') || document.getElementById('metro-body')).classList.contains('collapsed'))
   const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
+  const hdrGlyph = () => p.evaluate(() => document.getElementById('metro-play-hdr-btn').textContent)
+  const ledW = () => p.evaluate(() => getComputedStyle(document.querySelector('#beat-vis .led')).width)
   assert.equal(await collapsedEl(), true, 'collapsed after load on phone')
+  // 접힌 채로 켜고 끈다 — 헤더 버튼은 정지 중에도 있다(▶), 점 크기는 켜고 꺼도 같다
+  assert.equal(await hdr(), 'flex', '접혀 있으면 정지 중에도 헤더 버튼'); assert.equal(await hdrGlyph(), '▶')
+  const ledStopped = await ledW()
+  await p.click('#metro-play-hdr-btn'); await sleep(p, 500)
+  assert.equal(await hdrGlyph(), '■'); assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
+  assert.equal(await collapsedEl(), true, '헤더로 켜도 접힌 채')
+  assert.equal(await ledW(), ledStopped, '켜도 헤더 점 크기는 그대로')
+  await p.click('#metro-play-hdr-btn'); await sleep(p, 500)
+  assert.equal(await hdrGlyph(), '▶'); assert.equal(await hdr(), 'flex', '끄고 나서도 헤더 버튼')
   assert.equal(await p.evaluate(() => document.getElementById('metro-size-btn').classList.contains('to-expand')), true, '접힘이면 버튼은 ∧(펼치러)')
   await sizeTap(p); assert.equal(await collapsedEl(), false)
+  assert.equal(await ledW(), ledStopped, '펼침의 헤더 점도 같은 크기')
   assert.equal(await p.evaluate(() => document.getElementById('metro-size-btn').classList.contains('to-full')), true, '펼침이면 버튼은 ⤢(전용으로)')
   await p.click('#metro-play-btn'); await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '■')
@@ -158,7 +170,7 @@ await scenario('metro: play/stop doesn’t change the size, header bpm', 'silenc
   await p.click('#metro-play-hdr-btn'); await sleep(p, 700)
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶')
   assert.equal(await collapsedEl(), true, '정지해도 접힘은 그대로')
-  assert.equal(await hdr(), 'none', '정지하면 헤더 재생 버튼은 사라진다')
+  assert.equal(await hdr(), 'flex', '정지해도 접혀 있으면 헤더 버튼은 남는다'); assert.equal(await hdrGlyph(), '▶')
   // 접힌 채 재생 → 접힌 채로 남는다
   await sizeTap(p); assert.equal(await collapsedEl(), false)
   await swipeDown(p); assert.equal(await collapsedEl(), true)
@@ -364,8 +376,8 @@ await scenario('metro: card drag — grows and shrinks with the finger, a short 
   await drag(-50, { hold: false }); assert.equal(await st(), 'e', '위로 튕기면 펼침')
 })
 
-// 접힌 채 재생: 세 자리 BPM·좁은 폰에서도 헤더 버튼이 카드 안에 있다 — LED 간격만 줄어든다
-for (const w of [360, 384]) await scenario(`layout: collapsed and playing at ${w}px · BPM 200 — the size button stays inside the card`, 'silence_lowfloor.wav', async p => {
+// 접힘: 세 자리 BPM·좁은 폰에서도 헤더 버튼이 카드 안에 있다 — LED 간격만 줄어든다. 재생·정지 모두 같은 배치
+for (const w of [360, 384]) await scenario(`layout: collapsed, stopped and playing, at ${w}px · BPM 200 — the size button stays inside the card`, 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
   const bpm = () => p.evaluate(() => +document.getElementById('metro-hdr-bpm').textContent)
   const b = await p.locator('#metro-hdr-label').boundingBox()
@@ -373,9 +385,12 @@ for (const w of [360, 384]) await scenario(`layout: collapsed and playing at ${w
   for (let i = 1; i <= 30; i++) await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2 - i * 20)
   await p.mouse.up()
   assert.ok(await bpm() >= 100, '세 자리 BPM: ' + await bpm())
-  await p.keyboard.press('Space'); await waitUntil(p, () => document.getElementById('metro-card').classList.contains('bar'), 3000, 'bar')
-  const r = await p.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect(); const c = R('metro-card'), s = R('metro-size-btn'), pl = R('metro-play-hdr-btn'), v = R('beat-vis'), l = R('metro-hdr-label'); return { size: s.right - c.right, play: pl.left - v.right, vis: v.left - l.right } })
-  assert.ok(r.size <= -8, '크기 버튼 오른쪽 여백 ' + r.size); assert.ok(r.play >= 6 && r.vis >= 6, 'LED 줄이 이웃과 겹치지 않는다 ' + JSON.stringify(r))
+  const measure = () => p.evaluate(() => { const R = id => document.getElementById(id).getBoundingClientRect(); const c = R('metro-card'), s = R('metro-size-btn'), pl = R('metro-play-hdr-btn'), v = R('beat-vis'), l = R('metro-hdr-label'); return { size: s.right - c.right, play: pl.left - v.right, vis: v.left - l.right, w: v.width } })
+  const stopped = await measure()
+  await p.keyboard.press('Space'); await waitUntil(p, () => document.getElementById('metro-play-hdr-btn').textContent === '■', 3000, 'playing')
+  const playing = await measure()
+  for (const r of [stopped, playing]) { assert.ok(r.size <= -8, '크기 버튼 오른쪽 여백 ' + r.size); assert.ok(r.play >= 6 && r.vis >= 6, 'LED 줄이 이웃과 겹치지 않는다 ' + JSON.stringify(r)) }
+  assert.deepEqual(playing, stopped, '켜고 꺼도 헤더 배치가 그대로')
   await p.keyboard.press('Space')
 }, { viewport: { width: w, height: 800 } })
 
@@ -734,7 +749,7 @@ await scenario('metro: the header play button disappears when the screen gets wi
   await p.goto(URL_); await sleep(p, 1200)
   const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
   const collapsed = () => p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed'))
-  // 로드 직후 폰에서는 접혀 있다. 접힌 채 재생을 시작한다 (헤더 버튼이 나오는 유일한 조건)
+  // 로드 직후 폰에서는 접혀 있다. 재생 중에 폭이 바뀌어도 헤더 버튼은 접힘을 따른다
   assert.equal(await collapsed(), true, '폰: 로드 직후 접힘')
   await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 300)
   await swipeDown(p)

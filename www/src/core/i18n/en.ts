@@ -54,7 +54,6 @@ export const EN: Record<TKey, string> = {
   'audio.interruptedMetro': 'Audio was interrupted, so the metronome stopped',
   'audio.interruptedTap': 'Audio was interrupted — tap the screen to restart',
 
-  'metro.stop': 'Stop metronome',
   'metro.playStop': 'Play/stop metronome',
   'metro.expand': 'Expand metronome',
   'metro.expandMore': 'Expand metronome further',

@@ -22,7 +22,8 @@ User-facing scenarios. `[A]` items are automated (CI checks them every time); `[
 
 ## Metronome
 - [A] Plays without the mic
-- [A] Play/stop from the card button, the header button (collapsed and playing) and the space bar
+- [A] Play/stop from the card button, the header button (whenever collapsed — ▶ when stopped, ■ when playing) and the space bar
+- [A] Header beat dots are one size in collapsed and expanded, playing or stopped
 - [A] BPM −/+, drag (2 px per BPM), clamped to 40–200
 - [A] Time signatures none/2/4/3/4/4/4/6/8, subdivisions; 6/8 disables subdivisions
 - [A] Collapsed and playing: the card and tuner header flash on beats

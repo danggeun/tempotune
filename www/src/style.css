@@ -177,9 +177,9 @@ button{font-family:inherit;color:inherit;}
 #metro-hdr-label .note-glyph{width:8.1px;height:20px;vertical-align:0;}
 #metro-hdr-title{display:none;font-size:var(--fs-sm);color:var(--ink);font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 */
 #metro-card.full #metro-hdr-label{display:none;} #metro-card.full #metro-hdr-title{display:flex;}
-/* LED 9칸(metro.ts HDR_LEDS). 폭이 모자라면(세 자리 BPM·좁은 폰·접힌 채 재생) 간격만 줄인다 — 고정 gap 이면 오른쪽 버튼이 카드 밖으로 밀린다.
+/* LED 9칸(metro.ts HDR_LEDS). 폭이 모자라면(세 자리 BPM·좁은 폰·접힘의 재생 버튼) 간격만 줄인다 — 고정 gap 이면 오른쪽 버튼이 카드 밖으로 밀린다.
    max-width = 점 9개 + 간격 7px×8 이라 여유가 있을 땐 전과 같은 그림 */
-#beat-vis{display:flex;align-items:center;justify-content:space-between;height:22px;width:100%;min-width:0;max-width:calc(9*10px + 8*7px);justify-self:center;}
+#beat-vis{display:flex;align-items:center;justify-content:space-between;height:22px;width:100%;min-width:0;max-width:calc(9*13px + 8*7px);justify-self:center;}
 /* grid 세 번째 칸에 고정 — 전용 모드에서 #beat-vis 가 display:none 이라 grid 항목이 줄어도 오른쪽 끝에 남게 */
 #metro-hdr-right{display:flex;align-items:center;gap:6px;grid-column:3;justify-self:end;}
 #metro-play-hdr-btn{width:44px;height:var(--h-compact);background:var(--accent-fill);border:none;border-radius:var(--r-sm);color:var(--on-accent);font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;}
@@ -227,8 +227,7 @@ button{font-family:inherit;color:inherit;}
 .led.hit-sub{background:var(--accent);transform:scale(1.25);box-shadow:0 0 8px rgba(var(--accent-rgb),.8);}
 .led.hit-beat{background:var(--ok);transform:scale(1.4);box-shadow:0 0 12px rgba(var(--ok-rgb),.9);}
 .led.hit-acc{background:var(--acc-led);transform:scale(1.4);box-shadow:var(--acc-glow);} /* 첫 박은 박과 같은 크기, 색으로만 구분 */
-#beat-vis .led{width:10px;height:10px;}
-#metro-card.bar #beat-vis .led{width:13px;height:13px;} #metro-card.bar #beat-vis{max-width:calc(9*13px + 8*7px);} /* 접힌 채 재생: 90 cm 에서 보이는 크기 */
+#beat-vis .led{width:13px;height:13px;} /* 90 cm 보면대에서 보이는 크기. 접힘·펼침, 재생·정지 모두 같다 — 켜고 끌 때 줄이 커졌다 작아지지 않게 */
 #sweep{display:none;padding:4px 0 0;}
 #metro-card.full #sweep{display:block;}
 #sweep-leds{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 2px;}
