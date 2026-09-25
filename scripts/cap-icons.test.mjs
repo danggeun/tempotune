@@ -17,25 +17,25 @@ const GENERATED = `<?xml version="1.0" encoding="utf-8"?>
     </monochrome>
 </adaptive-icon>`
 
-describe('stripInset — 두 번 축소되던 inset 래퍼 제거 (C2 원인 ②)', () => {
-  test('foreground·monochrome 의 inset 을 벗기고 드로어블을 그대로 쓴다', () => {
+describe('stripInset — removes the inset wrapper that shrank the icon twice', () => {
+  test('strips the inset from foreground and monochrome and uses the drawable directly', () => {
     const out = stripInset(GENERATED)
     expect(out).not.toMatch(/inset/)
     expect(out).toContain('<foreground android:drawable="@mipmap/ic_launcher_foreground"/>')
     expect(out).toContain('<monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>')
     expect(out).toContain('<background android:drawable="@color/ic_launcher_background"/>') // 배경은 손대지 않는다
   })
-  test('멱등 — 이미 벗겨진 XML 은 그대로', () => {
+  test('idempotent — already stripped XML stays the same', () => {
     const once = stripInset(GENERATED)
     expect(stripInset(once)).toBe(once)
   })
-  test('inset 이 없던 XML(다른 도구가 만든 것)도 그대로 둔다', () => {
+  test('leaves XML without an inset (made by other tools) alone', () => {
     const plain = '<adaptive-icon><foreground android:drawable="@mipmap/x"/></adaptive-icon>'
     expect(stripInset(plain)).toBe(plain)
   })
 })
 
-describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
+describe('applyIcons — replaces mipmaps', () => {
   function fixture() {
     const root = mkdtempSync(join(tmpdir(), 'gp-icons-'))
     const res = join(root, 'res'), src = join(root, 'src')
@@ -51,7 +51,7 @@ describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
     writeFileSync(join(res, 'mipmap-anydpi-v26', 'ic_launcher_round.xml'), GENERATED)
     return { res, src }
   }
-  test('밀도마다 정식 크기 전경으로 덮고 XML 2개를 고친다', () => {
+  test('writes a full-size foreground per density and fixes both XML files', () => {
     const { res, src } = fixture()
     const r = applyIcons(res, src, () => {})
     expect(r).toEqual({ copied: 5, xml: 2, skipped: false })
@@ -61,10 +61,10 @@ describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
     }
     expect(readFileSync(join(res, 'mipmap-anydpi-v26', 'ic_launcher.xml'), 'utf8')).not.toMatch(/inset/)
   })
-  test('android/ 가 없으면 조용히 끝낸다 (생성물이라 리포에 없다)', () => {
+  test('quietly does nothing without android/ (generated, not in the repo)', () => {
     expect(applyIcons('/nonexistent-res', '/nonexistent-src', () => {}).skipped).toBe(true)
   })
-  test('두 번 돌려도 같은 결과 (cap:assets 는 매번 실행된다)', () => {
+  test('same result when run twice (cap:assets runs every time)', () => {
     const { res, src } = fixture()
     applyIcons(res, src, () => {})
     const r2 = applyIcons(res, src, () => {})
@@ -72,7 +72,7 @@ describe('applyIcons — mipmap 교체 (C2 원인 ①)', () => {
   })
 })
 
-describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 목표)', () => {
+describe('generated foreground — full size and visible mark width', () => {
   const dir = join(import.meta.dirname, '..', 'resources', 'android')
   const files = Object.entries(ADAPTIVE_PX)
   test.skipIf(!existsSync(dir))('밀도별 크기가 108dp 정식값이다', () => {
@@ -111,7 +111,7 @@ describe('생성된 전경 실측 — 정식 크기 + 보이는 마크 폭 (C2 �
 })
 
 // 타일색의 원천은 resources/icon-src.png 의 모서리 픽셀(gen-icons 가 거기서 읽는다). package.json 의 cap:assets 색은 손으로 맞추는 값
-describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
+describe('the icon background color is defined in one place', () => {
   const src = new URL('../resources/icon-src.png', import.meta.url)
   test.skipIf(!existsSync(src))('icon-src 의 크림 = package.json 의 adaptive 배경색', () => {
     const p = PNG.sync.read(readFileSync(src)); const i = (3 * p.width + 3) * 4
@@ -125,7 +125,7 @@ describe('아이콘 배경색은 한 곳에서만 정해진다', () => {
 })
 
 // maskable 규격: 중앙 지름 80 % 원 안에 내용이 있어야 한다. 잉크가 가로로 넓어 폭이 아니라 대각선(= 필요한 원 지름)이 걸리는 값
-describe('K8 — maskable 아이콘은 안전영역 안에 여백을 남긴다', () => {
+describe('maskable icons keep a margin inside the safe zone', () => {
   const file = new URL('../www/public/icons/icon-maskable-512.png', import.meta.url)
   test.skipIf(!existsSync(file))('필요한 원 지름 ≤ 76 % (규격 80 % 에 최소 4 %p 여유)', () => {
     const p = PNG.sync.read(readFileSync(file))

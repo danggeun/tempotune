@@ -14,14 +14,14 @@ describe('tracker', () => {
     expect(t.push(440, 0.6, true, A).midi).toBe(-1)
     expect(t.push(440, 0.6, true, A).midi).toBe(69)
   })
-  test('hysteresis: 순간적인 ±60¢ 튐은 음이름을 유지한다 (평활된 표시값이 아직 반음 절반 안)', () => {
+  test('hysteresis: a momentary ±60¢ jump keeps the note name (the smoothed value is still within half a semitone)', () => {
     const t = createTracker()
     t.push(440, 0.95, true, A)
     const up60 = 440 * Math.pow(2, 60 / 1200)
     // 3프레임까지는 평활 때문에 표시값이 +40 ¢ 을 넘지 않는다 → 라벨 유지
     for (let i = 0; i < 3; i++) expect(t.push(up60, 0.95, true, A).midi).toBe(69)
   })
-  test('hysteresis: 지속적인 +60¢ 는 결국 이웃 음으로 이름이 바뀐다 (그 음이 실제로 더 가깝다) — B14', () => {
+  test('hysteresis: a sustained +60¢ eventually switches to the neighbor (it really is closer)', () => {
     const t = createTracker()
     t.push(440, 0.95, true, A)
     const up60 = 440 * Math.pow(2, 60 / 1200)
@@ -49,7 +49,7 @@ describe('tracker', () => {
     expect(r.midi).toBe(70); expect(Math.abs(1200 * Math.log2(r.hz / 466.16))).toBeLessThan(15)
   })
 
-  test('표시 일관성: cents(= dispA − 라벨 중심)는 항상 ±50 ¢ 안', () => {
+  test('display consistency: cents (= dispA − label center) always within ±50 ¢', () => {
     // 재현: 한 방향으로 4프레임 이상 움직이면 적응 부스트가 dispA 를 새 음까지 끌어다 놓는데,
     // 라벨은 switchFrames 만큼 기다린다 → 그 사이 화면에 두 음의 간격(100~190 ¢)이 찍혔다.
     const t = createTracker()
@@ -65,7 +65,7 @@ describe('tracker', () => {
     expect(worst).toBeLessThanOrEqual(50)
   })
 
-  test('유지(held) 카운트: 끊긴 프레임마다 1씩 올라가고, 새 측정이면 0 (트레이스가 가로줄을 남기지 않게)', () => {
+  test('held count: +1 per missing frame, 0 on a fresh measurement (so the trace leaves no horizontal line)', () => {
     const t = createTracker()
     for (let i = 0; i < 4; i++) expect(t.push(440, 0.95, true, A).held).toBe(0)
     expect(t.push(-1, 0, false, A).held).toBe(1)

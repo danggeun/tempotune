@@ -1,123 +1,100 @@
-# 기능 체크리스트
+# Feature checklist
 
-사용자 관점 시나리오. 자동화되는 항목은 `[A]`(CI 가 매번 확인), 실기기에서만 되는 항목은 `[D]`(릴리즈 전 한 번에 확인).
+User-facing scenarios. `[A]` items are automated (CI checks them every time); `[D]` items need a real device (check once before a release).
 
-## 시작 / 마이크
-- [A] 첫 진입 → 팝업 없이 바로 마이크를 연다(iOS 웹은 시작 버튼 먼저). 브라우저가 제스처를 요구하면 시작 버튼
-- [A] 권한 이미 허용 → 자동으로 마이크 켜짐, 헤더 MIC 버튼 숨김
-- [A] 권한이 차단된 상태 → 차단 안내 팝업(설정 경로), 헤더 MIC 버튼으로 재시도 가능
-- [A] AudioContext가 suspended로 시작 → 시작 버튼, 탭하면 진행
-- [D] Capacitor: 앱 시작 시 마이크 자동 시도, 거부 시 "권한 허용" 토스트
+## Startup / mic
+- [A] First launch opens the mic without a popup (iOS web shows a start button first). If the browser requires a gesture, a start button appears
+- [A] Permission already granted → mic turns on automatically, header MIC button hidden
+- [A] Permission blocked → popup explaining where to allow it; the header MIC button can retry
+- [A] AudioContext starts suspended (for example after an automatic update reload) → start button, and a tap anywhere resumes
+- [D] Android app: tries the mic on launch; a toast explains how to allow it if denied
 
-## 튜너
-- [A] 440 Hz 입력, A=442 설정 → "라 4, −8 ¢" (WAV 주입 e2e로 확인됨)
-- [A] +20 ¢ 입력 → +12 ¢ 표시 (442 기준 보정 포함)
-- [A] 첼로 C2(65 Hz) → "도 2"
-- [A] 무음 → "--", 게이지 바늘 중앙, 히스토리 비어 있음
-- [A] In-tune 범위 안이면 음이름 초록, 카드 `in-tune` 클래스, 히스토리 초록 라인
-- [A] 반음(♯) 음은 이명동음(♭) 병기
-- [A] 기준음 드럼(410–466 Hz) 드래그 → A= 표시 갱신, cents 재계산, 설정 저장
-- [A] 설정: In-tune 범위 ±5/10/15/20/25 → 게이지 초록 영역 폭 변경
-- [A] 설정: 반응 속도 느림/보통/빠름, 마이크 감도 낮음/보통/높음 → 저장·복원
-- [D] 메트로놈 클릭 중 튜너가 클릭에 반응하지 않음 (Phase 2: 클릭 구간 프레임 폐기)
+## Tuner
+- [A] 440 Hz input with A=442 → A4 (라4), −8 ¢ (WAV injection e2e)
+- [A] Cello C2 (65 Hz) → C2 (도2)
+- [A] Silence → "--", empty history
+- [A] Inside the tolerance the note turns green, the card gets `in-tune`, the band is green
+- [A] Sharps show the enharmonic flat
+- [A] Reference drum (410–466 Hz) drag → A= updates, cents recalculated, setting saved
+- [A] Settings: tolerance ±5/10/15/20/25 changes the band width
+- [A] Settings: response slow/normal/fast, mic sensitivity low/normal/high → saved and restored
+- [A] The tuner keeps working while the metronome clicks (only click windows are down-weighted)
 
-## 메트로놈
-- [A] 마이크 없이도 재생 시작 가능
-- [A] 재생/정지 토글 (본체 버튼, 헤더 버튼, 스페이스바)
-- [A] BPM −/+ 버튼, 드래그(2 px/BPM), 40–200 범위 클램프
-- [A] 박자 2/4·3/4·4/4·6/8, 세분 ♩/♩♩/♩♩♩/♩. — 6/8 선택 시 세분 비활성
-- [A] 강박에 카드 flash + 튜너 헤더 flash(폰), 약박 lit
-- [A] 폰 폭(<700px)에서 재생 시 본체 접힘, 헤더에 ♩BPM 표시
-- [A] 접기/펼치기 버튼(▲/▼) 애니메이션 후 스냅 없음
-- [A] 볼륨 슬라이더(본체/패드 동기화) → 저장·복원
-- [A] 녹음 중에는 클릭 무음 + 시각 피드백 유지
-- [A] 박자 정확도: 워클릿이 120 bpm 클릭을 20 s 동안 ±1 샘플로 렌더 (OfflineAudioContext e2e). 화면 꺼짐/백그라운드에서도 오디오 스레드는 스로틀되지 않음 (Phase 3)
-- [A] 재생 중 BPM 변경은 재시작 없이 다음 틱부터 반영 (Phase 3)
+## Metronome
+- [A] Plays without the mic
+- [A] Play/stop from the card button, the header button (collapsed and playing) and the space bar
+- [A] BPM −/+, drag (2 px per BPM), clamped to 40–200
+- [A] Time signatures none/2/4/3/4/4/4/6/8, subdivisions; 6/8 disables subdivisions
+- [A] Collapsed and playing: the card and tuner header flash on beats
+- [A] Playing never changes the size; the size button cycles collapsed → expanded → full → collapsed
+- [A] Dragging the card follows the finger: up grows a step, down shrinks a step; a short drag springs back
+- [A] Volume slider (card and full mode stay in sync) → saved and restored
+- [A] While recording, clicks are silent and beats stay visible
+- [A] Timing: the worklet renders 120 bpm with ≤1-sample jitter over 20 s (OfflineAudioContext e2e)
+- [A] Changing BPM while playing takes effect on the next tick without restarting
+- [A] Full mode fits every tested screen size without scrolling; dial text keeps its rendered size
 
-## 기준음
-- [A] 도~시(♯ 포함) + 도↑ 버튼, 같은 버튼 재탭 시 정지
-- [A] 옥타브 −/+ (2–6), 재생 중 변경 시 즉시 음 갱신
-- [A] 메뉴와 ref 패널 양쪽에서 동일 동작
-- [A] 마이크 없이도 기준음 재생 (Phase 3: 단일 AudioContext)
+## Reference tone
+- [A] C–B (with sharps) and C↑; tapping the same button again stops it
+- [A] Octave −/+ (2–6), changes apply immediately while playing
+- [A] Plays without the mic
 
-## 녹음
-- [A] 헤더 REC / 메뉴 버튼으로 시작·정지, 타이머 표시
-- [A] 마이크 없으면 "마이크를 먼저 켜주세요"
-- [A] 완료 후 목록 최상단에 표시명 `M/D HH:MM`(저장명 `YYYYMMDD_HHMM`), 길이 표시 (Phase 4)
-- [A] 최신 1개 펼침, 나머지 "이전 녹음 N개 보기"
-- [A] 재생/정지, 시크, 한 번에 하나만 재생
-- [A] 삭제 → 목록·IndexedDB에서 제거, 5 s 안에 토스트 탭으로 실행 취소 (Phase 4)
-- [A] 앱 재시작 후 목록 유지 (IndexedDB), 30일 지난 항목 삭제
-- [A] 다운로드: 웹은 브라우저 다운로드, Android 앱은 Filesystem(캐시)+공유 시트 (Phase 4: platform.saveFile) — [D] 실기기에서 공유 시트 확인
+## Recording
+- [A] Start/stop from the header REC or the menu, elapsed time shown
+- [A] Without the mic: "Turn on the mic first"
+- [A] New recording at the top of the list, named `YYYYMMDD_HHMM`, with its length
+- [A] Newest one open, the rest behind "Show N older recordings"
+- [A] Play/pause, seek, only one plays at a time
+- [A] Delete removes it from the list and IndexedDB; undo within 5 s
+- [A] List survives a restart; items older than 30 days are deleted (can be turned off); last-7-days notice with "Keep"
+- [A] An unfinished recording (app killed) is recovered on the next launch
+- [A] Download: browser download on the web; Filesystem + share sheet in the Android app — [D] check the share sheet on a device
 
-## 편집기
-- [A] 편집 진입 → 제목, 00:00/길이, 재생 버튼 준비 후 활성
-- [A] 재생/정지, 트랙 탭·드래그 시크
-- [A] 속도 0.5–1.5× (`preservesPitch`)
-- [A] A 설정 → B 설정(A 이후만) → 반복 켜기/끄기, 핸들 드래그 또는 ‹ › ±0.25 s 로 조정, A/B 라벨 탭으로 이동 (Phase 4)
-- [A] webm 길이 Infinity(Android MediaRecorder)에서도 A-B/북마크/진행바 동작 (녹음 길이 폴백 + seek 트릭) (Phase 4)
-- [A] 북마크 추가(0.3 s 이내 중복 방지), 탭 이동, 삭제
-- [A] A-B 저장 → WAV (platform.saveFile)
-- [A] 트랙에 파형 미니맵 (피크는 처음 열 때 계산해 저장, 다음부터 즉시) (Phase 4)
-- [A] 북마크·A-B 구간이 녹음과 함께 저장되어 다시 열거나 재시작해도 유지 (Phase 4, IndexedDB v2)
-- [A] 녹음 저장 실패(용량/프라이빗 모드) 시 안내 토스트 (Phase 4)
-- [A] 파일명 수정 (v1: 재시작 시 원래 이름으로 복귀 — 알려진 버그, Phase 1에서 수정)
-- [A] 뒤로 → 메뉴로 복귀, 오디오 정지, 핸들러 해제
+## Editor
+- [A] Opens with title, 00:00 / length, play button enabled when ready
+- [A] Play/pause, tap or drag the track to seek
+- [A] Speed 0.5–1.5× (`preservesPitch`), remembered per recording
+- [A] Set A → set B (after A only) → loop off / on / from 1 s before; drag handles or nudge ±0.25 s
+- [A] Works when webm reports an infinite duration (Android MediaRecorder)
+- [A] Bookmarks: add (no duplicates within 0.3 s), jump, delete
+- [A] Save A–B → WAV
+- [A] Waveform on the track (peaks computed once and stored)
+- [A] Bookmarks and A-B are stored with the recording and survive a restart
+- [A] Rename persists
+- [A] Back returns to the menu, stops audio, releases handlers
 
-## 타이머
-- [A] 시작/정지/초기화, 연습 시간은 항상, 연주 시간은 감지 중일 때만 증가
-- [A] 15분 무활동 → 마이크 자동 종료 토스트 (Phase 5: 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시 — 이전엔 타이머 안에서만 검사했음)
+## Timer
+- [A] Start/stop/reset; elapsed always counts, playing time only while playing is detected
+- [A] Reset shows an undo toast that restores the counts and running state
+- [A] 15 minutes without sound → mic turns off with a toast
 
-## 완결성 (Phase 5)
-- [A] 오프라인: SW 프리캐시로 네트워크 없이 리로드해도 튜너 동작, DM Mono 자체 호스팅 로드
-- [A] 컨텍스트가 외부에서 멈추면(iOS 'interrupted') 화면 복귀 시 자동 재개, 1.5 s 안에 안 되면 메트로놈 정지 + 안내. ※ Android 는 통화 중 포커스 상실이 state 에 안 나타남(출력만 덕킹) — 통화 후 자동 복귀
-- [A] 앱 업데이트: 새 SW 는 유휴(마이크·메트로놈·녹음·편집기 없음)일 때만 적용 → 실행 중 페이지의 워클릿/워커 청크가 캐시에서 사라지는 창 없음. Capacitor 빌드는 SW 등록 안 함
-- [D] Android 앱이 백그라운드로 가면 녹음을 즉시 저장 (OS 가 백그라운드 마이크를 무음 처리)
-- [A] 메트로놈만 켜도 wake lock (화면이 꺼지면 WebView 가 얼어 박자가 멈춤)
-- [D] `npm run cap:sync` 가 AndroidManifest 에 RECORD_AUDIO / MODIFY_AUDIO_SETTINGS 를 보정
-- [A] 유휴(마이크 off·메트로놈 정지·기준음 없음) 시 컨텍스트 suspend → 오디오 포커스 반환. 다시 시작하면 재개
-- [A] 권한: prompt 상태 팝업 / denied 상태 "차단됨 + 사이트 설정 안내 + 다시 시도" 팝업. 앱에서는 설정 › 앱 › 권한 안내 토스트
-- [A] getUserMedia 오류를 행동 가능한 문장으로 (마이크 없음 / 다른 앱 사용 중 / HTTPS 필요)
-- [A] 조용한 실패 없음: 설정 저장 실패, 녹음 저장소 열기 실패, 편집 정보 저장 실패, wake lock 미지원 모두 토스트
-- [A*] 녹음 60분 상한(벽시계 기준) 시 자동 저장 + 안내 — 코드 경로만 검토, 60분 실행은 e2e 에 없음
-- [A] 워커 프레임 p95 < 12 ms (헤드리스 ≈ 2 ms) — [D] 실제 폰 수치는 window.__tt.stats() 로 확인
-- [D] Android 뒤로가기: 편집기 → 설정 → 메뉴 → 팝업 순으로 닫고, 메인에서는 백그라운드
-- [D] 실기기: 전화 수신 중/후 메트로놈·튜너 복구, 블루투스 이어폰 지연
+## Robustness
+- [A] Offline: the service worker precache lets the tuner run after a reload without network; fonts are self-hosted
+- [A] If the context is stopped from outside (iOS "interrupted"), it resumes on return; if it can't within 1.5 s, the metronome stops with a notice
+- [A] App update: a new service worker is applied only when idle (no mic session in use, metronome, recording or editor)
+- [D] Android app going to the background saves an in-progress recording
+- [A] Idle (mic off, metronome stopped, no reference tone) suspends the context and releases audio focus
+- [A] getUserMedia errors become actionable messages (no mic / another app / HTTPS required)
+- [A] No silent failures: settings save, recording storage, edit info and wake lock problems all show a toast
+- [A] Worker frame p95 < 12 ms in headless Chromium — [D] check real phones with `window.__tt.stats()`
+- [D] Android back button: editor → settings → menu → popup, then background on the main screen
+- [D] Phone calls during and after use, Bluetooth headphone latency
 
-## UI/UX (Phase 6)
-- [A] 다크 모드 토스트가 배경에서 분리됨 (면 + 테두리), 라이트는 검정 필 유지
-- [A] 헤더 REC/MIC/≡, 접기, 뒤로가기, 옥타브 ±, ‹›, 이름 바꾸기, 속도 값, 슬라이더 — 히트 영역 44 px (보이는 크기 유지)
-- [A] 액센트/보조문 대비 AA (라이트 #d12a2a, 다크 #ec4646, --text-3 4.55:1)
-- [A] 타이머 초기화 → "초기화됨 · 실행 취소" 5 s, 되돌리면 카운트와 실행 상태 복원
-- [A] 편집기·목록 플레이어 일시정지 글리프 ❚❚ (메트로놈 ■ 는 정지)
-- [A] 튜너 헤더 상태 점: 마이크 켜짐 무채색 · 컨텍스트 멈춤 앰버 펄스 · 꺼짐 숨김
-- [A] 반복 3상태 꺼짐 → 켜짐 → 1초 전부터(프리롤: A−1 s 부터, B 에서 A−1 s 로)
-- [A] 속도 값 버튼 탭 순환 1.0 → 0.5 → 0.7 → 0.85, 슬라이더 동기화, 녹음별 마지막 속도 복원(재시작 후에도)
-- [A] 목록 메타 줄 "북마크 n · A-B" (있을 때만), 마지막 7일 "n일 후 삭제 · 보관하려면 다운로드", 편집 후 펼침 상태 유지
-- [A] 편집기 진입 .2 s 페이드(파형 유무 무관), 복귀는 즉시
-- [A] 기준음 드럼: 행 전체(라벨 포함) 드래그, 상하 12 px 여유
-- [A] 메뉴/설정/편집 제목 높이 동일(--page-top), 기준음 8버튼 한 줄, 헤더 서브텍스트 한 줄
-- [A] 스크린샷 기준선 12장(팝업 포함) 과 픽셀 일치
-- [D] 실기기: 60–90 cm 에서 음이름·초록 띠 가독, 활 든 손으로 REC/접기/드럼 조작
-- [D] 실기기: 시스템 글꼴 크기 확대 시 튜너 카드 레이아웃 (C1 미결)
+## Look and feel
+- [A] Screenshot baselines: 18 screens (dark, light, English) match pixel for pixel
+- [A] Touch targets are at least 44 px (visible size unchanged)
+- [A] Text and control contrast meets WCAG AA in both themes
+- [A] Theme: dark by default, light in Settings › Appearance, independent of the system setting; applied before the first paint; status bar follows
+- [A] Language: Korean by default, English in Settings › Language; no Korean left on any screen in English, nothing clipped, survives a reload
+- [A] Header LED row fits with a three-digit BPM on 360 px phones
+- [D] Readable from 60–90 cm; REC, size and drum usable while holding a bow
+- [D] Larger system font sizes on the tuner card layout
+- [D] Android 15 edge-to-edge: header clear of the status bar; adaptive launcher icon; app name "TempoTune"
+- [D] iPhone home-screen app: no gap at the bottom (iOS 26), nothing cut off in either theme
 
-## 최종 검토 (Phase 7)
-- [A] 기준음 415/425/432/466 에서 그 주파수가 '라 4, 0 ¢' (이전: 이웃 반음 ±100 ¢) — 단위 10개 + e2e 드럼 415 회귀
-- [A] 메트로놈 120 bpm 세분 재생 중에도 튜너 프레임이 계속 흐름 (클릭 창은 신뢰도만 낮춤)
-- [A*] 녹음 정지 직후 재시작해도 이전 녹음이 온전 — 코드 경로 검토 (세션 클로저), 자동 시나리오 없음
-- [A] 튜너 헤더 'A 듣기' 토글 (마이크 없이도), 게이지 ♭ ♯, 마이크 꺼짐 빈 상태 문구
-- [A] 설정: 음이름 도레미/C D E (보조 줄에 다른 체계), 녹음 보관 30일/계속, 버전 표시
-- [A] 편집기 '구간 확대' — A−2 s ~ B+2 s 창, 핸들·북마크·파형 동일 매핑, A 해제 시 자동 해제
-- [A] 메트로놈 재생이 접힘을 바꾸지 않는다 — 펼친 채 켜면 펼친 채, 접은 채 켜면 접힌 채. 헤더 재생 버튼은 접힌 채 재생 중일 때만
-- [D] 실기기에서 마이크를 두 번 거부한 뒤 설정에서 허용 → 복구되는지
-- [D] Android 15 엣지투엣지에서 헤더가 상태바와 겹치지 않음, 런처 아이콘(adaptive) 이 초록 타일 + 흰 다이얼로 보임, 앱 이름 'TempoTune'
-- [D] Windows 에서 `npm run cap:sync` (cross-env) → Android Studio 서명 APK → 설치 → 설정 화면의 버전이 package.json 과 일치
-
-## 설정 / 기타
-- [A] 화면 항상 켜짐 켜짐/꺼짐 (Wake Lock)
-- [A] 연주 감지: 말소리·잡음은 연주 시간에 포함되지 않음, 지속 현악기음은 ~0.3 s 후부터 카운트 (Phase 2: YAMNet 설정 행 제거)
-- [A] 테마 — 기본 다크, 설정 › 화면에서 라이트. 시스템 설정과 무관. 다크에서 튜너 무대는 앱에서 가장 어두운 면, 라이트에서는 흰 카드
-- [A] 라이트 — 저장된 테마가 첫 그리기 전에 적용(깜빡임 없음). 상태바 글자색도 바로 바뀐다
-- [A] 로고 탭 → 전체화면 토글(웹), Capacitor에서는 무시
-- [D] 상태바 색이 앱 배경과 일치
-- [A] 가로 모드(iPhone, 높이 ≤500px) 차단 안내
+## Settings / other
+- [A] Keep screen on on/off (Wake Lock)
+- [A] Playing detection: speech and noise don't count; sustained string tones count after about 0.3 s
+- [A] Note names 도레미 / C D E in Korean (the other system shown small); always C D E in English
+- [A] Recordings kept 30 days / forever; version shown at the bottom of Settings
+- [A] Landscape on small phones (height ≤ 500 px) shows a notice

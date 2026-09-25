@@ -1,19 +1,19 @@
 import { describe, test, expect } from 'vitest'
 import { fmtHz, createHzReadout } from './hzReadout.ts'
 
-describe('Hz 읽기표시 — 자리 고정', () => {
-  test('값이 2·3·4자리여도 전체 길이가 같다 (Hz 가 안 움직인다)', () => {
+describe('Hz readout — fixed width', () => {
+  test('2-, 3- and 4-digit values have the same length (Hz doesn’t move)', () => {
     const rows = [fmtHz(65.4), fmtHz(196), fmtHz(442.31), fmtHz(1046.5)]
     expect(rows).toEqual(['  65.4 Hz', ' 196.0 Hz', ' 442.3 Hz', '1046.5 Hz'])
     expect(new Set(rows.map(r => r.length)).size).toBe(1)
   })
-  test('무음·비정상은 빈 문자열', () => {
+  test('silence and invalid values give an empty string', () => {
     expect(fmtHz(-1)).toBe(''); expect(fmtHz(0)).toBe(''); expect(fmtHz(NaN)).toBe('')
   })
 })
 
-describe('Hz 읽기표시 — 흔들림 억제', () => {
-  test('새 음은 평활 없이 즉시, 그 뒤엔 100 ms 에 한 번만 갱신', () => {
+describe('Hz readout — jitter control', () => {
+  test('a new note shows immediately without smoothing, then updates once per 100 ms', () => {
     const r = createHzReadout({ alpha: 0.35, everyMs: 100 })
     expect(r.push(440, 69, 0)).toBe(' 440.0 Hz')
     expect(r.push(441, 69, 30)).toBeNull()   // 너무 이르다
@@ -21,17 +21,17 @@ describe('Hz 읽기표시 — 흔들림 억제', () => {
     const t = r.push(441, 69, 100)           // 100 ms 지남 — 평활된 값
     expect(t).not.toBeNull(); expect(t!.trim()).toMatch(/^440\.\d Hz$/)
   })
-  test('같은 값이면 다시 쓰지 않는다 (DOM 안 건드림)', () => {
+  test('the same value isn’t written again (no DOM touch)', () => {
     const r = createHzReadout({ everyMs: 0 })
     expect(r.push(440, 69, 0)).toBe(' 440.0 Hz')
     expect(r.push(440, 69, 1)).toBeNull()
   })
-  test('음이 바뀌면 이전 값에서 미끄러지지 않고 바로 새 값', () => {
+  test('a note change jumps straight to the new value without gliding', () => {
     const r = createHzReadout({ alpha: 0.1, everyMs: 0 })
     r.push(440, 69, 0)
     expect(r.push(659.3, 76, 1)).toBe(' 659.3 Hz') // 라→미: 평활이 남았으면 462 쯤이 나왔을 것
   })
-  test('무음이면 즉시 비우고, 비어 있는 동안 반복 호출은 null', () => {
+  test('silence clears immediately; repeated calls while empty return null', () => {
     const r = createHzReadout()
     r.push(440, 69, 0)
     expect(r.push(-1, -1, 10)).toBe('')

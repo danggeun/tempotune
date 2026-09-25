@@ -23,9 +23,9 @@ describe('computePeaks', () => {
   test('empty input → zeros', () => expect(Array.from(computePeaks([], 4))).toEqual([0, 0, 0, 0]))
 })
 describe('peakOf', () => {
-  test('최대값을 1 로 클램프', () => { expect(peakOf([0.1, 0.9, 0.3])).toBeCloseTo(0.9); expect(peakOf([0.4, 2])).toBe(1); expect(peakOf([])).toBe(0) })
+  test('clamps the maximum to 1', () => { expect(peakOf([0.1, 0.9, 0.3])).toBeCloseTo(0.9); expect(peakOf([0.4, 2])).toBe(1); expect(peakOf([])).toBe(0) })
   // D4: 60분 녹음(20개/초 × 3600초 = 72,000개)에서 Math.max(...arr) 는 인자 개수 한계로 던질 수 있다
-  test('72,000개에서도 던지지 않는다', () => {
+  test('doesn’t throw with 72,000 samples', () => {
     const big = Array.from({ length: 72000 }, (_, i) => (i === 50000 ? 0.77 : 0.1))
     expect(peakOf(big)).toBeCloseTo(0.77)
   })

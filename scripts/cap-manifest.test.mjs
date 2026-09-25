@@ -6,18 +6,18 @@ const TEMPLATE = `<application android:allowBackup="true" android:icon="@mipmap/
 
 describe('setAllowBackup', () => {
   test('true → false', () => expect(setAllowBackup(TEMPLATE)).toContain('android:allowBackup="false"'))
-  test('멱등 — 이미 false 면 그대로', () => {
+  test('idempotent — stays as is when already false', () => {
     const once = setAllowBackup(TEMPLATE)
     expect(setAllowBackup(once)).toBe(once)
   })
-  test('속성이 없으면 추가', () => {
+  test('adds the attribute when missing', () => {
     const out = setAllowBackup('<application android:label="x">')
     expect(out).toBe('<application android:allowBackup="false" android:label="x">')
   })
-  test('true 가 하나도 남지 않는다', () => expect(setAllowBackup(TEMPLATE)).not.toContain('allowBackup="true"'))
+  test('no true is left', () => expect(setAllowBackup(TEMPLATE)).not.toContain('allowBackup="true"'))
 })
 
 describe('isWebBuildHtml', () => {
-  test('Pages 빌드 감지 (레포명 무관)', () => { expect(isWebBuildHtml('<script src="/tempotune/assets/a.js">')).toBe(true); expect(isWebBuildHtml('<link href="/anything/assets/a.css">')).toBe(true) })
-  test('앱 빌드는 통과', () => expect(isWebBuildHtml('<script src="/assets/a.js">')).toBe(false))
+  test('detects a Pages build (any repo name)', () => { expect(isWebBuildHtml('<script src="/tempotune/assets/a.js">')).toBe(true); expect(isWebBuildHtml('<link href="/anything/assets/a.css">')).toBe(true) })
+  test('app builds pass', () => expect(isWebBuildHtml('<script src="/assets/a.js">')).toBe(false))
 })

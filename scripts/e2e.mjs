@@ -70,7 +70,7 @@ const waitUntil = async (p, fn, ms = 4000, what = 'condition') => {
 }
 
 // 튜너
-await scenario('tuner: 440 Hz @A=442 → 라4 −8¢ (in-tune ±15)', 'violin_A4.wav', async p => {
+await scenario('tuner: 440 Hz @A=442 → A4 (라4) −8¢ (in tune at ±15)', 'violin_A4.wav', async p => {
   await p.goto(URL_); const t = await waitNote(p, t => t.note === '라' && /^-(7|8|9) ¢$/.test(t.cents))
   assert.equal(t.oct, '4'); assert.equal(t.inTune, true)
   await sleep(p, 300); assert.equal((await tunerText(p)).note, '라')
@@ -78,12 +78,12 @@ await scenario('tuner: 440 Hz @A=442 → 라4 −8¢ (in-tune ±15)', 'violin_A4
   const hz = await p.evaluate(() => document.getElementById('tuner-hz').textContent)
   assert.match(hz, /^ 4(39|40|41)\.\d Hz$/, 'hz readout: ' + JSON.stringify(hz)); assert.equal(hz.length, 9)
 })
-await scenario('tuner: cello C2 → 도2 (Hz 는 두 자리여도 같은 폭)', 'cello_C2.wav', async p => {
+await scenario('tuner: cello C2 → 도2 (Hz readout keeps its width with two digits)', 'cello_C2.wav', async p => {
   await p.goto(URL_); const t = await waitNote(p, t => t.note === '도'); assert.equal(t.oct, '2')
   await sleep(p, 250); const hz = await p.evaluate(() => document.getElementById('tuner-hz').textContent)
   assert.match(hz, /^  6[456]\.\d Hz$/, 'hz readout: ' + JSON.stringify(hz)); assert.equal(hz.length, 9, 'Hz 자리가 움직이면 안 된다')
 })
-await scenario('tuner: 도♯ shows ♯ + 레♭ enharmonic', 'violin_scale_Amaj.wav', async p => {
+await scenario('tuner: C♯ (도♯) shows ♯ + D♭ (레♭) enharmonic', 'violin_scale_Amaj.wav', async p => {
   await p.goto(URL_); const t = await waitNote(p, t => t.acc === '♯', 8000)
   const enh = await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent); assert.match(enh, /^[A-G]♯\/[A-G]♭$/, '보조 줄 = 다른 체계 하나 + 그쪽 이명동음: ' + enh)
 })
@@ -106,7 +106,7 @@ await scenario('ref drum: drag to 440 → 0¢', 'violin_A4.wav', async p => {
   await waitNote(p, t => /^(\+1|-1|0) ¢$/.test(t.cents) || t.cents === '0 ¢')
 })
 
-await scenario('ref drum: A=415 (baroque) → 440 Hz input reads 라♯4 ≈ 0¢, not 라 +100¢ (final review blocker)', 'violin_A4.wav', async p => {
+await scenario('ref drum: A=415 (baroque) → 440 Hz input reads A♯4 (라♯4) ≈ 0¢, not A +100¢', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   const box = await p.locator('#ref-drum-outer').boundingBox()
   await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse.down(); await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 28 * 27, { steps: 20 }); await p.mouse.up()
@@ -134,7 +134,7 @@ await scenario('settings: note names C D E — tuner shows A with 라 as seconda
 
 // 메트로놈
 // U1: 재생은 접힘을 건드리지 않는다. 접힘은 접기 버튼으로만 바뀐다.
-await scenario('metro: play/stop 이 접힘을 바꾸지 않는다, header bpm', 'silence_lowfloor.wav', async p => {
+await scenario('metro: play/stop doesn’t change the size, header bpm', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 900)
   const collapsedEl = () => p.evaluate(() => (document.getElementById('metro-body-wrap') || document.getElementById('metro-body')).classList.contains('collapsed'))
   const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
@@ -184,7 +184,7 @@ await scenario('metro: bpm +/- , clamp, drag, time sig 6/8 disables subdiv, dots
 })
 // 재생 중 박자표를 바꾸면 마디가 다시 시작되고 첫 박은 왼쪽 끝
 // 전에는 화면의 스윕 방향이 리셋되지 않아 바꾸는 순간의 방향에 따라 좌/우가 갈렸다.
-await scenario('metro: 재생 중 박자를 바꿔도 첫 박은 왼쪽부터', 'silence_lowfloor.wav', async p => {
+await scenario('metro: changing the time signature while playing starts the first beat on the left', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
   await sizeTap(p); await sizeTap(p) // 전용 모드 (13칸 줄이 크게 보인다)
   await p.click('#metro-play-btn'); await sleep(p, 300)
@@ -208,7 +208,7 @@ await scenario('metro: 재생 중 박자를 바꿔도 첫 박은 왼쪽부터', 
   assert.equal(await firstBeatCell(), 0, '세분을 바꿔도 첫 박은 왼쪽 끝')
   await p.click('#metro-play-btn')
 })
-await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다', 'silence_lowfloor.wav', async p => {
+await scenario('metro: beats-only mode — no bars, no first-beat accent', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await sizeTap(p)
   await p.click('[data-ts="1"]')
   assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '1', '정박 버튼이 켜진다')
@@ -220,7 +220,7 @@ await scenario('metro: 정박 모드 — 마디도 첫 박 강세도 없다', 's
   await p.click('#metro-play-btn')
   assert.equal(sawAccent, false, '정박 모드에서는 액센트가 없어야 한다')
 })
-await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤더·마이크는 그대로, LED 가 끝→끝으로 쓸고 양 끝에서 초록', 'violin_A4.wav', async p => {
+await scenario('metro: full mode is the second expanded step — only the tuner hides, header and mic stay, LEDs sweep end to end and hit green at the ends', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용 (순환, M10)
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true)
@@ -285,7 +285,7 @@ await scenario('metro: 전용 모드 = 펼침 2단계 — 튜너만 숨김, 헤�
   assert.equal(await flashesWhile(), false, '펼치면 LED 줄이 박을 말하므로 화면은 칠하지 않는다')
   await p.click('#metro-play-btn')
 })
-await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝에서 멈춤, 용어·눈금', 'silence_lowfloor.wav', async p => {
+await scenario('metro: full-mode dial — BPM follows the ring, stops at the ends, terms and ticks', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
   await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용
   // 40~200: 5 마다 눈금(33), 20 마다 숫자(9), 용어 4
@@ -324,7 +324,7 @@ await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝
   await p.click('#metro-size-btn')
 })
 // 카드 끌기: 손가락을 따라 높이가 바뀌고, 조금 끌다 멈춰 놓으면 제자리, 충분히 끌면 다음 단계. 위아래 모두
-await scenario('metro: 카드 끌기 — 손을 따라 커지고 줄어든다, 덜 끌면 제자리, 충분히 끌면 한 단계 (위·아래)', 'silence_lowfloor.wav', async p => {
+await scenario('metro: card drag — grows and shrinks with the finger, a short drag springs back, a long drag moves one step (up and down)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1200)
   const st = () => p.evaluate(() => { const c = document.getElementById('metro-card'); return c.classList.contains('full') ? 'f' : document.getElementById('metro-body-wrap').classList.contains('collapsed') ? 'c' : 'e' })
   const cardH = () => p.evaluate(() => document.getElementById('metro-card').getBoundingClientRect().height)
@@ -362,7 +362,7 @@ await scenario('metro: 카드 끌기 — 손을 따라 커지고 줄어든다, �
 })
 
 // 접힌 채 재생: 세 자리 BPM·좁은 폰에서도 헤더 버튼이 카드 안에 있다 — LED 간격만 줄어든다
-for (const w of [360, 384]) await scenario(`layout: 접힌 채 재생 ${w}px · BPM 200 — 크기 버튼이 카드 밖으로 밀리지 않는다`, 'silence_lowfloor.wav', async p => {
+for (const w of [360, 384]) await scenario(`layout: collapsed and playing at ${w}px · BPM 200 — the size button stays inside the card`, 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
   const bpm = () => p.evaluate(() => +document.getElementById('metro-hdr-bpm').textContent)
   const b = await p.locator('#metro-hdr-label').boundingBox()
@@ -377,7 +377,7 @@ for (const w of [360, 384]) await scenario(`layout: 접힌 채 재생 ${w}px · 
 }, { viewport: { width: w, height: 800 } })
 
 // 펼침 → 펼침2: 튜너가 같이 줄어들며 카드가 위로 커진다 (튜너가 즉시 사라지면 카드가 위에서부터 아래로 커져 보인다)
-await scenario('metro: 펼침 → 펼침2 전환 동안 튜너도 함께 줄어든다', 'silence_lowfloor.wav', async p => {
+await scenario('metro: expanded → full shrinks the tuner along with it', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await sizeTap(p)
   await p.click('#metro-size-btn')
   const mid = await p.evaluate(() => ({ tuner: document.getElementById('tuner-card').offsetHeight, anims: document.getAnimations().map(a => a.effect.target.id).filter(Boolean) }))
@@ -394,7 +394,7 @@ const LAYOUT_MATRIX = [
   ['Android 소형', 360, 640, 12, 12], ['iPhone SE', 375, 667, 12, 12], ['iPhone 13 mini', 375, 812, 59, 46],
   ['iPhone 15', 393, 852, 59, 46], ['Pixel', 412, 915, 36, 30], ['iPhone Pro Max', 430, 932, 59, 46], ['태블릿', 768, 1024, 24, 20],
 ]
-for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: 전용 모드 ${name} ${w}×${h} — 스크롤·넘침 0, 글자 렌더 크기 유지`, 'silence_lowfloor.wav', async p => {
+for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: full mode ${name} ${w}×${h} — no scroll or overflow, text keeps its rendered size`, 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})
   await p.addStyleTag({ content: `#app{padding-top:${top}px!important;padding-bottom:${bot}px!important}` })
   // 넓은 화면은 항상 펼침이라 펼침2까지 누르는 횟수가 다르다 — 될 때까지 누른다
@@ -512,7 +512,7 @@ await scenario('i18n: English mic popup when the mic is blocked', 'silence_lowfl
 }, { permissions: [] })
 
 // 화면 테마: 기본 다크, 설정에서 라이트 → 첫 그리기부터 적용·영속, 튜너 캔버스까지 다시 그림
-await scenario('theme: 다크 기본 → 라이트 전환·영속(첫 그리기 전 적용), 상태바 색, 튜너 캔버스, 다시 다크', 'violin_A4.wav', async (p, ctx) => {
+await scenario('theme: dark by default → light persists (applied before first paint), status bar color, tuner canvas, back to dark', 'violin_A4.wav', async (p, ctx) => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   const st = () => p.evaluate(() => ({ attr: document.documentElement.dataset.theme ?? null, meta: document.querySelector('meta[name="theme-color"]').content, bg: getComputedStyle(document.body).backgroundColor, card: getComputedStyle(document.getElementById('tuner-card')).backgroundColor }))
   const canvasPx = () => p.evaluate(() => { const c = document.getElementById('tuner-history'); const d = c.getContext('2d').getImageData(2, 2, 1, 1).data; return d[0] + d[1] + d[2] })
@@ -540,7 +540,7 @@ await scenario('theme: 다크 기본 → 라이트 전환·영속(첫 그리기 
 
 // 녹음 / 편집
 // 녹음 중 조각이 IDB 에 남아 있으면(앱이 죽었다) 다음 실행에서 항목으로 복구된다
-await scenario('rec: 끝내지 못한 녹음의 조각이 다음 실행에서 복구된다', 'violin_A4.wav', async p => {
+await scenario('rec: chunks of an unfinished recording are recovered on the next launch', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   // 짧게 녹음해 진짜 조각(헤더가 있는 첫 블롭)을 얻고, 그걸 '끝나지 않은 세션' 인 것처럼 chunks 에 넣는다
   await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
@@ -564,7 +564,7 @@ await scenario('rec: 끝내지 못한 녹음의 조각이 다음 실행에서 �
   await p.reload(); await waitNote(p, t => t.note === '라'); await sleep(p, 800)
   assert.equal(await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item').length), before + 1, '다시 켜도 중복 복구는 없다')
 })
-await scenario('rec: start/stop → list item, persists reload, rename persists (phase1 fix), delete', 'violin_A4.wav', async p => {
+await scenario('rec: start/stop → list item, persists reload, rename persists, delete', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 1500)
   assert.equal(await p.evaluate(() => document.getElementById('rec-hdr-btn').classList.contains('rec-on')), true)
@@ -598,7 +598,7 @@ await scenario('rec: start/stop → list item, persists reload, rename persists 
   await p.reload(); await sleep(p, 1200); assert.equal((await names()).length, 1, 'restored item persisted')
   await p.click('#menu-btn'); await p.click('[data-action="delete"][data-idx="0"]'); await sleep(p, 5600); assert.equal((await names()).length, 0)
 })
-await scenario('rec: 연속 삭제 두 건 → 실행 취소 토스트가 각각 살아 있다', 'violin_A4.wav', async p => {
+await scenario('rec: two deletes in a row → each undo toast stays alive', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   const names = () => p.evaluate(() => Array.from(document.querySelectorAll('#rec-list .rec-item-name')).map(e => e.textContent))
   for (let i = 0; i < 2; i++) { await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800) }
@@ -613,7 +613,7 @@ await scenario('rec: 연속 삭제 두 건 → 실행 취소 토스트가 각각
   await p.click('#toast'); await sleep(p, 400) // 남아 있던 첫 번째 토스트
   assert.equal((await names()).length, 2, '첫 번째 실행 취소도 살아 있다')
 })
-await scenario('rec: 남기기 — 예고문 안에서만, 토글·유지·설정 꺼지면 숨김', 'violin_A4.wav', async p => {
+await scenario('rec: keep — only inside the notice, toggles, persists, hidden when auto-delete is off', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   await p.click('#menu-btn'); await sleep(p, 400)
@@ -682,7 +682,7 @@ await scenario('editor: A/B/loop/bookmark flows', 'violin_A4.wav', async p => {
   assert.equal(await p.evaluate(() => document.getElementById('ed-speed-val').textContent), '0.75×')
 })
 
-await scenario('keys: Space 의 주인은 지금 보이는 화면', 'violin_A4.wav', async p => {
+await scenario('keys: Space belongs to the screen that is showing', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   const metroOn = () => p.evaluate(() => document.getElementById('metro-play-btn').textContent === '■')
   const edGlyph = () => p.evaluate(() => document.getElementById('ed-play-btn').textContent)
@@ -705,7 +705,7 @@ await scenario('keys: Space 의 주인은 지금 보이는 화면', 'violin_A4.w
   await p.keyboard.press('Space'); await sleep(p, 400); assert.equal(await edGlyph(), '▶', '한 번 더 누르면 멈춘다')
 })
 
-await scenario('keys: 닫힌 메뉴·설정은 Tab 순서에 없다', 'violin_A4.wav', async p => {
+await scenario('keys: closed menu and settings are out of the Tab order', 'violin_A4.wav', async p => {
   await p.goto(URL_); await sleep(p, 1200)
   const inside = []
   for (let i = 0; i < 30; i++) {
@@ -727,7 +727,7 @@ await scenario('keys: 닫힌 메뉴·설정은 Tab 순서에 없다', 'violin_A4
   assert.equal(reached, true, '열린 메뉴는 포커스를 받는다')
 })
 
-await scenario('metro: 재생 중에 화면이 넓어지면 헤더 재생 버튼이 사라진다', 'silence_lowfloor.wav', async p => {
+await scenario('metro: the header play button disappears when the screen gets wide while playing', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1200)
   const hdr = () => p.evaluate(() => getComputedStyle(document.getElementById('metro-play-hdr-btn')).display)
   const collapsed = () => p.evaluate(() => document.getElementById('metro-body-wrap').classList.contains('collapsed'))
@@ -769,7 +769,7 @@ await scenario('timer: elapsed counts, detected counts while playing, reset', 'v
   await p.click('#timer-toggle-btn'); await sleep(p, 1200); await p.click('#timer-reset-btn'); await p.click('#toast'); await sleep(p, 100)
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지', 'undo restores running state')
 })
-await scenario('ref tone: toggle on/off, octave label both places, 도↑', 'violin_A4.wav', async p => {
+await scenario('ref tone: toggle on/off, octave label both places, C↑ (도↑)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#menu-btn'); await p.click('#menu-overlay .ref-note-btn[data-note="라"]')
   assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 1, 'note on')
@@ -781,7 +781,7 @@ await scenario('ref tone: toggle on/off, octave label both places, 도↑', 'vio
 })
 // 아이폰 웹은 시작 버튼을 먼저 받는다 (그 탭 안에서 화면 켜짐 + 마이크). UA 로 isIOS() 를 흉내 낸다
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'
-await scenario('ios: 첫 실행은 시작 버튼 — 탭 전엔 마이크가 닫혀 있고, 탭하면 열리고 버튼이 걷힌다', 'violin_A4.wav', async p => {
+await scenario('ios: first launch shows a start button — mic closed until tapped, then it opens and the button goes away', 'violin_A4.wav', async p => {
   await p.goto(URL_); await sleep(p, 900)
   const before = await p.evaluate(() => ({ hint: document.getElementById('tuner-card').classList.contains('tap-hint'), sub: document.getElementById('tuner-start-sub').textContent, mic: window.__tt.stats().micOpen, btnVisible: getComputedStyle(document.getElementById('tuner-start')).display !== 'none' }))
   assert.deepEqual(before, { hint: true, sub: '마이크 사용을 물어볼게요', mic: false, btnVisible: true }, '탭 전: 시작 버튼 + 부제, 마이크는 닫힘')
@@ -793,7 +793,7 @@ await scenario('ios: 첫 실행은 시작 버튼 — 탭 전엔 마이크가 닫
   assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), false, '열리면 버튼이 걷힌다')
   await waitNote(p, t => t.note === '라')
 }, { userAgent: IOS_UA })
-await scenario('lifecycle: 마이크를 여는 도중에 숨겨지면 뒤에서 열린 채 남지 않고, 돌아오면 다시 연다', 'violin_A4.wav', async p => {
+await scenario('lifecycle: hidden while the mic is opening → not left open in the background, reopens on return', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   // 숨김 → 마이크 놓음 → 보임(재개 시작) → 재개가 끝나기 전에 다시 숨김 → 보임
   await p.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')) })
@@ -912,7 +912,7 @@ await scenario('editor: waveform appears; A/B + bookmark persist across close/re
 })
 
 // UI/UX
-await scenario('ux: editor pause glyph ❚❚ (not ■), loop cycles 꺼짐→켜짐→1초 전부터→꺼짐 with pre-roll, entry fade class', 'violin_scale_Amaj.wav', async p => {
+await scenario('ux: editor pause glyph ❚❚ (not ■), loop cycles off → on → from 1 s before → off with pre-roll, entry fade class', 'violin_scale_Amaj.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000)
   await p.click('#rec-hdr-btn'); await sleep(p, 4200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
@@ -948,7 +948,7 @@ await scenario('ux: speed label tap cycles 1.0→0.5→0.7→0.85→1.0 and is r
   assert.equal(await val(), '0.85×', 'speed restored from meta')
   await p.click('#ed-speed-val'); assert.equal(await val(), '1.0×')
 })
-await scenario('ux: 가장자리 스와이프로 뒤로 — 메뉴·설정·편집기, 가운데서 긋거나 세로로 긋거나 짧으면 무시', 'violin_A4.wav', async p => {
+await scenario('ux: edge swipe goes back — menu, settings, editor; ignored from the middle, vertical or too short', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   const swipe = async (x0, y0, x1, y1, steps = 8) => { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i <= steps; i++) await p.mouse.move(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps); await p.mouse.up() }
   const menuOpen = () => p.evaluate(() => document.getElementById('menu-overlay').classList.contains('open'))
@@ -978,7 +978,7 @@ await scenario('ux: 가장자리 스와이프로 뒤로 — 메뉴·설정·편�
   assert.equal(await edOpen(), false, '편집기 닫힘'); assert.equal(await menuOpen(), true, '닫히면 메뉴로')
   await p.click('.menu-close-btn')
 })
-await scenario('ux: list meta shows 북마크 n · A-B after editing', 'violin_A4.wav', async p => {
+await scenario('ux: list meta shows bookmarks n · A-B after editing', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#rec-hdr-btn'); await sleep(p, 2200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   const meta = () => p.evaluate(() => document.querySelector('#rec-list .rec-item-meta').textContent)
@@ -992,7 +992,7 @@ await scenario('ux: list meta shows 북마크 n · A-B after editing', 'violin_A
   await p.click('.menu-close-btn'); await sleep(p, 200)
 })
 
-await scenario('ux: waveform zoom — 구간 확대 maps track to [A−2, B+2]; handles/ticks follow; off when A cleared', 'violin_scale_Amaj.wav', async p => {
+await scenario('ux: waveform zoom maps the track to [A−2, B+2]; handles and ticks follow; off when A is cleared', 'violin_scale_Amaj.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note !== '--', 6000)
   await p.click('#rec-hdr-btn'); await sleep(p, 7500); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   await p.click('#menu-btn'); await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 1500)
@@ -1024,7 +1024,7 @@ await scenario('offline: service worker precaches everything; reload with networ
   await ctx.setOffline(false)
 })
 // 새 버전 적용 뒤 자동 새로고침처럼 사용자 동작 없이 열리면 오디오가 멈춘 채다 — 시작 버튼이 뜨되, 화면 어디를 눌러도 깨어난다
-await scenario('lifecycle: 동작 없이 열려 오디오가 멈추면 시작 버튼, 화면 아무 데나 눌러도 다시 시작', 'violin_A4.wav', async p => {
+await scenario('lifecycle: opened without a gesture and audio paused → start button, a tap anywhere resumes', 'violin_A4.wav', async p => {
   // 자동재생 정책 흉내: 컨텍스트는 멈춘 채 태어나고, resume 은 실제 터치·키 이후에만 먹힌다
   // (navigator.userActivation 은 못 쓴다 — Playwright 의 evaluate 가 사용자 동작으로 쳐진다)
   await p.addInitScript(() => {
@@ -1054,7 +1054,7 @@ await scenario('lifecycle: context suspended externally while metronome plays �
 })
 // 숨김 시 마이크 해제
 const setVisibility = (p, state) => p.evaluate(st => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => st }); document.dispatchEvent(new Event('visibilitychange')) }, state)
-await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고 메트로놈도 멈춘다 — 타이머는 계속', 'violin_A4.wav', async p => {
+await scenario('lifecycle: hidden → mic released and metronome stopped; the timer keeps going', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#menu-btn'); await p.click('#timer-toggle-btn'); await p.click('.menu-close-btn'); await sleep(p, 300)
   await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 500)
@@ -1073,7 +1073,7 @@ await scenario('lifecycle: 화면이 숨겨지면 마이크를 놓고 메트로�
   assert.equal(await p.evaluate(() => !document.getElementById('tuner-card').classList.contains('tap-hint')), true, '복귀: 시작 버튼 없이 바로')
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶', '복귀: 메트로놈이 저절로 다시 켜지지는 않는다 (놀라게 하지 않는다)')
 })
-await scenario('lifecycle: 웹에서 녹음 중이면 숨겨져도 마이크를 놓지 않는다 (녹음이 끊기면 안 된다)', 'violin_A4.wav', async p => {
+await scenario('lifecycle: on the web the mic stays open when hidden during a recording (a recording must not break)', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await p.click('#menu-btn'); await sleep(p, 300); await p.click('#rec-toggle-btn'); await sleep(p, 600)
   await setVisibility(p, 'hidden'); await sleep(p, 400)
@@ -1110,7 +1110,7 @@ await scenario('lifecycle: inactivity watch closes the mic without the practice 
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), false, 'mic closed by inactivity watch')
   assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn').style.display), 'flex')
 })
-await scenario('lifecycle: 오래 켜둔 뒤 마이크를 다시 켜도 즉시 꺼지지 않는다', 'silence_lowfloor.wav', async p => {
+await scenario('lifecycle: turning the mic back on after a long session doesn’t switch it off immediately', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500); assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true)
   await p.evaluate(() => { window.__tt.backdate(20 * 60 * 1000); window.__tt.closeMic() })
   await sleep(p, 300)
@@ -1150,7 +1150,7 @@ const maxRowRun = p => p.evaluate(() => {
   }
   return best
 })
-await scenario('tuner trace: 음이 바뀌는 자리에 가로줄을 긋지 않는다', 'silence_lowfloor.wav', async p => {
+await scenario('tuner trace: no horizontal line where the note changes', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   // (1) 대조군 — midi 를 고정하면 세그먼트가 절대 생략되지 않는다 = v2.0.1 의 그림. 가로줄이 나와야 한다.
   await p.evaluate(f => window.__tt.tuner.inject(f), TRACE_FRAMES(true))
@@ -1164,7 +1164,7 @@ await scenario('tuner trace: 음이 바뀌는 자리에 가로줄을 긋지 않�
   const after = await maxRowRun(p)
   assert.ok(after < 30, `전환 자리에 가로줄이 없어야 한다 (run=${after}, 대조군 ${before})`)
 })
-await scenario('tuner trace: 창 길이가 샘플레이트와 무관하게 초로 고정된다', 'violin_A4.wav', async p => {
+await scenario('tuner trace: window length is fixed in seconds regardless of sample rate', 'violin_A4.wav', async p => {
   await p.goto(URL_); await sleep(p, 2000)
   const d = await p.evaluate(() => window.__tt.tuner.diag())
   assert.equal(d.sec, 4, 'histSec')
@@ -1172,7 +1172,7 @@ await scenario('tuner trace: 창 길이가 샘플레이트와 무관하게 초�
   assert.ok(d.len < 360, `v2.0.1(360프레임)보다 짧아야 한다: ${d.len}`)
 })
 // 중음(더블스톱) 표시
-await scenario('더블스톱: 아래 성부를 같이 알려주고, 그 음이 틀리면 카드가 "완벽" 으로 빛나지 않는다', 'silence_lowfloor.wav', async p => {
+await scenario('double stop: shows the lower voice too, and the card doesn’t glow "perfect" when that note is off', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   // 마이크를 닫아 실시간 무음 프레임이 주입한 상태를 덮어쓰지 않게 한다 (무음 프레임은 hz=-1 → 표시 초기화)
   await p.evaluate(() => window.__tt.closeMic()); await sleep(p, 300)
@@ -1212,7 +1212,7 @@ await scenario('더블스톱: 아래 성부를 같이 알려주고, 그 음이 �
   assert.ok(/in-tune/.test(r.card), '단음으로 돌아오면 카드 글로우도 돌아온다: ' + r.card)
 })
 // 녹음 파일 이름·컨테이너
-await scenario('recording: 비 iOS 는 webm 유지(안드로이드 무변경) + 확장자가 내용과 일치', 'violin_A4.wav', async p => {
+await scenario('recording: non-iOS keeps webm (Android unchanged) and the extension matches the content', 'violin_A4.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   // Chromium 의 'audio/mp4' 는 MP4 안의 Opus 라 iOS 에서 못 연다 — 비 iOS 는 webm 이어야 한다
   const probe = await p.evaluate(async () => {
@@ -1240,7 +1240,7 @@ await scenario('recording: 비 iOS 는 webm 유지(안드로이드 무변경) + 
   if (!probe.aac) assert.ok(info.isWebm, '비 iOS + AAC 불가 → webm 이어야 한다')
 })
 
-await scenario('playback: 조용한 녹음에 보정 게인이 붙고 재생이 계속된다', 'violin_A4_m20.wav', async p => {
+await scenario('playback: quiet recordings get correction gain and keep playing', 'violin_A4_m20.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   await p.click('#menu-btn'); await sleep(p, 400)
   await p.click('#rec-toggle-btn'); await sleep(p, 2000); await p.click('#rec-toggle-btn'); await sleep(p, 1500)
@@ -1259,7 +1259,7 @@ await scenario('playback: 조용한 녹음에 보정 게인이 붙고 재생이 
 // 대신 그리기 루프가 실제로 몇 개를 끊었는지(`__tt.tuner.diag().skipped`) 직접 센다.
 const traceFixture = name => JSON.parse(readFileSync(join(ROOT, 'test-assets', 'trace', name + '.json'), 'utf8')).frames
   .map(f => (f.cents === null ? null : { cents: f.cents, midi: f.midi }))
-await scenario('tuner trace: 정확히 짚은 스케일은 음이 바뀌어도 끊기지 않는다 (실제 분석기 출력)', 'silence_lowfloor.wav', async p => {
+await scenario('tuner trace: an in-tune scale stays connected across note changes (real analyzer output)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   await p.evaluate(f => window.__tt.tuner.inject(f), traceFixture('scale-80bpm'))
   await sleep(p, 250)
@@ -1282,7 +1282,7 @@ await scenario('tuner trace: 정확히 짚은 스케일은 음이 바뀌어도 �
   })
   assert.ok(spread.all > 0 && spread.far / spread.all < 0.05, `±30 ¢ 밖 픽셀은 5 % 미만이어야 한다 (${spread.far}/${spread.all})`)
 })
-await scenario('tuner trace: 음정이 크게 흔들린 연주에서는 가짜 통과선을 끊는다 (규칙이 실제로 작동)', 'silence_lowfloor.wav', async p => {
+await scenario('tuner trace: a badly out-of-tune performance breaks fake crossing lines (the rule really fires)', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500)
   await p.evaluate(f => window.__tt.tuner.inject(f), traceFixture('scale-80bpm-outoftune'))
   await sleep(p, 250)

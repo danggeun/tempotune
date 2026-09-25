@@ -30,7 +30,7 @@ describe('spectrum', () => {
   })
 })
 
-describe('중음(더블스톱) 해석', () => {
+describe('double-stop interpretation', () => {
   const SR = 48000, WN = 4096
   const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
   const mi = (n: string) => { const m = /^([A-G]#?)(-?\d)$/.exec(n)!; return NOTE.indexOf(m[1]!) + (+m[2]! + 1) * 12 }
@@ -73,7 +73,7 @@ describe('중음(더블스톱) 해석', () => {
     expect(hit).toBe(true)
   })
 
-  test('단음은 그대로 둔다 (기본음이 약한 저음현 포함)', () => {
+  test('leaves single notes alone (including low strings with a weak fundamental)', () => {
     for (const [n, weak] of [['A4', false], ['C2', false], ['C2', true], ['G3', true]] as const) {
       const sp = createSpectrum(WN)
       const x = new Float32Array(SR)
@@ -92,7 +92,7 @@ describe('중음(더블스톱) 해석', () => {
   })
 })
 
-describe('중음에서 멜로디(위 성부)를 따라간다 — 음량·시차와 무관', () => {
+describe('follows the melody (upper voice) in double stops — regardless of level or timing', () => {
   const SR = 48000, N = 4096, HOP = 1024
   const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
   const mi = (n: string) => { const m = /^([A-G]#?)(-?\d)$/.exec(n)!; return NOTE.indexOf(m[1]!) + (+m[2]! + 1) * 12 }
@@ -124,7 +124,7 @@ describe('중음에서 멜로디(위 성부)를 따라간다 — 음량·시차�
   test.each(PAIRS)('%s + %s — 아래 음이 먼저 시작해도 위 성부 표시', (a, b) => {
     expect(upperRate(ds(a, b, 3, 0.3), b, .65)).toBeGreaterThan(0.95)
   })
-  test('한 중음이 지속되는 동안 라벨이 흔들리지 않는다', () => {
+  test('the label doesn’t wobble while a double stop is held', () => {
     const an = createAnalyzer({ sampleRate: SR }); an.setSettings({ rmsMin: .014, smoothing: .14, refHz: 440, tolCents: 15 })
     const x = ds('D4', 'A4', 3), w = new Float32Array(N); let last = -1, sw = 0
     for (let end = HOP; end <= x.length; end += HOP) { w.fill(0); const s0 = Math.max(0, end - N); w.set(x.subarray(s0, end), N - (end - s0))

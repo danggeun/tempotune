@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     VitePWA({
       // 'prompt': 새 SW 는 앱이 유휴일 때 main.ts 가 updateSW() 를 불러야 활성화된다.
-      // autoUpdate 는 실행 중인 페이지의 지연 청크(워클릿/워커)를 캐시에서 지워 첫 실행에 오디오가 죽는다 (리뷰 #1)
+      // autoUpdate 는 실행 중인 페이지의 지연 청크(워클릿/워커)를 캐시에서 지워 첫 실행에 오디오가 죽는다
       registerType: 'prompt',
       injectRegister: null,
       // Capacitor 앱에서는 파일이 로컬이라 SW 가 불필요하지만 무해. 웹(PWA)에서는 전 자산을 프리캐시해 오프라인 동작.

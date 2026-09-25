@@ -1,76 +1,64 @@
 # TempoTune
 
 > **in time, in tune.**
-> 현악기 연습을 위한 크로마틱 튜너 · 메트로놈 · 기준음 · 녹음 편집기.
-> 웹(PWA) + Android (Capacitor). 오프라인 동작, 오디오는 기기 밖으로 나가지 않는다.
+> Chromatic tuner, metronome, reference tones and a practice recorder for string players.
+> Web (PWA) and Android (Capacitor). Works offline; audio never leaves the device.
 
 [![CI](https://github.com/danggeun/tempotune/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/tempotune/actions/workflows/ci.yml)
 [![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/tempotune/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-**<https://danggeun.github.io/tempotune/>** — Chrome · Safari · Edge 최신 버전. 홈 화면에 추가하면 오프라인 PWA 로 동작한다.
+**<https://danggeun.github.io/tempotune/>** — current Chrome, Safari and Edge. Add it to your home screen to use it as an offline app.
 
-## 기능
+Korean by default; English in Settings › Language.
 
-**튜너** — AudioWorklet → Web Worker 파이프라인(메인 스레드는 그리기만). FFT 기반 YIN + 신뢰도 트래커, 40 Hz(콘트라베이스 E1)~4.2 kHz, 스펙트럼 배음 비교로 옥타브 오류 교정. 기준음 A = 410–466 Hz(바로크 415 포함), 허용 오차 ±5–25 ¢. 음이름 도레미 / C D E, 이명동음 병기. 최근 음정 궤적을 카드에 그린다.
+## Features
 
-**연주 감지** — 주기성·배음·평탄도·지속시간으로 말소리와 잡음을 걸러 실제 연주 시간만 센다. 오프라인, 모델 없음.
+- **Tuner** — 40 Hz (double bass E1) to 4.2 kHz, reference A = 410–466 Hz, tolerance ±5–25 ¢, pitch trace, double stops.
+- **Metronome** — sample-accurate clicks from an AudioWorklet, steady with the screen off. 40–200 BPM, 2/4 · 3/4 · 4/4 · 6/8, four subdivisions, a full-screen dial.
+- **Reference tones** — C to B with sharps, octaves 2–6, no mic needed.
+- **Recorder and editor** — waveform, A-B loop, zoom, bookmarks, 0.5–1.5× speed, save a section as WAV. Recordings are saved every 10 s and recovered if the app is killed.
+- **Practice timer** — counts the time you actually played; speech and noise are ignored.
+- Dark and light themes, touch targets of 44 px, WCAG AA contrast.
 
-**메트로놈** — AudioWorklet 안에서 샘플 단위로 클릭을 합성한다. 화면이 꺼지거나 백그라운드여도 박자가 흔들리지 않는다(20초 동안 ±1 샘플, e2e 로 검증). 2/4 · 3/4 · 4/4 · 6/8, 세분 4종, BPM 40–200. 재생 중 변경은 다음 박부터 반영된다. 녹음 중에는 클릭이 무음이 되고 화면으로만 박을 표시한다.
-
-**기준음** — 도~시(♯ 포함) × 옥타브 2–6. 마이크 없이도 재생된다.
-
-**녹음 · 편집기** — IndexedDB 에 영속. 파형, A-B 구간 반복, 구간 확대, 북마크, 0.5–1.5× 배속(녹음별 기억), 구간 WAV 저장. iOS·Android 는 공유 시트, 그 밖은 다운로드. 30일 자동 삭제(끌 수 있음, 마지막 7일 예고), 남기기로 제외.
-
-**연습 타이머** — 경과 시간과 "소리 낸 시간"(연주 감지)을 나눠 센다. 15분 무활동이면 마이크를 자동으로 닫는다.
-
-**앱 완결성** — 오프라인 PWA(프리캐시, 자체 호스팅 폰트). 새 버전은 유휴일 때 적용하고 아니면 알린다. 인터럽트 복구, 유휴 시 컨텍스트 suspend, Wake Lock. 화면이 숨겨지면 마이크를 놓고 메트로놈을 멈춘다. 녹음은 10초마다 저장돼 앱이 죽어도 복구된다. 다크(기본)·라이트 테마, 터치 타겟 44 px, 대비 WCAG AA.
-
-## 실행
+## Run
 
 ```bash
-npm install          # Node 22 이상
-npm run dev          # http://localhost:5173 — 마이크는 localhost 또는 HTTPS 에서만
-npm run build        # GitHub Pages 용 (base=/tempotune/) → dist/
+npm install          # Node 22+
+npm run dev          # http://localhost:5173 — the mic needs localhost or HTTPS
+npm run build        # for GitHub Pages (base=/tempotune/) → dist/
 ```
 
-### 검증
+## Verify
 
 ```bash
-npm run check        # 타입 검사 + 모듈 경계 검사 + 단위 테스트 (Vitest)
-npm run e2e          # 헤드리스 Chromium 에 WAV 를 가짜 마이크로 주입해 시나리오 실행
-npm run shots        # 6화면 스크린샷을 기준선과 픽셀 비교
-npm run bench        # 합성 신호로 튜너 정확도 측정 (bias · p90 · 옥타브 오류 · 락 지연 · F1)
+npm run check        # type check + module boundaries + unit tests (Vitest)
+npm run e2e          # scenarios in headless Chromium with WAV files as a fake mic
+npm run shots        # screenshot comparison against the baselines
+npm run bench        # tuner accuracy on synthetic signals
 npm run verify       # check + shots + e2e
 ```
 
-e2e·스크린샷에는 Playwright Chromium 이 필요하다: `npx playwright install chromium` (또는 `CHROMIUM_PATH` 로 기존 Chrome 지정).
-CI 가 push/PR 마다 같은 검증을 돌리고, `main` 에서 CI 가 녹색이면 GitHub Pages 에 배포한다.
+e2e and screenshots need Playwright's Chromium: `npx playwright install chromium` (or point `CHROMIUM_PATH` at an existing Chrome).
+CI runs the same checks on every push and PR, and deploys to GitHub Pages when `main` is green.
 
-튜너·감지기를 건드리는 변경은 `npm run bench` 지표가 후퇴하지 않아야 한다.
+The source is split into `core / state / audio / persist / platform / ui` layers — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
-## 구조
-
-`www/src/` 는 `core / state / audio / persist / platform / ui / main.ts` 층으로 나뉘고, 의존 방향은 `npm run check` 가 강제한다. 구조와 오디오 파이프라인은 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), 점검 항목은 [docs/CHECKLIST.md](docs/CHECKLIST.md), 스토어 문구는 [docs/STORE.md](docs/STORE.md), 변경 이력은 [CHANGELOG.md](CHANGELOG.md).
-
-## Android 빌드
+## Android
 
 ```bash
-npx cap add android   # android/ 가 없을 때 한 번 (생성물이라 리포에 없음)
-npm run icons         # resources/icon*.png 생성 (scripts/gen-icons.mjs)
-npm run cap:assets    # 런처 아이콘(adaptive) 생성
-npm run cap:sync      # Capacitor 빌드(base=/) + android/ 동기화 + 매니페스트 보정
+npx cap add android   # once (android/ is generated, not in the repo)
+npm run cap:assets    # launcher icons
+npm run cap:sync      # Capacitor build + sync + manifest fixes
 npx cap open android  # Android Studio → Build › Generate Signed App Bundle / APK
 ```
 
-`cap:sync` 끝에 `scripts/cap-manifest.mjs` 가 `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` / `INTERNET` 권한, 세로 고정, `versionName`·`versionCode`(package.json 의 version)를 보정한다. 서명 APK 절차는 [docs/ARCHITECTURE.md §6](docs/ARCHITECTURE.md#6-android-릴리즈).
+Don't change `androidScheme` or `appId` in `capacitor.config.json` — a new origin loses saved recordings and settings, and the store doesn't allow a new `appId`. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#7-android-release).
 
-> `capacitor.config.json` 의 `androidScheme` 과 `appId` 는 바꾸지 않는다. origin 이 바뀌면 저장된 녹음·설정이 사라지고, 스토어 등록 뒤에는 `appId` 를 바꿀 수 없다.
+## Privacy
 
-## 개인정보
+Mic input and recordings are processed and stored only on the device. Nothing is sent to a server, and there are no analytics or ad SDKs. See [PRIVACY.md](PRIVACY.md).
 
-마이크 입력과 녹음은 기기에서만 처리·저장된다. 서버로 보내지 않고, 분석 도구나 광고 SDK 도 없다. 웹 앱이 외부 호스트에 요청하지 않는 것은 CI 에서 확인한다. 자세한 내용은 [PRIVACY.md](PRIVACY.md).
+## License
 
-## 라이선스
-
-[MIT](LICENSE). 번들 폰트 DM Mono 는 SIL Open Font License.
+[MIT](LICENSE). The bundled DM Mono font is under the SIL Open Font License.

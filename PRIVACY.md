@@ -1,6 +1,60 @@
+# Privacy Policy — TempoTune
+
+Last updated: 2026-09-25 · [한국어](#개인정보처리방침--tempotune)
+
+## Summary
+
+**TempoTune does not collect any personal information and does not send any data off your device.** Mic input and recordings are processed and stored only on the device you use.
+
+## Microphone
+
+The app needs microphone permission to analyze pitch and measure practice time.
+
+- Mic input is **analyzed in real time and discarded immediately**. Nothing is stored unless you tap record.
+- All analysis happens on the device. No speech recognition service or external API is used.
+- The app releases the mic when it is hidden, and closes it after 15 minutes without sound.
+
+## Recordings
+
+Files you create with the record button are kept only in the browser storage (IndexedDB) or the app's storage on your device.
+
+- They are never uploaded. We cannot see them.
+- By default they are deleted after 30 days; you can turn this off in Settings. Individual recordings can be excluded with "Keep".
+- A file leaves the app only when you choose "Download" or "Share", and you choose where it goes.
+
+## Settings
+
+Settings such as the reference pitch, time signature and tolerance are kept in the device's local storage. There is no account and no login.
+
+## What we don't collect
+
+We **do not collect** names, email addresses, phone numbers, location, contacts, device identifiers, usage history or crash logs. The app includes no analytics (such as Google Analytics), no ad SDKs and no tracking pixels.
+
+## Network
+
+The web app downloads only its own files (HTML, scripts, fonts, icons). Every resource, fonts included, is served from the same domain, so there are no requests to other hosts; automated checks confirm this. The Android app runs from its installed files, so everything works without a network.
+
+## Children
+
+The app collects no personal information, so it is safe to use at any age.
+
+## Deleting data
+
+You can delete recordings one by one in the app. To remove everything, clear the site data in your browser (web), or uninstall the app or use Settings › Apps › TempoTune › Storage › Clear data (Android). No copy remains on our side.
+
+## Changes
+
+Changes to this policy are recorded in this file and the repository history.
+
+## Contact
+
+<https://github.com/danggeun/tempotune/issues>
+
+---
+
 # 개인정보처리방침 — TempoTune
 
-최종 수정일: 2026-09-16
+최종 수정일: 2026-09-25
 
 ## 요약
 

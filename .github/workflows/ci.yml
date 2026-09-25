@@ -90,4 +90,4 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - if: steps.shots.outcome == 'failure'
-        run: echo "::warning::스크린샷이 기준선과 다릅니다 — screenshot-diffs 아티팩트 확인"
+        run: echo "::warning::Screenshots differ from the baselines — see the screenshot-diffs artifact"

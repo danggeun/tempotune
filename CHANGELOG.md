@@ -1,117 +1,122 @@
 # Changelog
 
-형식: [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/). 버전은 [SemVer](https://semver.org/lang/ko/).
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
+
+## [2.4.0] — 2026-09-25
+- English — Settings › Language switches between 한국어 and English (Korean stays the default). Every screen, message and label is translated; note names are C D E in English
+- Recovered recordings are named with `_recovered` in English
+- Repository docs are now in English
 
 ## [2.3.8] — 2026-09-25
-- 아이폰 첫 화면(시작 버튼)에서 튜너의 ♭·♯ 가 세로로 늘어나 보이던 것
-- 테마를 바꿀 때 뜨던 상태바 안내 제거 — 바로 바뀐다
-- 라이트 모드의 첫 박 LED 는 검정 + 진한 번짐 (다크의 흰색 + 번짐과 같은 역할)
-- 메트로놈 카드를 위아래로 끌면 손을 따라 커지고 줄어든다. 덜 끌면 제자리, 충분히 끌거나 튕기면 한 단계 (위로도 된다)
-- 새 버전 적용 뒤처럼 오디오가 멈춘 채 열리면, 시작 버튼 말고 화면 어디를 눌러도 다시 시작
-- 아이폰 홈 화면 앱을 라이트로 실행하면 아래가 비던 것
+- Tuner ♭/♯ looked stretched on the iPhone start screen
+- Removed the status bar notice when switching themes — it changes right away
+- First-beat LED in light mode is black with a stronger glow (the counterpart of white with a glow in dark)
+- Dragging the metronome card follows your finger up and down; a short drag springs back, a longer drag or a flick moves one step (upward too)
+- When audio opens paused (for example right after an update), a tap anywhere starts it, not just the start button
+- The iPhone home-screen app left a gap at the bottom when launched in light mode
 
 ## [2.3.7] — 2026-09-25
-- 라이트 모드 — 설정 › 화면에서 다크/라이트 선택 (기본 다크)
-- 접힌 채 재생할 때 세 자리 BPM 이면 오른쪽 버튼이 카드 밖으로 밀리던 것
-- 펼침 → 펼침2 가 아래에서 위로 커지지 않고 카드 안에서 채워지던 것
-- 아이폰 홈 화면 앱에서 화면 아래가 상태바 높이만큼 비던 것
-- 다이얼이 작은 화면에서도 템포 용어(LARGO·ANDANTE·ALLEGRO·PRESTO)를 표시
+- Light mode — choose dark or light in Settings (dark by default)
+- A three-digit BPM pushed the right-hand buttons out of the collapsed card while playing
+- Expanded → full filled in from the top instead of growing upward
+- The iPhone home-screen app left a gap the height of the status bar at the bottom
+- The dial shows tempo terms (LARGO, ANDANTE, ALLEGRO, PRESTO) on smaller screens too
 
 ## [2.3.6] — 2026-09-25
-- 메뉴의 설정 버튼 제거 (설정은 헤더의 ⚙)
-- 메트로놈 첫 박 LED 를 박과 같은 크기로, 흰색으로만 구분하고 빛을 줄였다
+- Removed the settings button from the menu (settings is the ⚙ in the header)
+- First-beat LED is the same size as the other beats, told apart by color only, with less glow
 
 ## [2.3.5] — 2026-09-25
-- 녹음 중 10초마다 저장, 앱이 종료돼도 다음 실행에서 복구(이름 끝 `_복구`)
-- 새 버전이 준비되면 유휴일 때 적용, 사용 중이면 알림. 설정의 버전 표시에 빌드 번호
-- 맥 Safari 도 mp4 로 녹음
-- CI 를 통과해야 배포
+- Recordings are saved every 10 seconds and recovered on the next launch if the app is killed
+- A new version is applied when the app is idle, otherwise you're notified. Build number next to the version in Settings
+- Mac Safari records mp4 too
+- Deploys only after CI passes
 
 ## [2.3.4] — 2026-09-24
-### 녹음·편집
-- 긴 녹음의 A-B 잘라내기가 아이폰에서 멈추던 것
-- 아이폰에서 저장이 아무 반응 없던 것 — 준비되면 "탭해서 저장"
-- 목록 다운로드도 옛 webm 녹음을 아이폰용 WAV 로 변환
-- 잘라낸 구간 파일에 앱 안 재생과 같은 음량 보정
-- 안드로이드 목록 재생바, 삭제 취소 중 편집, 녹음 시작 직후 오류
-### 마이크
-- 마이크를 여는 도중 앱을 나가면 뒤에서 열린 채 남던 것
-- 오디오 중단 뒤 탭해도 다시 시작되지 않던 것
-- 빠르게 나갔다 들어오면 튜너 위에 시작 버튼이 남던 것
-### 메트로놈
-- BPM 을 아래로 드래그하면 카드가 접히던 것
-- 크기 버튼 연타·펼침2 → 접힘 전환이 튀던 것
-- 안드로이드 Chrome 에서 아래로 밀면 새로고침되던 것
-- 6/8 에서 분할이 남던 것, 터치가 끊긴 뒤 BPM 이 튀던 것, Space 를 누르고 있으면 반복되던 것
+### Recording and editing
+- Cutting A-B from long recordings froze on iPhone
+- Saving on iPhone did nothing — now "Ready · Tap to save"
+- Downloads from the list also convert old webm recordings to WAV for iPhone
+- Cut sections get the same loudness correction as in-app playback
+- Android list seek bar, editing during delete-undo, errors right after starting a recording
+### Mic
+- Leaving the app while the mic was opening left it open in the background
+- Tapping didn't restart audio after an interruption
+- Leaving and returning quickly left the start button over the tuner
+### Metronome
+- Dragging BPM down collapsed the card
+- Rapid size taps and full → collapsed jumped
+- Swiping down on Android Chrome reloaded the page
+- Subdivisions stayed on in 6/8, BPM jumped after an interrupted touch, holding Space repeated
 
 ## [2.3.3] — 2026-09-22
-- 메트로놈 전용 화면을 "펼침의 2단계"로 — 헤더·마이크·녹음은 그대로, 튜너만 숨긴다
-- 펼침 ↔ 펼침2 ↔ 접힘 전환 애니메이션. 크기 버튼은 ∧ ∧ ∨
-- 펼침2 상단에 METRONOME
-- LED 가 소리와 같은 순간에 켜진다
-- 아이폰 웹앱: 첫 화면에서 시작 버튼을 누르면 화면 켜짐 유지와 마이크가 함께 켜진다
+- The full-screen metronome is now the second step of "expanded" — header, mic and recording stay; only the tuner hides
+- Animated expanded ↔ full ↔ collapsed transitions. Size button shows ∧ ∧ ∨
+- METRONOME title at the top of full mode
+- LEDs light at the same moment as the sound
+- iPhone web app: the start button turns on keep-screen-on and the mic together
 
 ## [2.3.2] — 2026-09-21
-- 메트로놈 크기 버튼 하나로 순환, 카드를 아래로 밀면 한 단계 내림
-- BPM 범위 40–200 (다이얼이 더 정밀해짐)
-- 재생 중 박자를 바꾸면 첫 박은 왼쪽부터
-- 선택된 박자·리듬은 밝기 + 빨간 테두리. 화면 전체 박 표시는 접혔을 때만
-- 헤더: ☰ 왼쪽, ⚙ 설정 오른쪽. 설정 닫기는 X
-- 앱을 나가면 메트로놈이 멈춘다
+- One size button that cycles; swipe the card down to go down a step
+- BPM range 40–200 (finer dial)
+- Changing the time signature while playing starts from the left
+- Selected time signature and rhythm: brighter with a red border. Full-screen beat flash only when collapsed
+- Header: ☰ on the left, ⚙ settings on the right. Settings closes with X
+- The metronome stops when you leave the app
 
 ## [2.3.1] — 2026-09-20
-- 메트로놈 전용 화면이 어떤 화면 크기에서도 스크롤 없이 들어간다. 다이얼 글자 크기 유지
-- 헤더의 앱 이름 제거. 전체화면 토글은 설정으로
-- 전용 화면의 박 번쩍임 제거, 첫 박 LED 흰색
-- 마이크를 다시 여는 동안 안내 문구가 깜빡이던 것
-- 반음의 보조 음이름을 한 가지 표기로 (`A♯/B♭`)
-- 분할 음표 간격
+- Full mode fits every screen size without scrolling; dial text keeps its size
+- Removed the app name from the header; full-screen toggle moved to Settings
+- Removed the beat flash in full mode; first-beat LED is white
+- The hint flickered while the mic was reopening
+- One notation for sharps' secondary name (`A♯/B♭`)
+- Subdivision note spacing
 
 ## [2.3.0] — 2026-09-17
-- 튜너에 Hz 표시
-- 메트로놈 전용 화면: 원형 다이얼(돌려서 BPM), 템포 용어
-- 왼쪽 가장자리에서 밀어 뒤로 가기 (메뉴·설정·편집기)
+- Hz readout on the tuner
+- Full-screen metronome with a round dial (turn it to set BPM) and tempo terms
+- Swipe from the left edge to go back (menu, settings, editor)
 
 ## [2.2.0] — 2026-09-17
-- iOS 에서 마이크를 껐다 켜면 멈추던 것
-- 튜너 바늘 제거 (궤적과 같은 정보)
-- 분할 표기를 악보대로 (빔·셋잇단·붓점), 16분음표 추가
-- 박자표 "없음"(정박만)
-- 세이코식 LED 박 표시
-- 메트로놈 전용 화면
-- 편집기를 여는 동안 마이크를 놓는다
-- 안드로이드 아이콘 여백
+- The mic froze after turning it off and on in iOS
+- Removed the tuner needle (the trace shows the same thing)
+- Subdivisions drawn as real notation (beams, triplets, dotted), sixteenths added
+- "None" time signature (beats only)
+- Seiko-style LED beat display
+- Full-screen metronome
+- The mic is released while the editor is open
+- Android icon padding
 
 ## [2.1.0] — 2026-09-15
-- 앱 이름 TempoTune, 새 아이콘, 저장소·식별자 변경 (이전 데이터는 정리)
-- 재생해도 메트로놈이 접히지 않는다
-- 권한이 실제로 차단됐을 때만 안내 팝업
-- 화면 대비와 색 조정, 궤적은 항상 흰색
-- 궤적이 연주 중 끊기던 것
-- 앱이 숨겨지면 마이크를 놓아 다른 앱이 쓸 수 있게
-- 메트로놈 클릭이 튜너에 음으로 잡히던 것 (자동 지연 보정)
-- 녹음 "남기기" (자동 삭제 제외)
-- 짧은 녹음 파형, 여러 개 연속 삭제 취소, 저장 실패·삭제 실패 처리
-- 안드로이드 자동 백업 끔, 외부 폰트 요청 제거
-- Space 키·접근성·긴 이름·편집기 드래그
+- Renamed to TempoTune, new icon, new storage and identifiers (old data cleaned up)
+- Playing no longer collapses the metronome
+- The permission popup appears only when the mic is really blocked
+- Contrast and color adjustments; the trace is always white
+- The trace broke up while playing
+- The mic is released when the app is hidden so other apps can use it
+- Metronome clicks were picked up as notes (automatic latency compensation)
+- "Keep" for recordings (excluded from auto-delete)
+- Waveforms for short recordings, undo for several deletes in a row, save and delete failures handled
+- Android auto-backup off, no external font requests
+- Space key, accessibility, long names, editor dragging
 
 ## [2.0.2] — 2026-09-13
-- 아이폰 녹음이 열 수 없는 형식으로 저장되던 것 — mp4 로, 공유 시트로 저장
-- 음이 바뀔 때 튜너 표시가 튀던 것, 궤적 창 4초
-- 약음기 연주가 잡히도록 감도 조정
-- 겹음 구간에서 음이름이 요동치던 것
-- 겹음에서 아래 음의 음정 표시
-- 다크 고정
-- 녹음 재생 음량 보정, 메트로놈 클릭 음량
+- iPhone recordings were saved in a format that couldn't be opened — now mp4, saved via the share sheet
+- The tuner display jumped when the note changed; 4-second trace window
+- Sensitivity tuned so muted playing is detected
+- Note names wobbled during double stops
+- Pitch of the lower note in double stops
+- Dark only
+- Loudness correction for recording playback; metronome click volume
 
 ## [2.0.1] — 2026-09-06
-- 겹음에서 연주하지 않은 낮은 음을 표시하던 것 — 위 성부를 따라간다
+- Double stops showed a lower note that wasn't played — now follows the upper voice
 
 ## [2.0.0] — 2026-09-05
-- TypeScript 로 재구성, AudioWorklet + Worker 분석, 오프라인 연주 감지
-- 샘플 정확도 메트로놈, 단일 AudioContext
-- 녹음 편집기 (A-B·북마크·파형·배속), 안드로이드 저장
-- PWA, 오프라인, 디자인 토큰, CI
+- Rebuilt in TypeScript, AudioWorklet + Worker analysis, offline playing detection
+- Sample-accurate metronome, single AudioContext
+- Recording editor (A-B, bookmarks, waveform, speed), saving on Android
+- PWA, offline, design tokens, CI
 
 ## [1.0.0] — 2026-06-01
-- 단일 파일 웹 프로토타입
+- Single-file web prototype

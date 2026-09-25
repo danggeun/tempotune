@@ -4,17 +4,17 @@ import { createAnalyzer } from './analyzer.ts'
 
 const A = (lo: number, up: number, dbLo = 0, dbUp = 0): DualIn => ({ lo, up, dbLo, dbUp })
 
-describe('dual: 확정·해제 규칙', () => {
-  test('onFrames 만큼 연속되어야 확정된다 (그 전에는 -1)', () => {
+describe('dual: lock and release rules', () => {
+  test('locks only after onFrames in a row (-1 before that)', () => {
     const d = createDual()
     for (let i = 1; i < DEFAULT_DUAL.onFrames; i++) expect(d.push(A(294, 440))).toBe(-1)
     expect(d.push(A(294, 440))).toBeCloseTo(294, 0)
   })
-  test('세기 차이가 문턱을 넘으면(공명) 확정되지 않는다', () => {
+  test('doesn’t lock when the level difference exceeds the threshold (resonance)', () => {
     const d = createDual()
     for (let i = 0; i < 30; i++) expect(d.push(A(294, 440, -30, -12))).toBe(-1) // |Δ| 18 dB
   })
-  test('문턱 경계: 10 dB 는 통과, 10.5 dB 는 불통', () => {
+  test('threshold boundary: 10 dB passes, 10.5 dB doesn’t', () => {
     const a = createDual(); let on = -1
     for (let i = 0; i < 8; i++) on = a.push(A(294, 440, -20, -10))
     expect(on).toBeGreaterThan(0)
@@ -22,26 +22,26 @@ describe('dual: 확정·해제 규칙', () => {
     for (let i = 0; i < 8; i++) off = b.push(A(294, 440, -20.5, -10))
     expect(off).toBe(-1)
   })
-  test('확정 뒤 짧은 끊김(활 바꿈)은 유지하고, offFrames 를 넘기면 해제한다', () => {
+  test('after locking, short gaps (bow changes) hold; past offFrames it releases', () => {
     const d = createDual()
     for (let i = 0; i < 8; i++) d.push(A(294, 440))
     for (let i = 0; i < DEFAULT_DUAL.offFrames; i++) expect(d.push(null)).toBeCloseTo(294, 0)
     expect(d.push(null)).toBe(-1)
     expect(d.push(null)).toBe(-1)
   })
-  test('해제 뒤에는 다시 onFrames 를 채워야 한다 (상태가 남지 않는다)', () => {
+  test('after release it needs onFrames again (no leftover state)', () => {
     const d = createDual()
     for (let i = 0; i < 8; i++) d.push(A(294, 440))
     for (let i = 0; i < 10; i++) d.push(null)
     expect(d.push(A(294, 440))).toBe(-1)
   })
-  test('아래 성부가 다른 음으로 넘어가면 창을 비워 새 값으로 바로 간다', () => {
+  test('when the lower voice moves to another note, the window clears and jumps to the new value', () => {
     const d = createDual()
     for (let i = 0; i < 8; i++) d.push(A(294, 440))
     let v = -1; for (let i = 0; i < 3; i++) v = d.push(A(330, 440)) // 레4 → 미4
     expect(v).toBeCloseTo(330, 0)
   })
-  test('위가 아래보다 낮거나 같으면 후보가 아니다', () => {
+  test('not a candidate when the upper note is at or below the lower', () => {
     const d = createDual()
     for (let i = 0; i < 10; i++) expect(d.push(A(440, 294))).toBe(-1)
   })
@@ -72,15 +72,15 @@ function run(x: Float32Array): Array<{ midi: number; dualMidi: number; dualCents
 }
 const hz = (m: number, c = 0): number => 440 * Math.pow(2, (m - 69) / 12 + c / 1200)
 
-describe('analyzer: 중음 표시', () => {
-  test('단음은 절대 중음으로 뜨지 않는다 (솔3·레4·라4·미5)', () => {
+describe('analyzer: double-stop display', () => {
+  test('single notes never show as double stops (G3, D4, A4, E5)', () => {
     for (const m of [55, 62, 69, 76]) {
       const fr = run(mixTone([[hz(m), 1]])).filter(f => f.midi >= 0)
       expect(fr.length).toBeGreaterThan(10)
       expect(fr.filter(f => f.dualMidi >= 0).length).toBe(0)
     }
   })
-  test('공명하는 개방현(1/4~1/10 세기)은 중음이 아니다', () => {
+  test('a resonating open string (1/4 to 1/10 level) isn’t a double stop', () => {
     for (const a of [.25, .167, .1]) {
       for (const parts of [[[hz(62), a, 1.6], [hz(69), 1]], [[hz(62), 1], [hz(69), a, 1.6]]] as Array<Array<[number, number, number?]>>) {
         const fr = run(mixTone(parts)).filter(f => f.midi >= 0)
@@ -88,7 +88,7 @@ describe('analyzer: 중음 표시', () => {
       }
     }
   })
-  test('진짜 중음은 위 성부를 보여주고 아래 성부를 같이 알려준다 — 아래를 −28 ¢ 틀리게 짚으면 그렇게 읽는다', () => {
+  test('a real double stop shows the upper voice and reports the lower — a lower note played −28 ¢ off reads that way', () => {
     // 라4(−28 ¢) + 도♯5 — v2.0.1 은 도♯5 0 ¢ 초록만 보여줬다(아래 현이 틀린 것을 보증)
     const fr = run(mixTone([[hz(69, -28), 1], [hz(73), 1]])).filter(f => f.midi >= 0)
     const dual = fr.filter(f => f.dualMidi >= 0)
@@ -98,7 +98,7 @@ describe('analyzer: 중음 표시', () => {
     const med = dual.map(f => f.dualCents).sort((a, b) => a - b)[dual.length >> 1]!
     expect(Math.abs(med - (-28))).toBeLessThanOrEqual(3)
   })
-  test('5도·단3도·4도도 아래 성부를 맞게 읽는다', () => {
+  test('fifths, minor thirds and fourths also read the lower voice correctly', () => {
     for (const [lo, up] of [[62, 69], [69, 72], [69, 74]] as Array<[number, number]>) {
       const dual = run(mixTone([[hz(lo, -20), 1], [hz(up), 1]])).filter(f => f.dualMidi >= 0)
       expect(dual.length).toBeGreaterThan(10)
@@ -107,7 +107,7 @@ describe('analyzer: 중음 표시', () => {
       expect(Math.abs(med - (-20))).toBeLessThanOrEqual(4)
     }
   })
-  test('소리가 끊기면 중음 표시도 사라진다', () => {
+  test('the double-stop display goes away when the sound stops', () => {
     const x = mixTone([[hz(62), 1], [hz(69), 1]], N * 12)
     const sil = new Float32Array(N * 6)
     const both = new Float32Array(x.length + sil.length); both.set(x); both.set(sil, x.length)

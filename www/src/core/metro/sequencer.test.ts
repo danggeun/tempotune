@@ -78,7 +78,7 @@ describe('sequencer', () => {
     }
     return { peak, rms: Math.sqrt(e / len) }
   }
-  test('클릭 에너지가 v2.0.1 보다 커졌다 — 피크는 천장을 넘지 않고', () => {
+  test('click energy is higher than v2.0.1 — without the peak exceeding the ceiling', () => {
     const now = oneClick(1.0, 1), before = v201Accent(1.0)
     // 피크는 둘 다 천장 근처. v2.0.1 은 min(1,·) 로 클립되어 실측 −0.5 dBFS, 현재는 트랜지언트 때문에
     // 리미터 전 +0.6 dBFS 까지 간다 → 출력단 소프트 리미터가 받아낸다(아래 테스트).
@@ -88,13 +88,13 @@ describe('sequencer', () => {
     const gainDb = 20 * Math.log10(now.rms / before.rms)
     expect(gainDb).toBeGreaterThan(2.0)
   })
-  test('리미터를 통과하면 절대 1.0 을 넘지 않는다 (세분음 꼬리 + 다음 박 겹침 포함)', () => {
+  test('never exceeds 1.0 after the limiter (including subdivision tails overlapping the next beat)', () => {
     const seq = createSequencer(sr, { bpm: 220, timeSig: 4, subDiv: 3, volume: 1.0, muted: false }); seq.start(0)
     const out = new Float32Array(128); let peak = 0
     for (let s = 0; s < 5 * sr; s += 128) { out.fill(0); seq.render(out, s); for (const v of out) peak = Math.max(peak, Math.abs(softClip(v))) }
     expect(peak).toBeLessThan(1)
   })
-  test('음악적 위계(강박/박/세분)는 v1 비율 그대로', () => {
+  test('musical hierarchy (downbeat/beat/subdivision) keeps the v1 ratios', () => {
     const a = oneClick(1.0, 1)
     const seqB = createSequencer(sr, { bpm: 60, timeSig: 4, subDiv: 2, volume: 1.0, muted: false })
     void seqB
@@ -103,15 +103,15 @@ describe('sequencer', () => {
     expect(20 * Math.log10(0.30 / 1.0)).toBeCloseTo(-10.5, 1)
     expect(a.peak).toBeGreaterThan(0.9)
   })
-  test('슬라이더는 피크를 선형으로 — 0.5 는 절반', () => {
+  test('the slider scales the peak linearly — 0.5 is half', () => {
     const full = oneClick(1.0, 1), half = oneClick(0.5, 1)
     expect(half.peak / full.peak).toBeCloseTo(0.5, 1)
   })
-  test('렌더가 결정적 — 같은 입력이면 같은 샘플 (벤치마크 재현성)', () => {
+  test('rendering is deterministic — same input, same samples (benchmark reproducibility)', () => {
     const a = oneClick(1.0, 1).buf, b = oneClick(1.0, 1).buf
     for (let i = 0; i < a.length; i++) expect(a[i]).toBe(b[i])
   })
-  test('어택 트랜지언트는 1.5 ms 안에만 있다 — 그 뒤는 순수 삼각파', () => {
+  test('the attack transient is within 1.5 ms — a pure triangle after that', () => {
     const { buf } = oneClick(1.0, 1)
     const noiseLen = Math.round(0.0015 * sr)
     // 트랜지언트 구간은 표본 간 변화가 크고(고역), 그 뒤는 매끄럽다
@@ -127,24 +127,24 @@ describe('sequencer', () => {
   })
 
   // 정박 모드(timeSig 1)
-  test('정박 모드는 첫 박 강세가 없다 — 모든 박이 같은 세기', () => {
+  test('beats-only mode has no first-beat accent — every beat is equal', () => {
     expect([0, 1, 2, 3].map(t => tickKind({ subDiv: 1, timeSig: 1 }, t))).toEqual(['beat', 'beat', 'beat', 'beat'])
   })
-  test('정박 모드에서도 분할은 약하게 남는다 (분할까지 같으면 무엇이 박인지 사라진다)', () => {
+  test('subdivisions stay softer in beats-only mode (otherwise you couldn’t tell the beat)', () => {
     expect([0, 1, 2, 3].map(t => tickKind({ subDiv: 2, timeSig: 1 }, t))).toEqual(['beat', 'sub', 'beat', 'sub'])
     expect([0, 1, 2].map(t => tickKind({ subDiv: 3, timeSig: 1 }, t))).toEqual(['beat', 'sub', 'sub'])
   })
-  test('정박 모드의 붓점도 액센트 없이 3:1 을 유지한다', () => {
+  test('dotted rhythm in beats-only mode keeps 3:1 without accents', () => {
     expect([0, 1].map(t => tickKind({ subDiv: 'd', timeSig: 1 }, t))).toEqual(['beat', 'sub'])
     expect(tickIntervalS({ bpm: 60, timeSig: 1, subDiv: 'd' }, 0)).toBeCloseTo(0.75)
     expect(tickIntervalS({ bpm: 60, timeSig: 1, subDiv: 'd' }, 1)).toBeCloseTo(0.25)
   })
-  test('정박 모드의 틱 수는 분할 수와 같다 (마디가 없다)', () => {
+  test('beats-only mode has as many ticks as subdivisions (no bar)', () => {
     expect(totalTicks({ timeSig: 1, subDiv: 1 })).toBe(1)
     expect(totalTicks({ timeSig: 1, subDiv: 3 })).toBe(3)
     expect(totalTicks({ timeSig: 1, subDiv: 'd' })).toBe(2)
   })
-  test('다른 박자표는 그대로 첫 박에 액센트가 있다 (회귀)', () => {
+  test('other time signatures still accent the first beat (regression)', () => {
     expect(tickKind({ subDiv: 1, timeSig: 4 }, 0)).toBe('accent')
     expect(tickKind({ subDiv: 1, timeSig: 6 }, 0)).toBe('accent')
   })

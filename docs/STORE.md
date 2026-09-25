@@ -1,20 +1,29 @@
-# 스토어 등록 문구
+# Store listing
 
-Play Console 에 붙여 넣는 값. 여기서 고치고 콘솔에 옮긴다 (콘솔이 원본이 아니라 이 파일이 원본).
+Values to paste into the Play Console. Edit them here and copy them over — this file is the source, not the console.
+The app is Korean-first, so there is a Korean listing (default) and an English one.
 
-## 앱 이름 (30자)
+## App name (30 characters)
 
 ```
 TempoTune — 튜너·메트로놈
 ```
 
-## 짧은 설명 (80자)
+```
+TempoTune — Tuner & Metronome
+```
+
+## Short description (80 characters)
 
 ```
 in time, in tune. 현악기 연습을 위한 튜너·메트로놈·녹음. 광고 없음, 오프라인 동작.
 ```
 
-## 전체 설명
+```
+in time, in tune. Tuner, metronome and recorder for strings. No ads, works offline.
+```
+
+## Full description — Korean
 
 ```
 TempoTune 은 현악기 연습에 필요한 것만 담은 도구입니다.
@@ -49,26 +58,61 @@ TempoTune 은 현악기 연습에 필요한 것만 담은 도구입니다.
 · 인터넷 없이도 전 기능이 동작합니다
 ```
 
-## 개인정보처리방침 URL
+## Full description — English
+
+```
+TempoTune has just what you need to practice a string instrument.
+The tuner and metronome share one screen, and you can record yourself and listen back right away.
+
+■ Tuner
+· From double bass E1 (40 Hz) to the top of the violin
+· Reference A = 410–466 Hz (including Baroque 415)
+· Tolerance from ±5 to ±25 cents
+· Letter note names with enharmonics
+· A trace shows how your pitch moved over the last few seconds
+
+■ Metronome
+· 2/4 · 3/4 · 4/4 · 6/8, four subdivisions including triplets
+· 40–200 BPM, change it while playing without a hiccup
+· Steady timing even with the screen off
+· Clicks go silent while recording; beats stay on screen
+
+■ Recording and editing
+· A-B loop, zoom, bookmarks
+· 0.5–1.5× speed (pitch unchanged)
+· Save or share just the section you want as WAV
+
+■ Practice timer
+· Counts the time you actually played, not the time the app was open
+· Speech and noise don't count
+
+■ Privacy
+· Mic input and recordings are processed and stored only on your device
+· Nothing is sent to a server
+· No ads, no tracking, no account
+· Everything works without an internet connection
+```
+
+## Privacy policy URL
 
 ```
 https://github.com/danggeun/tempotune/blob/main/PRIVACY.md
 ```
 
-**Play 심사 필수 항목**이다 — 마이크 권한을 쓰므로 없으면 반려된다.
-GitHub 가 마크다운을 렌더해서 보여주므로 이 URL 을 그대로 쓸 수 있다(공개 저장소여야 한다).
-Pages 에 따로 페이지를 만들면 원본이 둘로 갈라져 어긋난다 — 파일 하나만 둔다.
+**Required for Play review** — the app uses the microphone permission and is rejected without it.
+GitHub renders the Markdown, so this URL works as is (the repository must be public).
+A separate page on Pages would split the source in two — keep a single file.
 
-## 데이터 보안 양식 (Play Console)
+## Data safety form (Play Console)
 
-| 질문 | 답 |
+| Question | Answer |
 |---|---|
-| 데이터를 수집하거나 공유하나요 | **아니오** |
-| 데이터가 전송 중 암호화되나요 | 해당 없음 (전송 없음) |
-| 사용자가 데이터 삭제를 요청할 수 있나요 | 앱 안에서 직접 삭제 (서버 사본 없음) |
+| Does the app collect or share data? | **No** |
+| Is data encrypted in transit? | Not applicable (nothing is transmitted) |
+| Can users request deletion? | They delete it in the app (no server copy) |
 
-마이크 권한은 "기기에서만 처리, 저장 안 함(녹음 버튼을 누른 경우 기기에만 저장)" 으로 설명한다.
+Describe the microphone as "processed on device only, not stored (stored on the device only when the user taps record)".
 
-## 스크린샷
+## Screenshots
 
-`test-assets/screens/baseline/` 의 6장이 실제 화면이다. 스토어에는 최소 2장이 필요하다.
+The images in `test-assets/screens/baseline/` are the real screens (`dark_*`, `light_*`, `en_*`). The store needs at least two.
