@@ -333,6 +333,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* 설정 페이지 */
 #settings-version{font-family:'DM Mono',monospace;font-size:var(--fs-xs);color:var(--text-3);text-align:center;padding-top:var(--s2);}
 #settings-tagline{font-size:var(--fs-xs);color:var(--deco);text-align:center;letter-spacing:var(--ls-caps-wide);padding-left:var(--ls-caps-wide);text-transform:uppercase;margin-top:-4px;} /* 자간은 마지막 글자 뒤에도 붙는다 — 같은 만큼 왼쪽을 채워 가운데를 맞춘다 */
+#settings-tagline .hang{position:absolute;} /* 끝의 마침표는 폭에서 뺀다 — 넣으면 가벼운 점 하나 때문에 글자 덩어리가 왼쪽으로 쏠려 보인다 */
 #settings-page{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:60;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}
 #settings-page.open{opacity:1;pointer-events:all;visibility:visible;transition:opacity var(--t-std),visibility 0s;}
 #settings-inner{min-height:100%;display:flex;flex-direction:column;padding:var(--page-top) var(--s5) var(--s6);gap:var(--s3);max-width:480px;margin:0 auto;}
