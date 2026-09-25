@@ -6,6 +6,7 @@ import { metroStore, sessionStore, settingsStore, CFG, type SubDiv, type TimeSig
 import { totalTicks as _totalTicks } from '../core/metro/sequencer.ts'
 import { getContext, micOpen, muteAnalysis, audioSupported, suspendIfIdle } from './engine.ts'
 import { softClipCurve } from '../core/softclip.ts'
+import { t } from '../core/i18n/index.ts'
 import metroWorkletUrl from './metro.worklet.ts?worker&url'
 
 let node: AudioWorkletNode | null = null
@@ -46,10 +47,10 @@ async function ensureNode(): Promise<AudioWorkletNode> {
 
 export type StartResult = { ok: true } | { ok: false; error: string }
 export function startMetro(): StartResult {
-  if (!audioSupported()) return { ok: false, error: '오디오를 시작할 수 없습니다' }
+  if (!audioSupported()) return { ok: false, error: t('audio.cantStart') }
   metroStore.set({ playing: true })
   ensureNode().then(n => { if (metroStore.get().playing) { n.port.postMessage({ type: 'pattern', pattern: pattern() }); n.port.postMessage({ type: 'start' }) } })
-    .catch(() => { metroStore.set({ playing: false }); toastFn?.('오디오를 시작할 수 없습니다') })
+    .catch(() => { metroStore.set({ playing: false }); toastFn?.(t('audio.cantStart')) })
   return { ok: true }
 }
 export function stopMetro(): void { metroStore.set({ playing: false }); node?.port.postMessage({ type: 'stop' }); setTimeout(suspendIfIdle, 300) } // 마지막 클릭 꼬리가 끝난 뒤

@@ -8,10 +8,13 @@ import { histLenFor } from '../core/hist.ts'
 import { buildSegments, keepInTrace } from '../core/trace.ts'
 import { CFG, settingsStore, tunerStore } from '../state/index.ts'
 import { q } from './dom.ts'
+import { t, getLang, type TKey } from '../core/i18n/index.ts'
+import { onLangChange } from './lang.ts'
 
 const hzReadout = createHzReadout() // Hz 표시의 평활·갱신 주기
 
 let tapHandler: (() => void) | null = null
+let tapSub: TKey | null = null
 // 트레이스 버퍼. 길이는 histSec × 프레임률이라 샘플레이트가 정해지면 다시 잡는다. histMidi 는 같은 인덱스의 음이름 — 음이 바뀐 자리에 가로줄을 안 긋기 위해
 let histSec: number = CFG.tuner.histSec
 let histSr = 44100
@@ -86,8 +89,8 @@ function renderDual(midi: number, cents: number): boolean {
   if (midi >= 0) { dualMidi = midi; dualCents = cents; dualUntil = now + DUAL_MIN_MS }
   if (dualMidi < 0 || now >= dualUntil) { if (el.className) { el.className = ''; el.textContent = '' } dualMidi = -1; return true }
   const ok = Math.abs(dualCents) <= settingsStore.get().tolCents
-  const { name } = noteLabel(dualMidi, settingsStore.get().noteNames)
-  el.textContent = `더블스톱 · ${name}${octaveOf(dualMidi)} ${dualCents > 0 ? '+' : ''}${dualCents} ¢`
+  const { name } = noteLabel(dualMidi, settingsStore.get().noteNames, getLang())
+  el.textContent = t('tuner.doubleStop', { note: name + octaveOf(dualMidi), cents: (dualCents > 0 ? '+' : '') + dualCents })
   el.className = ok ? 'on tune' : 'on'
   return ok
 }
@@ -98,7 +101,7 @@ function renderEmpty(): void {
   const nEl = q('tuner-note')
   // 마이크가 꺼져 있으면 빈 상태 카피, 켜져 있거나 스스로 다시 여는 중(micReopening)이면 '--'
   const s = tunerStore.get(), off = !s.micReady && !s.micReopening && !tapHandler
-  nEl.textContent = off ? 'MIC 를 켜면 시작해요' : '--'; nEl.className = off ? 'empty hint' : 'empty'
+  nEl.textContent = off ? t('tuner.micHint') : '--'; nEl.className = off ? 'empty hint' : 'empty'
   q('tuner-oct').textContent = ''; q('tuner-cents').textContent = ''; q('tuner-enharmonic').textContent = ''; q('tuner-acc').textContent = ''
   hzReadout.reset(); q('tuner-hz').textContent = ''
   clearDual()
@@ -106,7 +109,7 @@ function renderEmpty(): void {
 }
 /** inTune = 위 성부가 허용 범위 안(음이름 색), allInTune = 모든 성부가 안(카드 글로우). 단음이면 같다 */
 function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boolean, hz: number): void {
-  const { name, secondary } = noteLabel(midi, settingsStore.get().noteNames)
+  const { name, secondary } = noteLabel(midi, settingsStore.get().noteNames, getLang())
   const base = name.replace('♯', ''), acc = name.includes('♯') ? '♯' : ''
   const nEl = q('tuner-note'); nEl.textContent = base; nEl.className = inTune ? 'tune' : ''
   const accEl = q('tuner-acc'); accEl.textContent = acc; accEl.classList.toggle('tune', inTune)
@@ -118,10 +121,10 @@ function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boo
 }
 
 /** 시작 버튼. 카드 어디를 눌러도 onTap. sub 는 버튼 아래 한 줄 안내(없으면 비움). onTap 이 true 면 거둔다 */
-export function showTapHint(onTap: () => Promise<boolean>, sub = ''): void {
+export function showTapHint(onTap: () => Promise<boolean>, sub?: TKey): void {
   const nEl = q('tuner-note'), card = q('tuner-card')
   nEl.textContent = '--'; nEl.className = 'empty'
-  q('tuner-start-sub').textContent = sub
+  tapSub = sub ?? null; q('tuner-start-sub').textContent = sub ? t(sub) : ''
   card.classList.add('tap-hint')
   if (tapHandler) card.removeEventListener('click', tapHandler) // 호출마다 리스너가 쌓이지 않게
   const handler = async () => { if (await onTap()) { card.classList.remove('tap-hint'); card.removeEventListener('click', handler); if (tapHandler === handler) tapHandler = null } }
@@ -137,6 +140,11 @@ export function hideTapHint(): void {
 }
 export function mountTuner(): void {
   readTokens()
+  // 언어가 바뀌면: 빈 상태 문구·시작 버튼 부제. 음이 떠 있으면 다음 프레임이 새 이름으로 그린다
+  onLangChange(() => {
+    if (q('tuner-note').classList.contains('empty')) renderEmpty()
+    if (tapSub) q('tuner-start-sub').textContent = t(tapSub)
+  })
   // 매 분석 프레임(≈43 Hz)마다 히스토리를 쌓고, 그리기는 rAF 에 한 번만
   let dirty = false, raf: number | null = null
   const paint = () => {

@@ -59,6 +59,8 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;} /* 안드로이드 크롬: 카드를 아래로 미는 제스처가 '당겨서 새로고침' 이 되지 않게 */
+html[lang="en"],html[lang="en"] body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans KR','Apple SD Gothic Neo',sans-serif;} /* 영어는 기기 기본 글꼴(iOS SF, Android Roboto) — 한국어 글꼴의 라틴 글자보다 자연스럽다. 숫자는 그대로 DM Mono */
+html.i18n-pending body{visibility:hidden;} /* 영어로 저장돼 있으면 한국어 원문이 한 프레임 보이지 않게 — ui/lang.ts 가 푼다 */
 /* 아이폰 홈 화면 앱(iOS 26~): 화면이 상태바 밑까지 그려지는 배치(위쪽 safe-area 가 있다)에서는 100%·dvh 가 상태바 높이만큼 짧게 잡혀 아래가 빈다.
    lvh 만 화면 전체 높이. 배치는 실행 시점의 meta 로 정해져 테마를 바꿔도 그대로라 테마가 아니라 실제 inset 으로 가른다 — .sb-under 는 platform/fitStandaloneHeight */
 @supports (height:100lvh){@media (display-mode:standalone){html.sb-under,html.sb-under body{height:100lvh;}}}
@@ -337,6 +339,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .settings-top{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-bottom:var(--s2);} /* 메뉴와 같은 배치 */
 .settings-title{font-size:var(--fs-xl);font-weight:var(--fw-b);color:var(--text);}
 .setting-row{display:flex;flex-direction:column;gap:var(--s3);padding:var(--s4);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);}
+.setting-row[hidden]{display:none;} /* 영어에서는 음이름 표기 줄을 숨긴다(ui/lang.ts) */
 .setting-lbl{font-size:var(--fs-lg);font-weight:var(--fw-b);color:var(--text);}
 .setting-desc{font-size:var(--fs-md);color:var(--text-2);margin-top:-6px;line-height:1.5;}
 .step-row{display:flex;align-items:center;gap:0;border:1px solid var(--line-ctl);border-radius:var(--r-md);overflow:hidden;}
@@ -405,6 +408,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 #ed-ab-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s2);padding:0 var(--s5) var(--s4);flex-shrink:0;}
 .ed-ab-btn{height:var(--h-tall);padding:0 8px;background:var(--surface);border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text-2);font-family:inherit;font-size:var(--fs-base);font-weight:var(--fw-md);cursor:pointer;text-align:center;line-height:1.4;transition:border-color .1s,color .1s;}
 .ed-ab-btn b{font-family:'DM Mono',monospace;font-weight:var(--fw-md);}
+.ed-ab-btn i{font-style:normal;} /* 번역되는 '반복' 글자 — 기울이지 않는다 */
 .ed-ab-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 .ed-ab-btn.dim,#ed-play-btn.dim{opacity:.4;}
 #ed-export-btn.dim{color:var(--text-3);}

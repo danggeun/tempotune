@@ -5,6 +5,7 @@ export const REC_DB = 'tempotune_rec', REC_STORE = 'recordings', META_STORE = 'm
 export const LEGACY_REC_DB = 'gopractice_rec' // 이름 변경 전 DB — persist/legacy.ts 가 지운다
 export const REC_DB_VERSION = 4 // v3: meta 분리, v4: chunks
 import { REC_TTL, expires } from '../core/recPolicy.ts'
+import { t } from '../core/i18n/index.ts'
 import { settingsStore } from '../state/index.ts'
 export { REC_TTL }
 
@@ -52,7 +53,7 @@ const store = (name: string, mode: IDBTransactionMode) => db!.transaction(name, 
 export async function dbSave(row: RecRow, meta: Omit<RecMeta, 'id'>): Promise<number | null> {
   if (!db) return null
   const id = (await req(store(REC_STORE, 'readwrite').add(row))) as number
-  await req(store(META_STORE, 'readwrite').put({ id, ...meta })).catch(() => { metaError?.('편집 정보를 저장하지 못했어요') })
+  await req(store(META_STORE, 'readwrite').put({ id, ...meta })).catch(() => { metaError?.(t('rec.metaFailed')) })
   return id
 }
 /** 두 스토어에서 지우고 결과를 기다린다 — 실패를 모르면 다음 로드에서 되살아난다 */
@@ -70,7 +71,7 @@ export async function dbPatchMeta(id: number | null | undefined, patch: Partial<
   try {
     const s = store(META_STORE, 'readwrite'); const cur = ((await req(s.get(id))) as RecMeta | undefined) ?? { id, bookmarks: [], ab: null }
     await req(s.put({ ...cur, ...patch, id }))
-  } catch { metaError?.('편집 정보를 저장하지 못했어요') }
+  } catch { metaError?.(t('rec.metaFailed')) }
 }
 /** 전체 로드 (최신순). TTL 지난 항목은 삭제 후 제외. */
 export async function dbLoadAll(): Promise<RecFull[]> {

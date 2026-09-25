@@ -13,6 +13,7 @@ import { attachGain, beforePlay, afterStop } from '../audio/playback.ts'
 import { q, on, reflow, PLAY_GLYPH, PAUSE_GLYPH } from './dom.ts'
 import { displayName, releaseAudio, downloadRec, handOff, WAV_RESCUE_MAX_SEC } from './recList.ts'
 import { toast } from './toast.ts'
+import { t as tr } from '../core/i18n/index.ts'
 import { hideMenu, showMenuInstant } from './menu.ts'
 import { attachSwipeBack } from './swipeBack.ts'
 
@@ -37,7 +38,7 @@ const pct = (t: number, _d?: number) => (frac(t) * 100).toFixed(3) + '%'
 function setZoom(on: boolean): void {
   const d = dur()
   view = on && ed.ptA !== null && ed.ptB !== null && d ? { t0: Math.max(0, ed.ptA - ZOOM_PAD), t1: Math.min(d, ed.ptB + ZOOM_PAD) } : null
-  q('ed-zoom-btn').classList.toggle('on', !!view); q('ed-zoom-btn').textContent = view ? '전체 보기' : '구간 확대'
+  q('ed-zoom-btn').classList.toggle('on', !!view); q('ed-zoom-btn').textContent = tr(view ? 'ed.showAll' : 'ed.zoom')
   updateHandles(); renderBmTicks(); if (ed.audio) setPosUI(ed.audio.currentTime); requestWave()
 }
 function updateZoomBtn(): void { const ok = ed.ptA !== null && ed.ptB !== null; q('ed-zoom-btn').classList.toggle('dim', !ok); if (!ok && view) setZoom(false) }
@@ -87,12 +88,12 @@ const abBtn = (id: string, active: boolean, label: string, dim = false) => {
   const btn = q(id); btn.classList.toggle('on', active); btn.classList.toggle('dim', dim)
   btn.querySelector('span')!.textContent = label
 }
-const LOOP_LABEL = ['꺼짐', '켜짐', '1초 전부터'] as const
-const updateLoopBtn = () => abBtn('ed-loop-btn', ed.loop > 0, LOOP_LABEL[ed.loop], ed.ptA === null || ed.ptB === null)
-const updateABtn = () => abBtn('ed-a-btn', true, '해제')
-const updateBBtn = () => abBtn('ed-b-btn', true, '해제')
-const resetABtn = () => abBtn('ed-a-btn', false, '설정')
-const resetBBtn = () => abBtn('ed-b-btn', false, '설정', true)
+const LOOP_LABEL = ['common.off', 'common.on', 'ed.loopFrom1s'] as const
+const updateLoopBtn = () => abBtn('ed-loop-btn', ed.loop > 0, tr(LOOP_LABEL[ed.loop]), ed.ptA === null || ed.ptB === null)
+const updateABtn = () => abBtn('ed-a-btn', true, tr('ed.clear'))
+const updateBBtn = () => abBtn('ed-b-btn', true, tr('ed.clear'))
+const resetABtn = () => abBtn('ed-a-btn', false, tr('ed.set'))
+const resetBBtn = () => abBtn('ed-b-btn', false, tr('ed.set'), true)
 const resetLoopBtn = () => { ed.loop = 0; updateLoopBtn() }
 /** A/B 지점을 ±0.25 s 미세 조정 — 재생 중 찍으면 반응 지연만큼 늦는 것을 보정 */
 function nudge(which: 'a' | 'b', d: number): void {
@@ -260,7 +261,7 @@ export const editorDiag = () => ({ ptA: ed.ptA, ptB: ed.ptB, loop: ed.loop, audi
 export const NAME_MAX = 40
 function editTitle(): void {
   const current = ed.item ? ed.item.name : ''
-  const newName = prompt('녹음 이름', current)
+  const newName = prompt(tr('ed.namePrompt'), current)
   if (newName && newName.trim() && ed.item) {
     const name = newName.trim().slice(0, NAME_MAX)
     const next = patchRec(ed.item, { name }); if (next) ed.item = next
@@ -269,7 +270,7 @@ function editTitle(): void {
 }
 
 /** play() 의 거부(AbortError·디코드 실패)를 삼키지 않는다 — 글리프가 '재생 중' 으로 남지 않게 */
-function safePlay(a: HTMLAudioElement): void { beforePlay(a); setPlayGlyph(true); a.play().catch(() => { if (ed.audio === a) { afterStop(a); setPlayGlyph(false); toast('재생할 수 없어요') } }) }
+function safePlay(a: HTMLAudioElement): void { beforePlay(a); setPlayGlyph(true); a.play().catch(() => { if (ed.audio === a) { afterStop(a); setPlayGlyph(false); toast(tr('common.cantPlay')) } }) }
 function togglePlay(): void {
   if (!ed.audio) return
   const a = ed.audio
@@ -305,20 +306,20 @@ function toggleA(): void {
   }
 }
 function toggleB(): void {
-  if (ed.ptA === null) { toast('먼저 A 지점을 설정해주세요'); return }
+  if (ed.ptA === null) { toast(tr('ed.needA')); return }
   if (ed.ptB !== null) {
     ed.ptB = null
     q('ed-b-handle').style.display = 'none'; q('ed-ab-range').style.display = 'none'; q('ed-b-time').textContent = 'B —'
     resetBBtn(); resetLoopBtn(); checkExportBtn(); updateZoomBtn(); persistEdit(); requestWave()
   } else {
     if (!dur()) return
-    const t = ed.audio!.currentTime; if (t <= ed.ptA) { toast('B는 A보다 뒤여야 해요'); return }
+    const t = ed.audio!.currentTime; if (t <= ed.ptA) { toast(tr('ed.bAfterA')); return }
     ed.ptB = t; updateHandles(); updateBBtn(); updateLoopBtn(); checkExportBtn(); persistEdit()
   }
 }
 /** 반복 버튼: 꺼짐 → 켜짐 → 1s 앞 → 꺼짐. 켜는 순간 시작점으로 가서 재생 */
 function toggleLoop(): void {
-  if (ed.ptA === null || ed.ptB === null) { toast('A, B 지점을 먼저 설정해주세요'); return }
+  if (ed.ptA === null || ed.ptB === null) { toast(tr('ed.needAB')); return }
   ed.loop = ((ed.loop + 1) % 3) as EdState['loop']
   updateLoopBtn()
   if (ed.loop) {
@@ -337,12 +338,12 @@ function renderBmTicks(): void {
 }
 function renderBmList(): void {
   const wrap = q('ed-bookmarks'); wrap.innerHTML = ''
-  if (ed.bookmarks.length === 0) { wrap.innerHTML = '<span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>'; return }
+  if (ed.bookmarks.length === 0) { const e = document.createElement('span'); e.id = 'ed-bm-empty'; e.textContent = tr('ed.bmEmpty'); wrap.appendChild(e); return }
   ed.bookmarks.forEach((t, i) => {
     const pill = document.createElement('div'); pill.className = 'bm-pill'
     const lbl = document.createElement('button'); lbl.className = 'bm-pill-t'; lbl.textContent = fmtT(t)
     lbl.onclick = () => { if (ed.audio) ed.audio.currentTime = t }
-    const del = document.createElement('button'); del.className = 'bm-pill-x'; del.textContent = '✕'; del.setAttribute('aria-label', '북마크 삭제')
+    const del = document.createElement('button'); del.className = 'bm-pill-x'; del.textContent = '✕'; del.setAttribute('aria-label', tr('ed.bmDelete'))
     del.onclick = e => { e.stopPropagation(); ed.bookmarks.splice(i, 1); renderBmTicks(); renderBmList(); persistEdit() }
     pill.appendChild(lbl); pill.appendChild(del); wrap.appendChild(pill)
   })
@@ -350,21 +351,21 @@ function renderBmList(): void {
 function addBookmark(): void {
   if (!dur()) return
   const t = ed.audio!.currentTime
-  if (ed.bookmarks.some(b => Math.abs(b - t) < 0.3)) { toast('이미 근처에 북마크가 있어요'); return }
+  if (ed.bookmarks.some(b => Math.abs(b - t) < 0.3)) { toast(tr('ed.bmNear')); return }
   ed.bookmarks.push(t); ed.bookmarks.sort((a, b) => a - b); renderBmTicks(); renderBmList(); persistEdit()
 }
 
 async function exportAB(): Promise<void> {
-  if (ed.ptA === null || ed.ptB === null || !ed.item) { toast('A, B 지점을 먼저 설정해주세요'); return }
+  if (ed.ptA === null || ed.ptB === null || !ed.item) { toast(tr('ed.needAB')); return }
   // 녹음 전체를 디코드한다 — 60분이면 ~690 MB PCM 이라 아이폰 탭이 죽는다
-  if (ed.item.dur > WAV_RESCUE_MAX_SEC) { toast('이 녹음은 너무 길어 구간을 잘라낼 수 없어요 — 컴퓨터에서 열어주세요'); return }
+  if (ed.item.dur > WAV_RESCUE_MAX_SEC) { toast(tr('ed.tooLongCut')); return }
   const item = ed.item
   try {
     const arrayBuf = await (await fetch(item.url)).arrayBuffer()
     const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf) // 디코드용 AudioContext 를 새로 만들지 않는다
     const sr = decoded.sampleRate, ch = decoded.numberOfChannels
     const s0 = Math.floor(ed.ptA * sr), s1 = Math.min(decoded.length, Math.floor(ed.ptB * sr)), len = s1 - s0 // B 가 반올림된 dur 를 넘을 수 있다
-    if (len <= 0) { toast('구간이 너무 짧아요'); return }
+    if (len <= 0) { toast(tr('ed.tooShort')); return }
     const offAC = new OfflineAudioContext(ch, len, sr); const buf = offAC.createBuffer(ch, len, sr)
     for (let c = 0; c < ch; c++) buf.copyToChannel(decoded.getChannelData(c).slice(s0, s1), c)
     const src = offAC.createBufferSource(); src.buffer = buf
@@ -375,7 +376,7 @@ async function exportAB(): Promise<void> {
     src.start()
     const rendered = await offAC.startRendering()
     handOff(new Blob([bufToWav(rendered)], { type: 'audio/wav' }), 'tempotune_' + item.name + '_cut.wav') // 아이폰: 탭 안에서 공유
-  } catch (e) { toast('저장 실패: ' + (e instanceof Error ? e.message : String(e))) }
+  } catch (e) { toast(tr('common.saveFailed', { e: e instanceof Error ? e.message : String(e) })) }
 }
 /** 다운로드 — 목록과 같은 경로 (recList.downloadRec) */
 async function downloadWhole(): Promise<void> { if (ed.item) await downloadRec(ed.item) }
@@ -406,7 +407,7 @@ export function mountEditor(): void {
   on(q('ed-speed-val'), 'click', cycleSpeed)
   on(q('ed-a-btn'), 'click', toggleA); on(q('ed-b-btn'), 'click', toggleB); on(q('ed-loop-btn'), 'click', toggleLoop)
   on(q('ed-bm-add-btn'), 'click', addBookmark); on(q('ed-export-btn'), 'click', exportAB)
-  on(q('ed-zoom-btn'), 'click', () => { if (ed.ptA !== null && ed.ptB !== null) setZoom(!view); else toast('A, B 지점을 먼저 설정해주세요') })
+  on(q('ed-zoom-btn'), 'click', () => { if (ed.ptA !== null && ed.ptB !== null) setZoom(!view); else toast(tr('ed.needAB')) })
   on(q('ed-dl-btn'), 'click', (e: Event) => { e.preventDefault(); void downloadWhole() })
   on(q('ed-a-nudge-l'), 'click', () => nudge('a', -0.25)); on(q('ed-a-nudge-r'), 'click', () => nudge('a', 0.25))
   on(q('ed-b-nudge-l'), 'click', () => nudge('b', -0.25)); on(q('ed-b-nudge-r'), 'click', () => nudge('b', 0.25))

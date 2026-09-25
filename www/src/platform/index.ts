@@ -1,4 +1,5 @@
 /** 플랫폼 분기 (웹 / iOS 웹 / Capacitor Android). 나머지 코드는 이 모듈의 함수만 호출한다 */
+import { t } from '../core/i18n/index.ts'
 declare global { interface Window { Capacitor?: unknown } }
 
 export const isNative = (): boolean => typeof window !== 'undefined' && !!window.Capacitor
@@ -52,7 +53,7 @@ export function onWakeLockUnsupported(fn: (m: string) => void): void { wakeWarn 
 /** iOS 웹은 첫 요청에 DOM 탭(transient activation)이 필요 — 탭 핸들러에서 await 전에 부른다. 실패는 삼킨다(다음 syncWake 에서 재시도) */
 export async function acquireWakeLock(): Promise<void> {
   if (wakeLock && !wakeLock.released) return // 이미 쥐고 있으면 다시 요청하지 않는다 — 앞의 센티널이 샌다
-  if (!('wakeLock' in navigator)) { if (!wakeWarned) { wakeWarned = true; wakeWarn?.('이 브라우저는 화면 켜짐 유지를 지원하지 않아요') } return }
+  if (!('wakeLock' in navigator)) { if (!wakeWarned) { wakeWarned = true; wakeWarn?.(t('set.wakeUnsupported')) } return }
   const gen = ++wakeGen
   try {
     const s = await navigator.wakeLock.request('screen')
@@ -98,7 +99,7 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
           catch (e) {
             if (e instanceof Error && e.name === 'AbortError') return { ok: true } /* 취소는 오류가 아니다 */
             // 홈 화면 앱에서는 <a download> 폴백이 조용히 아무것도 안 한다 — 사파리 탭에서만 폴백
-            if ((navigator as Navigator & { standalone?: boolean }).standalone) return { ok: false, error: '공유 창을 열지 못했어요 — 다시 탭해주세요' }
+            if ((navigator as Navigator & { standalone?: boolean }).standalone) return { ok: false, error: t('app.shareFailed') }
           }
         }
       }
@@ -119,7 +120,7 @@ export async function saveFile(blob: Blob, name: string): Promise<{ ok: true } |
       else await Filesystem.appendFile({ path, data: b64, directory: Directory.Cache })
     }
     const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache })
-    await Share.share({ title: safe, url: uri, dialogTitle: '저장 / 공유' })
+    await Share.share({ title: safe, url: uri, dialogTitle: t('app.shareTitle') })
     return { ok: true }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

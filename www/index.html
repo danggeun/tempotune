@@ -16,8 +16,8 @@
 <meta property="og:description" content="in time, in tune. — 튜너 · 메트로놈 · 기준음 · 녹음 편집을 한 화면에서.">
 <meta property="og:image" content="https://danggeun.github.io/tempotune/icons/icon-512.png">
 <meta name="theme-color" content="#181b21">
-<!-- 저장된 테마를 첫 그리기 전에 적용한다. iOS 홈 화면 앱의 상태바 글자색은 실행 시점의 meta 로 정해진다 -->
-<script>try{var t=JSON.parse(localStorage.getItem('tempotune_settings_v1')||'{}').theme;if(t==='light'){document.documentElement.dataset.theme='light';document.querySelector('meta[name="theme-color"]').content='#eef0f3';document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content='default'}}catch(e){}</script>
+<!-- 저장된 테마·언어를 첫 그리기 전에 적용한다. 영어면 문구를 바꿀 때까지 가린다(ui/lang.ts 가 푼다) -->
+<script>try{var s=JSON.parse(localStorage.getItem('tempotune_settings_v1')||'{}'),t=s.theme;if(s.lang==='en'){document.documentElement.lang='en';document.documentElement.classList.add('i18n-pending')}if(t==='light'){document.documentElement.dataset.theme='light';document.querySelector('meta[name="theme-color"]').content='#eef0f3';document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content='default'}}catch(e){}</script>
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"> <!-- 없으면 브라우저가 /favicon.ico 를 요청하고, 오프라인에선 콘솔 오류가 된다 -->
 <!-- 한글은 시스템 글꼴. 외부 글꼴 요청 없음 — 라틴 폰트만 fonts.css 에서 자체 호스팅 -->
@@ -27,23 +27,23 @@
 <div id="mic-popup-bg">
   <div id="mic-popup">
     <div id="mic-popup-title">마이크를 켜 주세요</div>
-    <div id="mic-popup-desc">소리 감지를 위해<br>마이크를 켜주세요</div>
+    <div id="mic-popup-desc">음을 들으려면<br>마이크가 필요해요</div>
     <button id="mic-popup-btn">마이크 켜기</button>
-    <button id="mic-popup-cancel">나중에</button>
+    <button id="mic-popup-cancel" data-t="common.later">나중에</button>
   </div>
 </div>
 
 <div id="app">
   <!-- 헤더 — 워드마크 없음. 앱 이름은 홈 화면 아이콘·설정 화면에 있다 -->
   <div id="hdr">
-    <button id="menu-btn" aria-label="메뉴"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
+    <button id="menu-btn" aria-label="메뉴" data-t-aria="hdr.menu"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
     <div id="hdr-right">
       <button id="hdr-mic-btn" class="compact-btn caps">
         <span id="hdr-mic-dot"></span>MIC
       </button>
       <span id="hdr-rec-time">0:00</span>
       <button id="rec-hdr-btn" class="compact-btn caps" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
-      <button id="settings-hdr-btn" aria-label="설정"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.2l1.3 2.1 2.4-.5.6 2.4 2.3.9-1.2 2.1 1.2 2.1-2.3.9-.6 2.4-2.4-.5L10 17.8l-1.3-2.1-2.4.5-.6-2.4-2.3-.9L4.6 10.8 3.4 8.7l2.3-.9.6-2.4 2.4.5z"/></svg></button>
+      <button id="settings-hdr-btn" aria-label="설정" data-t-aria="hdr.settings"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.2l1.3 2.1 2.4-.5.6 2.4 2.3.9-1.2 2.1 1.2 2.1-2.3.9-.6 2.4-2.4-.5L10 17.8l-1.3-2.1-2.4.5-.6-2.4-2.3-.9L4.6 10.8 3.4 8.7l2.3-.9.6-2.4 2.4.5z"/></svg></button>
     </div>
   </div>
 
@@ -54,7 +54,7 @@
       <div id="tuner-hdr">
         <span id="tuner-label">TUNER</span>
         <div id="tuner-hdr-right">
-          <button id="ref-a-btn" class="compact-btn" aria-label="기준음 A 듣기">A 듣기</button>
+          <button id="ref-a-btn" class="compact-btn" aria-label="기준음 A 듣기" data-t="tuner.playA" data-t-aria="tuner.playAAria">A 듣기</button>
           <div id="ref-row">
             <span id="ref-lbl">A =</span>
             <div id="ref-drum-outer"><div id="ref-drum-sel"></div><div id="ref-drum-inner"></div></div>
@@ -72,7 +72,7 @@
             <!-- 중음(더블스톱)일 때만 채워지는 둘째 성부 줄 -->
             <div id="tuner-dual"></div>
             <!-- 마이크를 열 탭이 필요할 때만 보인다. 별도 스플래시 없음 -->
-            <div id="tuner-start"><button id="tuner-start-btn">시작</button><div id="tuner-start-sub"></div></div>
+            <div id="tuner-start"><button id="tuner-start-btn" data-t="common.start">시작</button><div id="tuner-start-sub"></div></div>
           </div>
           <div id="tuner-left" aria-hidden="true"><span id="tuner-hz"></span></div>
           <div id="tuner-right">
@@ -92,7 +92,7 @@
         <span id="metro-hdr-title">METRONOME</span>
         <div id="beat-vis"></div>
         <div id="metro-hdr-right">
-          <button id="metro-play-hdr-btn" aria-label="메트로놈 정지">■</button>
+          <button id="metro-play-hdr-btn" aria-label="메트로놈 정지" data-t-aria="metro.stop">■</button>
           <!-- 크기 버튼 하나: 접힘 → 펼침 → 펼침2 → 접힘 순환. 글리프는 다음 목적지의 방향. 카드를 위아래로 끌어도 된다(ui/metro.ts) -->
           <button id="metro-size-btn" aria-label="메트로놈 펼치기">
             <svg class="nav-glyph chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg>
@@ -104,23 +104,23 @@
         <!-- 세이코식 LED 줄 — 전용 모드용 큰 줄. 헤더의 #beat-vis 와 같은 방식, 칸만 많다 -->
         <div id="sweep" aria-hidden="true"><div id="sweep-leds"></div></div>
         <!-- 전용 모드 다이얼 — 링을 돌려 BPM. 그림은 ui/dial.ts 가 채운다 -->
-        <div id="dial" role="slider" aria-label="BPM 다이얼" aria-valuemin="40" aria-valuemax="200" aria-valuenow="80">
+        <div id="dial" role="slider" aria-label="BPM 다이얼" data-t-aria="metro.dial" aria-valuemin="40" aria-valuemax="200" aria-valuenow="80">
           <svg id="dial-svg" aria-hidden="true"></svg>
           <div id="dial-center"><div id="dial-bpm">80</div><div id="dial-name">Andante</div></div>
         </div>
         <div id="metro-bpm-row">
           <div id="metro-bpm-wrap">
             <div id="metro-bpm">80</div>
-            <span id="metro-bpm-hint">↕ 드래그</span>
+            <span id="metro-bpm-hint" data-t="metro.drag">↕ 드래그</span>
           </div>
           <div id="metro-adj-col">
             <div id="metro-btn-row">
-              <button class="m-adj" aria-label="BPM 내리기">−</button>
-              <button class="m-adj" aria-label="BPM 올리기">+</button>
-              <button id="metro-play-btn" aria-label="메트로놈 재생/정지">▶</button>
+              <button class="m-adj" aria-label="BPM 내리기" data-t-aria="metro.bpmDown">−</button>
+              <button class="m-adj" aria-label="BPM 올리기" data-t-aria="metro.bpmUp">+</button>
+              <button id="metro-play-btn" aria-label="메트로놈 재생/정지" data-t-aria="metro.playStop">▶</button>
             </div>
             <div id="metro-vol-row">
-              <span class="m-vol-lbl">음량</span>
+              <span class="m-vol-lbl" data-t="common.volume">음량</span>
               <input type="range" id="metro-vol" min="0" max="1" step="0.05" value="0.7">
             </div>
           </div>
@@ -130,12 +130,12 @@
           <button class="m-adj-pad">+</button>
         </div>
         <div id="metro-vol-pad" style="display:none;align-items:center;gap:8px;">
-          <span class="m-vol-lbl">음량</span>
+          <span class="m-vol-lbl" data-t="common.volume">음량</span>
           <input type="range" id="metro-vol-pad-input" min="0" max="1" step="0.05" value="0.7">
         </div>
         <div id="metro-grids-wrap">
           <div class="m-grid" id="ts-grid">
-            <button class="m-seg" data-ts="1" aria-label="박자표 없음 — 정박만">없음</button>
+            <button class="m-seg" data-ts="1" aria-label="박자표 없음 — 정박만" data-t="metro.tsNone" data-t-aria="metro.tsNoneAria">없음</button>
             <button class="m-seg" data-ts="2">2/4</button>
             <button class="m-seg" data-ts="3">3/4</button>
             <button class="m-seg on" data-ts="4">4/4</button>
@@ -143,15 +143,15 @@
           </div>
           <div class="m-grid" id="sd-grid">
             <!-- 세분 없음: 박 하나. 6/8(.compound)에서는 틱이 8분음표라 깃발이 보인다(CSS) -->
-            <button class="m-seg on" data-sd="1" aria-label="세분 없음"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><path class="flag" d="M10.4 1.5c0 3.5 4 4.5 3.2 9.2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
+            <button class="m-seg on" data-sd="1" aria-label="세분 없음" data-t-aria="metro.sd1"><svg class="note-glyph" viewBox="0 0 14 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><path class="flag" d="M10.4 1.5c0 3.5 4 4.5 3.2 9.2" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></button>
             <!-- 2분할 = 8분음표 둘을 빔으로 연결. 나란히 놓기만 하면 '4분음표 둘' 이라는 다른 뜻이 된다 -->
-            <button class="m-seg" data-sd="2" aria-label="2분할"><svg class="note-glyph g2" viewBox="0 0 26 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><ellipse cx="17" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 17 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="20.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="13.75" height="2.6" rx=".6"/></svg></button>
+            <button class="m-seg" data-sd="2" aria-label="2분할" data-t-aria="metro.sd2"><svg class="note-glyph g2" viewBox="0 0 26 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 5 16)"/><ellipse cx="17" cy="16" rx="4.6" ry="3.2" transform="rotate(-20 17 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="20.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="13.75" height="2.6" rx=".6"/></svg></button>
             <!-- 3분할 = 셋잇단음표. 빔 + 위에 숫자 3 이 있어야 세 개로 나눈 것이 된다 -->
-            <button class="m-seg" data-sd="3" aria-label="3분할 (셋잇단음표)"><svg class="note-glyph g3" viewBox="0 0 38 23" aria-hidden="true"><text x="21.5" y="6" font-size="8.5" text-anchor="middle" fill="currentColor" font-family="DM Mono, monospace">3</text><ellipse cx="5" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 5 19)"/><ellipse cx="17" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 17 19)"/><ellipse cx="29" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 29 19)"/><rect x="8.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="20.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="32.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="8.7" y="8" width="25.75" height="2.6" rx=".6"/></svg></button>
+            <button class="m-seg" data-sd="3" aria-label="3분할 (셋잇단음표)" data-t-aria="metro.sd3"><svg class="note-glyph g3" viewBox="0 0 38 23" aria-hidden="true"><text x="21.5" y="6" font-size="8.5" text-anchor="middle" fill="currentColor" font-family="DM Mono, monospace">3</text><ellipse cx="5" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 5 19)"/><ellipse cx="17" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 17 19)"/><ellipse cx="29" cy="19" rx="4.6" ry="3.2" transform="rotate(-20 29 19)"/><rect x="8.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="20.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="32.7" y="8" width="1.75" height="11.5" rx=".8"/><rect x="8.7" y="8" width="25.75" height="2.6" rx=".6"/></svg></button>
             <!-- 4분할 = 16분음표 넷, 빔 두 줄 -->
-            <button class="m-seg" data-sd="4" aria-label="4분할 (16분음표)"><svg class="note-glyph g4" viewBox="0 0 48 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 5 16)"/><ellipse cx="16" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 16 16)"/><ellipse cx="27" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 27 16)"/><ellipse cx="38" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 38 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="19.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="30.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="41.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="34.75" height="2.6" rx=".6"/><rect x="8.7" y="5.1" width="34.75" height="2.6" rx=".6"/></svg></button>
+            <button class="m-seg" data-sd="4" aria-label="4분할 (16분음표)" data-t-aria="metro.sd4"><svg class="note-glyph g4" viewBox="0 0 48 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 5 16)"/><ellipse cx="16" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 16 16)"/><ellipse cx="27" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 27 16)"/><ellipse cx="38" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 38 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="19.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="30.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="41.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="34.75" height="2.6" rx=".6"/><rect x="8.7" y="5.1" width="34.75" height="2.6" rx=".6"/></svg></button>
             <!-- 붓점 = 점8분 + 16분. 둘째 음만 빔이 두 줄이라 아래 빔은 뒤쪽만 걸친다 -->
-            <button class="m-seg" data-sd="d" aria-label="붓점 리듬 (점8분＋16분)"><svg class="note-glyph gd" viewBox="0 0 31 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 5 16)"/><circle cx="12.4" cy="13.2" r="1.35"/><ellipse cx="22" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 22 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="25.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="18.75" height="2.6" rx=".6"/><rect x="20" y="5.1" width="7.45" height="2.6" rx=".6"/></svg></button>
+            <button class="m-seg" data-sd="d" aria-label="붓점 리듬 (점8분＋16분)" data-t-aria="metro.sdDotted"><svg class="note-glyph gd" viewBox="0 0 31 20" aria-hidden="true"><ellipse cx="5" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 5 16)"/><circle cx="12.4" cy="13.2" r="1.35"/><ellipse cx="22" cy="16" rx="4.3" ry="3.2" transform="rotate(-20 22 16)"/><rect x="8.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="25.7" y="1" width="1.75" height="15.5" rx=".8"/><rect x="8.7" y="1" width="18.75" height="2.6" rx=".6"/><rect x="20" y="5.1" width="7.45" height="2.6" rx=".6"/></svg></button>
           </div>
           </div>
         </div>
@@ -166,34 +166,34 @@
 <div id="menu-overlay">
   <div id="menu-panel">
     <div class="menu-top">
-      <span class="menu-title-txt">메뉴</span>
+      <span class="menu-title-txt" data-t="menu.title">메뉴</span>
       <div style="display:flex;align-items:center;gap:8px;margin-right:-6px;">
-        <button class="menu-close-btn" aria-label="닫기"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+        <button class="menu-close-btn" aria-label="닫기" data-t-aria="common.close"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
       </div>
     </div>
 
     <!-- 1. 타이머 -->
     <div class="menu-sec">
-      <div class="menu-sec-title">타이머</div>
+      <div class="menu-sec-title" data-t="menu.timer">타이머</div>
       <div class="timer-grid">
-        <div class="timer-box"><div class="timer-lbl">경과 시간</div><div class="timer-val" id="timer-elapsed">00:00</div></div>
-        <div class="timer-box"><div class="timer-lbl">소리 낸 시간</div><div class="timer-val" id="timer-detected">00:00</div></div>
+        <div class="timer-box"><div class="timer-lbl" data-t="menu.elapsed">경과 시간</div><div class="timer-val" id="timer-elapsed">00:00</div></div>
+        <div class="timer-box"><div class="timer-lbl" data-t="menu.played">소리 낸 시간</div><div class="timer-val" id="timer-detected">00:00</div></div>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="menu-btn-sm" id="timer-toggle-btn">시작</button>
-        <button class="menu-btn-sm" id="timer-reset-btn">초기화</button>
+        <button class="menu-btn-sm" id="timer-reset-btn" data-t="menu.reset">초기화</button>
       </div>
     </div>
 
   <!-- 2. 기준음 -->
     <div class="menu-sec">
-      <div class="menu-sec-title">기준음</div>
+      <div class="menu-sec-title" data-t="menu.ref">기준음</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span class="ref-oct-lbl">옥타브</span>
-          <button class="ref-oct-btn" aria-label="옥타브 내리기">−</button>
+          <span class="ref-oct-lbl" data-t="menu.octave">옥타브</span>
+          <button class="ref-oct-btn" aria-label="옥타브 내리기" data-t-aria="menu.octDown">−</button>
           <span id="ref-oct-num-menu">4</span>
-          <button class="ref-oct-btn" aria-label="옥타브 올리기">+</button>
+          <button class="ref-oct-btn" aria-label="옥타브 올리기" data-t-aria="menu.octUp">+</button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -219,7 +219,7 @@
 
     <!-- 3. 녹음 -->
     <div class="menu-sec">
-      <div class="menu-sec-title">녹음</div>
+      <div class="menu-sec-title" data-t="menu.rec">녹음</div>
       <button class="menu-action" id="rec-toggle-btn">녹음 시작</button>
       <div id="rec-list"></div>
     </div>
@@ -232,23 +232,31 @@
   <div id="settings-inner">
     <!-- 메뉴와 같은 모양: 제목 왼쪽, 닫기 X 오른쪽 위. 헤더에서 바로 열 수도 있어 '뒤로' 가 아니라 '닫기' -->
     <div class="settings-top">
-      <span class="settings-title">설정</span>
-      <button class="settings-close" id="settings-back-btn" aria-label="닫기"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+      <span class="settings-title" data-t="set.title">설정</span>
+      <button class="settings-close" id="settings-back-btn" aria-label="닫기" data-t-aria="common.close"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
     </div>
 
     <div class="setting-row">
-      <span class="setting-lbl">화면</span>
-      <span class="setting-desc">밝은 곳에서는 라이트가 잘 보여요</span>
+      <span class="setting-lbl" data-t="set.lang">언어</span>
+      <div class="step-row" id="lang-steps">
+        <button class="step-btn on" data-v="0" lang="ko">한국어</button>
+        <button class="step-btn" data-v="1" lang="en">English</button>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-lbl" data-t="set.theme">화면</span>
+      <span class="setting-desc" data-t="set.themeDesc">밝은 곳에서는 라이트가 잘 보여요</span>
       <div class="step-row" id="theme-steps">
-        <button class="step-btn on" data-v="0">다크</button>
-        <button class="step-btn" data-v="1">라이트</button>
+        <button class="step-btn on" data-v="0" data-t="set.dark">다크</button>
+        <button class="step-btn" data-v="1" data-t="set.light">라이트</button>
       </div>
     </div>
 
     <!-- 허용 오차 -->
     <div class="setting-row">
-      <span class="setting-lbl">허용 오차</span>
-      <span class="setting-desc">이 안에 들면 초록으로 표시돼요 (cents)</span>
+      <span class="setting-lbl" data-t="set.tol">허용 오차</span>
+      <span class="setting-desc" data-t="set.tolDesc">이 안에 들면 초록으로 표시돼요 (cents)</span>
       <div class="step-row" id="cents-steps">
         <button class="step-btn" data-v="5">±5</button>
         <button class="step-btn" data-v="10">±10</button>
@@ -260,30 +268,30 @@
 
     <!-- 튜너 반응 속도 -->
     <div class="setting-row">
-      <span class="setting-lbl">튜너 반응 속도</span>
-      <span class="setting-desc">빠를수록 음정 변화에 바로 반응해요</span>
+      <span class="setting-lbl" data-t="set.speed">튜너 반응 속도</span>
+      <span class="setting-desc" data-t="set.speedDesc">빠를수록 음정 변화에 바로 반응해요</span>
       <div class="step-row" id="smooth-steps">
-        <button class="step-btn" data-v="1">느림</button>
-        <button class="step-btn on" data-v="2">보통</button>
-        <button class="step-btn" data-v="3">빠름</button>
+        <button class="step-btn" data-v="1" data-t="set.slow">느림</button>
+        <button class="step-btn on" data-v="2" data-t="common.normal">보통</button>
+        <button class="step-btn" data-v="3" data-t="set.fast">빠름</button>
       </div>
     </div>
 
     <!-- 마이크 감도 -->
     <div class="setting-row">
-      <span class="setting-lbl">마이크 감도</span>
-      <span class="setting-desc">작은 소리까지 잡으려면 '높음'을 선택해요</span>
+      <span class="setting-lbl" data-t="set.sens">마이크 감도</span>
+      <span class="setting-desc" data-t="set.sensDesc">작은 소리까지 잡으려면 '높음'을 선택해요</span>
       <div class="step-row" id="rms-steps">
-        <button class="step-btn" data-v="1">낮음</button>
-        <button class="step-btn on" data-v="2">보통</button>
-        <button class="step-btn" data-v="3">높음</button>
+        <button class="step-btn" data-v="1" data-t="common.low">낮음</button>
+        <button class="step-btn on" data-v="2" data-t="common.normal">보통</button>
+        <button class="step-btn" data-v="3" data-t="common.high">높음</button>
       </div>
     </div>
 
     <!-- 음이름 표기 -->
-    <div class="setting-row">
-      <span class="setting-lbl">음이름 표기</span>
-      <span class="setting-desc">선택하지 않은 쪽은 작게 함께 보여요</span>
+    <div class="setting-row" id="notenames-row">
+      <span class="setting-lbl" data-t="set.names">음이름 표기</span>
+      <span class="setting-desc" data-t="set.namesDesc">선택하지 않은 쪽은 작게 함께 보여요</span>
       <div class="step-row" id="notenames-steps">
         <button class="step-btn on" data-v="0">도레미</button>
         <button class="step-btn" data-v="1">C D E</button>
@@ -292,28 +300,28 @@
 
     <!-- 화면 항상 켜짐 -->
     <div class="setting-row">
-      <span class="setting-lbl">화면 항상 켜짐</span>
-      <span class="setting-desc">연습 중 화면이 꺼지지 않아요</span>
+      <span class="setting-lbl" data-t="set.wake">화면 항상 켜짐</span>
+      <span class="setting-desc" data-t="set.wakeDesc">연습 중 화면이 꺼지지 않아요</span>
       <div class="step-row" id="wakelock-steps">
-        <button class="step-btn on" data-v="1">켜짐</button>
-        <button class="step-btn" data-v="0">꺼짐</button>
+        <button class="step-btn on" data-v="1" data-t="common.on">켜짐</button>
+        <button class="step-btn" data-v="0" data-t="common.off">꺼짐</button>
       </div>
     </div>
 
     <!-- 전체화면 — 브라우저 탭에서 쓸 때만 뜻이 있다. 설치 앱·홈 화면 웹앱에서는 main.ts 가 숨긴다 -->
     <div class="setting-row" id="fullscreen-row">
-      <span class="setting-lbl">전체화면</span>
-      <span class="setting-desc">브라우저에서 쓸 때 주소창을 숨겨요. 홈 화면에 추가했으면 이미 전체화면이에요</span>
-      <button class="menu-btn-sm" id="fullscreen-btn">전체화면 켜기/끄기</button>
+      <span class="setting-lbl" data-t="set.fs">전체화면</span>
+      <span class="setting-desc" data-t="set.fsDesc">브라우저에서 쓸 때 주소창을 숨겨요. 홈 화면에 추가했으면 이미 전체화면이에요</span>
+      <button class="menu-btn-sm" id="fullscreen-btn" data-t="set.fsBtn">전체화면 켜기/끄기</button>
     </div>
 
     <!-- 녹음 보관 -->
     <div class="setting-row">
-      <span class="setting-lbl">녹음 보관</span>
-      <span class="setting-desc">30일이면 오래된 녹음을 자동으로 지워요. 필요한 건 다운로드로 보관해요</span>
+      <span class="setting-lbl" data-t="set.keep">녹음 보관</span>
+      <span class="setting-desc" data-t="set.keepDesc">30일이면 오래된 녹음을 자동으로 지워요. 필요한 건 다운로드로 보관해요</span>
       <div class="step-row" id="autodelete-steps">
-        <button class="step-btn on" data-v="1">30일</button>
-        <button class="step-btn" data-v="0">계속</button>
+        <button class="step-btn on" data-v="1" data-t="set.keep30">30일</button>
+        <button class="step-btn" data-v="0" data-t="set.keepForever">계속</button>
       </div>
     </div>
 
@@ -332,11 +340,11 @@
   <div id="ed-inner">
     <div id="ed-top">
       <div id="ed-nav">
-        <button id="ed-back-btn" aria-label="뒤로"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3M9 4l-6 6 6 6"/></svg></button>
-        <span id="ed-nav-title">편집</span>
+        <button id="ed-back-btn" aria-label="뒤로" data-t-aria="common.back"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3M9 4l-6 6 6 6"/></svg></button>
+        <span id="ed-nav-title" data-t="ed.title">편집</span>
       </div>
       <div id="ed-file-row">
-        <span id="editor-title-display"></span><button id="ed-title-edit" class="compact-btn">이름 바꾸기</button>
+        <span id="editor-title-display"></span><button id="ed-title-edit" class="compact-btn" data-t="ed.rename">이름 바꾸기</button>
       </div>
     </div>
     <div id="ed-track-wrap">
@@ -360,42 +368,42 @@
           <div id="ed-pos-handle"><div id="ed-pos-hit"></div></div>
         </div>
         <div id="ed-ab-times">
-          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-a-nudge-l" aria-label="A 0.25초 앞으로">‹</button><span id="ed-a-time">A —</span><button class="ed-nudge" id="ed-a-nudge-r" aria-label="A 0.25초 뒤로">›</button></span>
-          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-b-nudge-l" aria-label="B 0.25초 앞으로">‹</button><span id="ed-b-time">B —</span><button class="ed-nudge" id="ed-b-nudge-r" aria-label="B 0.25초 뒤로">›</button></span>
+          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-a-nudge-l" aria-label="A 0.25초 앞으로" data-t-aria="ed.aEarlier">‹</button><span id="ed-a-time">A —</span><button class="ed-nudge" id="ed-a-nudge-r" aria-label="A 0.25초 뒤로" data-t-aria="ed.aLater">›</button></span>
+          <span class="ed-ab-time-group"><button class="ed-nudge" id="ed-b-nudge-l" aria-label="B 0.25초 앞으로" data-t-aria="ed.bEarlier">‹</button><span id="ed-b-time">B —</span><button class="ed-nudge" id="ed-b-nudge-r" aria-label="B 0.25초 뒤로" data-t-aria="ed.bLater">›</button></span>
         </div>
         <div id="ed-time-row">
           <span id="ed-times"><span id="ed-cur">00:00</span><span id="ed-dur">--:--</span></span>
-          <button id="ed-zoom-btn" class="compact-btn dim">구간 확대</button>
+          <button id="ed-zoom-btn" class="compact-btn dim" data-t="ed.zoom">구간 확대</button>
         </div>
       </div>
     </div>
     <div id="ed-transport">
-      <button id="ed-play-btn" aria-label="재생">▶</button>
+      <button id="ed-play-btn" aria-label="재생" data-t-aria="ed.play">▶</button>
       <div id="ed-speed-ctrl">
         <div id="ed-speed-hdr">
-          <span id="ed-speed-lbl">재생 속도</span>
+          <span id="ed-speed-lbl" data-t="ed.speed">재생 속도</span>
           <button id="ed-speed-val" class="compact-btn">1.0×</button>
         </div>
         <input type="range" id="ed-speed" min="0.5" max="1.5" step="0.05" value="1.0">
       </div>
     </div>
     <div id="ed-ab-row">
-      <button id="ed-a-btn" class="ed-ab-btn"><b>A</b><span>설정</span></button>
-      <button id="ed-b-btn" class="ed-ab-btn"><b>B</b><span>설정</span></button>
-      <button id="ed-loop-btn" class="ed-ab-btn">반복<span>꺼짐</span></button>
+      <button id="ed-a-btn" class="ed-ab-btn"><b>A</b><span data-t="ed.set">설정</span></button>
+      <button id="ed-b-btn" class="ed-ab-btn"><b>B</b><span data-t="ed.set">설정</span></button>
+      <button id="ed-loop-btn" class="ed-ab-btn"><i data-t="ed.loop">반복</i><span data-t="common.off">꺼짐</span></button>
     </div>
     <div id="ed-bm-section">
       <div id="ed-bm-hdr">
-        <span id="ed-bm-title">북마크</span>
-        <button id="ed-bm-add-btn" class="compact-btn">+ 추가</button>
+        <span id="ed-bm-title" data-t="ed.bookmarks">북마크</span>
+        <button id="ed-bm-add-btn" class="compact-btn" data-t="ed.add">+ 추가</button>
       </div>
       <div id="ed-bookmarks">
-        <span id="ed-bm-empty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>
+        <span id="ed-bm-empty" data-t="ed.bmEmpty">재생 중 추가 버튼을 누르면 현재 위치가 저장돼요</span>
       </div>
     </div>
     <div id="ed-actions">
-      <a id="ed-dl-btn">다운로드</a>
-      <button id="ed-export-btn">A-B 저장</button>
+      <a id="ed-dl-btn" data-t="common.download">다운로드</a>
+      <button id="ed-export-btn" data-t="ed.saveAB">A-B 저장</button>
     </div>
   </div>
 </div>

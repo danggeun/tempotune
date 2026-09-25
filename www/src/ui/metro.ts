@@ -8,6 +8,8 @@ import { tickKind } from '../core/metro/sequencer.ts'
 import { isPhoneLayout } from '../platform/index.ts'
 import { buildDial, setDialBpm, onDialChange } from './dial.ts'
 import { attachVDrag } from './swipeStep.ts'
+import { t } from '../core/i18n/index.ts'
+import { onLangChange } from './lang.ts'
 import { beatDurS, isBeatStart, sweepX, ledIndex, hitIndex } from '../core/metro/sweep.ts'
 import { q, qsa, on, reflow } from './dom.ts'
 import { toast } from './toast.ts'
@@ -209,7 +211,7 @@ export function mountMetro(): void {
 
   // 초기: 본체는 펼친 채 그려지고, 폰이면 250 ms 후 접힘 애니메이션
   if (isPhoneLayout()) setTimeout(() => { applyCollapse(); syncSizeBtn() }, 250)
-  syncSizeBtn()
+  syncSizeBtn(); onLangChange(syncSizeBtn)
 }
 
 /** 한 단계 위로 (순환): 접힘 → 펼침 → 전용 → 접힘 */
@@ -311,5 +313,5 @@ function syncSizeBtn(): void {
   const toExpand = !full && collapsed, toFull = !full && !collapsed
   btn.classList.toggle('to-expand', toExpand)
   btn.classList.toggle('to-full', toFull)
-  btn.setAttribute('aria-label', toExpand ? '메트로놈 펼치기' : toFull ? '메트로놈 더 펼치기' : '메트로놈 접기')
+  btn.setAttribute('aria-label', t(toExpand ? 'metro.expand' : toFull ? 'metro.expandMore' : 'metro.collapse'))
 }

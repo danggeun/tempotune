@@ -45,31 +45,31 @@ const SCENES = {
 }
 
 const results = []
-// 앱 테마는 OS 설정이 아니라 앱 설정(설정 › 화면)을 따른다 — 저장값을 심어 두 벌 찍는다
-for (const scheme of ['dark', 'light']) {
+// 테마·언어는 OS 가 아니라 앱 설정을 따른다 — 저장값을 심어 세 벌 찍는다: 다크 · 라이트 · 영어(다크)
+for (const [scheme, lang, tag] of [['dark', 'ko', 'dark'], ['light', 'ko', 'light'], ['dark', 'en', 'en']]) {
   for (const [name, prep] of Object.entries(SCENES)) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme, permissions: ['microphone'], ...(prep.ctx ?? {}) })
-    if (scheme === 'light') await ctx.addInitScript(() => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: 'light' })) })
+    if (tag !== 'dark') await ctx.addInitScript(([theme, lang]) => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme, lang })) }, [scheme, lang])
     const page = await ctx.newPage()
     await page.goto(`http://localhost:${PORT}/`); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(1000) // 첫 접힘 트랜지션(250 ms 뒤 시작, .55 s)이 끝난 뒤 — 그 전엔 카드가 반쯤 접힌 채 찍힌다
     await page.addStyleTag({ content: '*,*::before,*::after{animation-play-state:paused!important;caret-color:transparent!important}' })
     await prep(page)
-    const file = join(OUT, `${scheme}_${name}.png`)
+    const file = join(OUT, `${tag}_${name}.png`)
     await page.screenshot({ path: file })
     let diff = null
     if (BASE) {
-      const bf = join(BASE, `${scheme}_${name}.png`)
+      const bf = join(BASE, `${tag}_${name}.png`)
       if (existsSync(bf)) {
         const a = PNG.sync.read(readFileSync(bf)), b = PNG.sync.read(readFileSync(file))
         if (a.width === b.width && a.height === b.height) {
           const d = new PNG({ width: a.width, height: a.height })
           const n = pixelmatch(a.data, b.data, d.data, a.width, a.height, { threshold: 0.1 })
           diff = { pixels: n, pct: 100 * n / (a.width * a.height) }
-          if (n > 0) writeFileSync(join(OUT, `${scheme}_${name}.diff.png`), PNG.sync.write(d))
+          if (n > 0) writeFileSync(join(OUT, `${tag}_${name}.diff.png`), PNG.sync.write(d))
         } else diff = { pixels: -1, pct: NaN, note: 'size mismatch' }
       } else diff = { pixels: -1, pct: NaN, note: 'no baseline' }
     }
-    results.push({ scene: `${scheme}_${name}`, diff })
+    results.push({ scene: `${tag}_${name}`, diff })
     await ctx.close()
   }
 }

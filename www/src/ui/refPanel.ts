@@ -3,6 +3,8 @@ import { refToneStore, settingsStore } from '../state/index.ts'
 import { toggleRefNote, adjRefOctave, toggleRefA } from '../audio/refTone.ts'
 import { KR, EN, type KrNote } from '../core/note.ts'
 import { q, qsa, on } from './dom.ts'
+import { getLang } from '../core/i18n/index.ts'
+import { onLangChange } from './lang.ts'
 
 export function mountRefPanel(): void {
   qsa('.ref-oct-btn').forEach(b => on(b, 'click', () => adjRefOctave(b.textContent === '−' ? -1 : 1)))
@@ -14,9 +16,14 @@ export function mountRefPanel(): void {
     q('ref-a-btn').classList.toggle('on', active === 'A4')
   }, { immediate: true })
   // 버튼 라벨: 도레미 / C D E (data-note 는 내부 키라 그대로)
-  settingsStore.select(s => s.noteNames, sys => qsa<HTMLElement>('.ref-note-btn').forEach(b => {
-    const key = b.dataset.note!
-    if (key === '도2') { b.textContent = sys === 'en' ? 'C↑' : '도↑'; return }
-    const i = KR.indexOf(key as KrNote); b.textContent = sys === 'en' ? EN[i]! : key
-  }), { immediate: true })
+  // 영어 화면은 언제나 C D E
+  const label = (): void => {
+    const sys = getLang() === 'en' ? 'en' : settingsStore.get().noteNames
+    qsa<HTMLElement>('.ref-note-btn').forEach(b => {
+      const key = b.dataset.note!
+      if (key === '도2') { b.textContent = sys === 'en' ? 'C↑' : '도↑'; return }
+      const i = KR.indexOf(key as KrNote); b.textContent = sys === 'en' ? EN[i]! : key
+    })
+  }
+  settingsStore.select(s => s.noteNames, label, { immediate: true }); onLangChange(label)
 }

@@ -17,6 +17,8 @@ import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
 import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag, retheme } from './ui/tuner.ts'
 import { mountTheme, onThemeChange } from './ui/theme.ts'
+import { mountLang } from './ui/lang.ts'
+import { t } from './core/i18n/index.ts'
 import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { onMetroError } from './audio/metronome.ts'
@@ -41,7 +43,7 @@ clearLegacyStorage()
 loadSettings(); startSettingsAutosave()
 
 // 화면
-mountTheme(); onThemeChange(retheme)
+mountLang(); mountTheme(); onThemeChange(retheme)
 mountTuner(); mountRefDrum(); mountMetro(); mountRefPanel(); mountMenu(); mountSettings()
 mountTimer()
 mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
@@ -89,8 +91,8 @@ metroStore.select(s => s.playing, syncWake)
 let inactInt: ReturnType<typeof setInterval> | null = null
 function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); inactInt = null }
 // 열 때 활동 시각을 새로 잡는다 — 안 하면 15분 넘게 켜둔 뒤 마이크를 (다시) 켜는 순간 바로 종료된다
-onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast('15분 동안 소리가 없어 마이크를 껐어요'); closeMic(); showTapHint(tryOpenMic) } }, 30 * 1000) })
-on(q('hdr-mic-btn'), 'click', () => tryOpenMic(true).then(ok => { if (ok) toast('마이크가 켜졌어요') })) // 직접 누른 것이므로 차단이면 안내한다
+onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast(t('mic.idleOff')); closeMic(); showTapHint(tryOpenMic) } }, 30 * 1000) })
+on(q('hdr-mic-btn'), 'click', () => tryOpenMic(true).then(ok => { if (ok) toast(t('hdr.micOn')) })) // 직접 누른 것이므로 차단이면 안내한다
 settingsStore.select(s => s.wakeLock, syncWake)
 // 숨김: 마이크를 놓고 메트로놈을 멈춘다(복귀 시 메트로놈은 자동 재개 안 함). 녹음 중이면 마이크는 둔다
 // 복귀: 컨텍스트 재개 + wake lock 재획득 + 놓았던 마이크를 다시 연다(못 열면 탭 안내)
@@ -98,7 +100,7 @@ let micReleasedByHide = false, pendingToast: string | null = null
 on(document, 'visibilitychange', () => {
   if (document.visibilityState !== 'visible') {
     // Android 는 백그라운드 앱의 마이크를 무음으로 만든다 → 무음 파일이 되기 전에 저장
-    if (isNative() && sessionStore.get().recording) { stopRec(); pendingToast = '앱이 뒤로 가서 녹음을 저장했어요' }
+    if (isNative() && sessionStore.get().recording) { stopRec(); pendingToast = t('rec.savedOnHide') }
     if (metroStore.get().playing) stopMetro()
     if (A.micStream && !sessionStore.get().recording) {
       micReleasedByHide = true; releasingForHide = true
@@ -142,8 +144,8 @@ onContextState(state => {
   interruptedTimer = setTimeout(() => {
     interruptedTimer = null
     if (A.ac && A.ac.state !== 'running' && document.visibilityState === 'visible') {
-      if (metroStore.get().playing) { stopMetro(); toast('오디오가 중단되어 메트로놈을 멈췄어요') }
-      else if (tunerStore.get().running) { toast('오디오가 중단됐어요 — 화면을 탭하면 다시 시작해요'); showResumeHint() }
+      if (metroStore.get().playing) { stopMetro(); toast(t('audio.interruptedMetro')) }
+      else if (tunerStore.get().running) { toast(t('audio.interruptedTap')); showResumeHint() }
     }
   }, 1500)
 })
@@ -158,7 +160,7 @@ onBackButton(() => {
 // 설치 앱·홈 화면 웹앱은 이미 전체화면이라 행을 숨긴다
 const fsRow = q('fullscreen-row')
 if (isNative() || matchMedia('(display-mode: standalone)').matches) fsRow.style.display = 'none'
-on(q('fullscreen-btn'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 홈 화면에 추가하면 전체화면으로 사용할 수 있어요')))
+on(q('fullscreen-btn'), 'click', () => toggleFullscreen(() => toast(t('set.fsUnsupported'))))
 
 /**
  * 오디오가 멈춘 채 남았을 때(사용자 동작 없이 열린 경우 — 예: 새 버전 적용 뒤 자동 새로고침) 시작 버튼을 띄우되,
@@ -182,13 +184,13 @@ const startInGesture = async (): Promise<boolean> => {
 void (async () => {
   const state = await micPermission()
   if (state === 'denied') { showMicPopup(true); return }
-  if (isIOS() && !isNative() && settingsStore.get().wakeLock) { showTapHint(startInGesture, '마이크 사용을 물어볼게요'); return }
+  if (isIOS() && !isNative() && settingsStore.get().wakeLock) { showTapHint(startInGesture, 'tuner.startSub'); return }
   if (await tryOpenMic()) return
   showTapHint(startInGesture)
 })()
 
 // 녹음 복원
-openRecDb().then(restoreRecordings).then(recoverInProgress).then(n => { if (n) toast(`저장되지 않았던 녹음 ${n}개를 복구했어요`) }).catch(() => toast('녹음 저장소를 열 수 없어요 — 녹음은 이번 세션에만 남아요'))
+openRecDb().then(restoreRecordings).then(recoverInProgress).then(n => { if (n) toast(t('rec.recovered', { n })) }).catch(() => toast(t('rec.dbFailed')))
 
 // Service Worker (웹 PWA 만): 새 버전은 앱이 유휴일 때 적용해 리로드
 if (!isNative() && 'serviceWorker' in navigator) {
@@ -196,7 +198,7 @@ if (!isNative() && 'serviceWorker' in navigator) {
   const updateSW = registerSW({
     onNeedRefresh() {
       if (idle()) { void updateSW(true); return }
-      toast('새 버전이 준비됐어요 · 탭해서 적용', 10000, () => void updateSW(true))
+      toast(t('app.updateReady'), 10000, () => void updateSW(true))
       const tryApply = () => { if (idle()) void updateSW(true); else setTimeout(tryApply, 60 * 1000) }; setTimeout(tryApply, 60 * 1000)
     },
     // 브라우저는 SW 갱신을 탐색할 때만 확인한다 — 홈 화면 PWA 는 탐색이 없어 1시간마다 직접 확인

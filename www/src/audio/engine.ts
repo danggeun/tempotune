@@ -4,6 +4,7 @@
  */
 import { tunerStore, settingsStore } from '../state/index.ts'
 import { isNative } from '../platform/index.ts'
+import { t as tr } from '../core/i18n/index.ts'
 import type { WorkerIn, WorkerOut } from './messages.ts'
 import type { AnalyzerSettings } from '../core/pitch/analyzer.ts'
 import captureWorkletUrl from './capture.worklet.ts?worker&url'
@@ -70,10 +71,10 @@ export function sendToWorker(m: WorkerIn, transfer?: Transferable[]): void { A.w
 
 function waitWorkerReady(w: Worker, timeoutMs: number): Promise<void> {
   return new Promise((res, rej) => {
-    const t = setTimeout(() => rej(new Error('분석 워커가 응답하지 않습니다')), timeoutMs)
+    const t = setTimeout(() => rej(new Error(tr('mic.errWorkerTimeout'))), timeoutMs)
     const onMsg = (e: MessageEvent<WorkerOut>) => { if (e.data?.type === 'ready') { clearTimeout(t); w.removeEventListener('message', onMsg); res() } }
     w.addEventListener('message', onMsg)
-    w.onerror = ev => { clearTimeout(t); rej(new Error('분석 워커 로드 실패: ' + (ev.message || ''))) }
+    w.onerror = ev => { clearTimeout(t); rej(new Error(tr('mic.errWorkerLoad', { e: ev.message || '' }))) }
   })
 }
 
@@ -92,7 +93,7 @@ export function untilOpenSettled(maxMs = 6000): Promise<void> {
 export async function openMic(): Promise<MicResult> {
   if (opening) return { ok: false, error: 'busy' }
   if (A.micStream) return { ok: true }
-  if (!audioSupported()) return { ok: false, error: '이 브라우저는 실시간 분석(AudioWorklet)을 지원하지 않습니다' }
+  if (!audioSupported()) return { ok: false, error: tr('mic.errNoWorklet') }
   opening = true
   const gen = ++micGen
   const stale = () => gen !== micGen || !A.micStream
@@ -115,11 +116,11 @@ export async function openMic(): Promise<MicResult> {
     if (stale()) throw new Error('busy')
     // 세션마다 워커를 캡처 — 종료 직전 큐에 남은 이전 세션 프레임이 새 세션에 섞이지 않게
     w.onmessage = (e: MessageEvent<WorkerOut>) => { if (A.worker === w) frameHandler?.(e.data) }
-    w.onerror = () => { if (A.worker === w) { closeMic(); onFatal?.('분석 워커 오류로 마이크를 껐습니다') } }
+    w.onerror = () => { if (A.worker === w) { closeMic(); onFatal?.(tr('mic.errWorkerCrash')) } }
     A.captureNode.port.postMessage({ type: 'port', port: ch.port2 }, [ch.port2])
     A.micSource = ac.createMediaStreamSource(stream); A.micSource.connect(A.captureNode)
     // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리 — 자기 스트림일 때만 (이전 세션의 늦은 ended 가 새 세션을 닫지 않게)
-    stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.('마이크 연결이 끊겼습니다') } })
+    stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.(tr('mic.errEnded')) } })
     tunerStore.set({ micReady: true, running: true, sampleRate: ac.sampleRate }) // 샘플레이트는 트레이스 창을 초 단위로 유지하는 데 쓰인다
     opening = false
     for (const h of hooks.afterOpen) h()
@@ -136,13 +137,13 @@ export async function openMic(): Promise<MicResult> {
 export function micErrorMessage(e: unknown): string {
   const name = e instanceof Error ? e.name : ''
   const msg = e instanceof Error ? e.message : String(e)
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return isNative() ? '마이크 권한이 꺼져 있어요 — 설정 › 앱 › TempoTune › 권한에서 마이크를 허용해주세요' : '마이크가 차단돼 있어요 — 주소창의 자물쇠(사이트 설정)에서 마이크를 허용해주세요'
-  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return '마이크를 찾을 수 없어요'
-  if (name === 'NotReadableError' || name === 'TrackStartError') return '다른 앱이 마이크를 쓰고 있어요 — 그 앱을 닫고 다시 시도해주세요'
-  if (name === 'SecurityError') return '이 페이지에서는 마이크를 쓸 수 없어요 (HTTPS 필요)'
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') return tr(isNative() ? 'mic.errDeniedNative' : 'mic.errDeniedWeb')
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return tr('mic.errNotFound')
+  if (name === 'NotReadableError' || name === 'TrackStartError') return tr('mic.errBusy')
+  if (name === 'SecurityError') return tr('mic.errInsecure')
   // iOS 세션 카테고리 충돌 — 보이면 openMic 의 세션 선언 순서가 깨진 것
-  if (/audio session/i.test(msg)) return '마이크를 다시 열지 못했어요 — 앱을 새로고침하면 복구됩니다'
-  return msg || '알 수 없는 오류'
+  if (/audio session/i.test(msg)) return tr('mic.errSession')
+  return msg || tr('mic.errUnknown')
 }
 export const isPermissionError = (msg: string): boolean => /권한|차단/.test(msg)
 

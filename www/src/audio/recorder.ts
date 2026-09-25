@@ -3,6 +3,7 @@ import { recListStore, sessionStore, type RecItem } from '../state/index.ts'
 import { dbSave, dbDelete, dbPatchMeta, dbLoadAll, dbChunkAdd, dbChunksClear, dbChunksLoad, type ChunkRow } from '../persist/recordingsDb.ts'
 import { computePeaks, peakOf } from '../core/peaks.ts'
 import { containerOf, extFromMime, type RecContainer } from '../core/container.ts'
+import { t } from '../core/i18n/index.ts'
 import { isIOS, isSafari } from '../platform/index.ts'
 import { A, onMic } from './engine.ts'
 
@@ -19,8 +20,8 @@ export type RecResult = { ok: true } | { ok: false; error: string }
 /** 조각 간격. 앱이 죽어도 이만큼만 잃는다 */
 export const REC_SLICE_MS = 10_000
 export function startRec(): RecResult {
-  if (!A.micStream) return { ok: false, error: '마이크를 먼저 켜주세요' }
-  if (recorder && recorder.state !== 'inactive') return { ok: false, error: '이미 녹음 중이에요' }
+  if (!A.micStream) return { ok: false, error: t('rec.needMic') }
+  if (recorder && recorder.state !== 'inactive') return { ok: false, error: t('rec.already') }
   const t0 = Date.now()
   // iOS 18.4+ Safari 는 webm 녹음이 되지만 iOS 가 .webm 을 못 연다 → iOS 만 mp4(AAC) 우선
   // Chromium 은 'audio/mp4' 를 Opus-in-MP4 로 출력하므로 다른 플랫폼은 webm 우선
@@ -31,15 +32,15 @@ export function startRec(): RecResult {
   const opts: MediaRecorderOptions = { audioBitsPerSecond: 256000 }; if (mime) opts.mimeType = mime
   // 세션 상태는 클로저에 가둔다 — 정지 직후 재시작하면 이전 세션의 늦은 ondataavailable/onstop 이 섞인다
   let rec: MediaRecorder
-  try { rec = new MediaRecorder(A.micStream, opts) } catch (e) { return { ok: false, error: '이 기기에서는 녹음을 지원하지 않아요' + (e instanceof Error ? ` (${e.name})` : '') } }
+  try { rec = new MediaRecorder(A.micStream, opts) } catch (e) { return { ok: false, error: t('rec.unsupported') + (e instanceof Error ? ` (${e.name})` : '') } }
   const parts: Blob[] = []
   rec.ondataavailable = e => { if (e.data.size > 0) { parts.push(e.data); void dbChunkAdd({ session: t0, t: Date.now(), mime: rec.mimeType, blob: e.data }) } }
-  rec.onerror = () => { errorFn?.('녹음 중 오류가 나서 저장했어요'); if (recorder === rec) stopRec() }
+  rec.onerror = () => { errorFn?.(t('rec.errSaved')); if (recorder === rec) stopRec() }
   // 파형·피크·확장자는 부가 정보 — 실패해도 녹음은 저장한다. blob 을 못 만들 때만 포기
   rec.onstop = async () => {
     let blob: Blob
     try { blob = new Blob(parts, { type: rec.mimeType || 'audio/mp4' }) }
-    catch { parts.length = 0; errorFn?.('녹음을 저장하지 못했어요'); return }
+    catch { parts.length = 0; errorFn?.(t('rec.saveFailed')); return }
     parts.length = 0 // 60분 녹음 ≈ 115 MB 가 두 벌 남지 않게
     const n = new Date(t0)
     const name = `${n.getFullYear()}${String(n.getMonth() + 1).padStart(2, '0')}${String(n.getDate()).padStart(2, '0')}_${String(n.getHours()).padStart(2, '0')}${String(n.getMinutes()).padStart(2, '0')}`
@@ -48,26 +49,26 @@ export function startRec(): RecResult {
     try {
       peak = myPeaks.length ? peakOf(myPeaks) : undefined
       peaks = myPeaks.length ? computePeaks([Float32Array.from(myPeaks)], 600) : undefined
-    } catch { peak = undefined; peaks = undefined; errorFn?.('녹음은 저장했지만 파형을 만들지 못했어요') }
+    } catch { peak = undefined; peaks = undefined; errorFn?.(t('rec.noWaveform')) }
     // 확장자는 mimeType 이 아니라 파일 앞부분 바이트로 정한다 — 빈 mimeType·예상 밖 값 대비
     let ext: RecContainer
     try { ext = containerOf(new Uint8Array(await blob.slice(0, 16).arrayBuffer().catch(() => new ArrayBuffer(0))), rec.mimeType) }
     catch { ext = extFromMime(rec.mimeType) }
     const item: RecItem = { id: null, url: URL.createObjectURL(blob), name, dur: Math.round((Date.now() - t0) / 1000), blob, mime: rec.mimeType, ext, peak, ts: t0, bookmarks: [], ab: null, peaks }
     item.id = await dbSave({ name: item.name, dur: item.dur, blob: item.blob, mime: item.mime, ts: item.ts }, { bookmarks: [], ab: null, peaks, ext, peak }).catch(() => null)
-    if (item.id == null) errorFn?.('녹음을 저장하지 못했어요 — 이번 세션에만 남아 있어요') // 용량 부족·프라이빗 모드 등
+    if (item.id == null) errorFn?.(t('rec.sessionOnly')) // 용량 부족·프라이빗 모드 등
     else void dbChunksClear(t0)
     const st = recListStore.get(); recListStore.set({ items: [item, ...st.items], rev: st.rev + 1 })
     if (cappedNotice) { errorFn?.(cappedNotice); cappedNotice = null }
   }
-  try { rec.start(REC_SLICE_MS) } catch (e) { return { ok: false, error: '녹음을 시작하지 못했어요 — 마이크를 껐다 켜주세요' + (e instanceof Error ? ` (${e.name})` : '') } } // 트랙이 막 죽은 순간 InvalidStateError
+  try { rec.start(REC_SLICE_MS) } catch (e) { return { ok: false, error: t('rec.startFailed') + (e instanceof Error ? ` (${e.name})` : '') } } // 트랙이 막 죽은 순간 InvalidStateError
   recorder = rec
   const myPeaks = startPeakCapture() // 이 세션의 피크 배열 — 다음 세션이 새 배열을 만들어도 참조 유지
   sessionStore.set({ recording: true, recElapsedSec: 0 })
   if (timerInt) clearInterval(timerInt)
   timerInt = setInterval(() => {
     const sec = Math.round((Date.now() - t0) / 1000); sessionStore.set({ recElapsedSec: sec }) // 벽시계 기준 — 백그라운드 스로틀링에도 정확
-    if (sec >= MAX_REC_SEC) { cappedNotice = '60분이 되어 녹음을 저장했어요 (메모리 보호)'; stopRec() } // 청크가 메모리에 쌓인다 — 256 kbps × 60 min ≈ 115 MB
+    if (sec >= MAX_REC_SEC) { cappedNotice = t('rec.capped'); stopRec() } // 청크가 메모리에 쌓인다 — 256 kbps × 60 min ≈ 115 MB
   }, 1000)
   return { ok: true }
 }
@@ -142,7 +143,7 @@ export async function recoverInProgress(): Promise<number> {
     const mime = chunks[0]!.mime, blob = new Blob(chunks.map(c => c.blob), { type: mime || 'audio/mp4' })
     const last = chunks[chunks.length - 1]!.t, dur = Math.max(1, Math.round((last - session) / 1000))
     const d = new Date(session)
-    const name = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}_복구`
+    const name = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}${t('rec.recoveredSuffix')}`
     let ext: RecContainer
     try { ext = containerOf(new Uint8Array(await blob.slice(0, 16).arrayBuffer()), mime) } catch { ext = extFromMime(mime) }
     const item: RecItem = { id: null, url: URL.createObjectURL(blob), name, dur, blob, mime, ext, peak: undefined, ts: session, bookmarks: [], ab: null, peaks: undefined }

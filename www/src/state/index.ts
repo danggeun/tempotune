@@ -39,11 +39,12 @@ export interface Settings {
   /** 녹음 자동 삭제(30일) 켜짐 — 끄면 계속 보관 */
   autoDelete: boolean
   theme: 'dark' | 'light'
+  lang: 'ko' | 'en'
 }
 export const settingsStore = createStore<Settings>({
   tolCents: 15, rmsMin: RMS_LEVELS[1], smoothing: SMOOTH_LEVELS[1], wakeLock: true,
   // metroVol 기본 1.0 — 슬라이더는 줄이는 용도. 이미 저장된 값이 있으면 그 값 유지
-  bpm: 80, timeSig: 4, subDiv: 1, refHz: CFG.ref.default, metroVol: 1.0, noteNames: 'ko', autoDelete: true, theme: 'dark',
+  bpm: 80, timeSig: 4, subDiv: 1, refHz: CFG.ref.default, metroVol: 1.0, noteNames: 'ko', autoDelete: true, theme: 'dark', lang: 'ko',
 })
 
 // 튜너 (고빈도)

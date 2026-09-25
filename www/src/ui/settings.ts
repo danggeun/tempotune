@@ -16,6 +16,7 @@ export function mountSettings(): void {
   bindSteps('notenames-steps', v => settingsStore.set({ noteNames: v === 1 ? 'en' : 'ko' }))
   bindSteps('autodelete-steps', v => settingsStore.set({ autoDelete: v === 1 }))
   bindSteps('theme-steps', v => settingsStore.set({ theme: v === 1 ? 'light' : 'dark' }))
+  bindSteps('lang-steps', v => settingsStore.set({ lang: v === 1 ? 'en' : 'ko' }))
 
   settingsStore.select(s => s.tolCents, v => markSteps('cents-steps', v), { immediate: true })
   settingsStore.select(s => s.rmsMin, v => { const i = levelIndex(RMS_LEVELS, v); if (i) markSteps('rms-steps', i) }, { immediate: true })
@@ -24,5 +25,6 @@ export function mountSettings(): void {
   settingsStore.select(s => s.noteNames, v => markSteps('notenames-steps', v === 'en' ? 1 : 0), { immediate: true })
   settingsStore.select(s => s.autoDelete, v => markSteps('autodelete-steps', v ? 1 : 0), { immediate: true })
   settingsStore.select(s => s.theme, v => markSteps('theme-steps', v === 'light' ? 1 : 0), { immediate: true })
+  settingsStore.select(s => s.lang, v => markSteps('lang-steps', v === 'en' ? 1 : 0), { immediate: true })
   q('settings-version').textContent = `TempoTune ${__APP_VERSION__}${__APP_SHA__ ? ' · ' + __APP_SHA__ : ''}`
 }

@@ -461,6 +461,56 @@ for (const top of [0, 59]) await scenario(`ios: home-screen app ${top ? 'drawn u
   }
 })
 
+// English: every screen shows no Korean (except the "한국어" language button), nothing overflows its box, and it survives a reload
+/** Visible text, aria-labels, placeholders and titles on the page, plus boxes whose text doesn't fit */
+const screenText = p => p.evaluate(() => {
+  const vis = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' }
+  const texts = [], overflow = []
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  for (let n; (n = w.nextNode());) { const el = n.parentElement; if (el && n.textContent.trim() && vis(el) && !el.closest('[lang="ko"]')) texts.push(n.textContent.trim()) }
+  for (const el of document.querySelectorAll('[aria-label],[placeholder],[title]')) for (const a of ['aria-label', 'placeholder', 'title']) { const v = el.getAttribute(a); if (v) texts.push(v) }
+  for (const el of document.querySelectorAll('button, .setting-lbl, .setting-desc, .menu-sec-title, .timer-lbl, .rec-item-btn, .toast')) {
+    if (!vis(el) || !el.textContent.trim()) continue
+    if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible') overflow.push(el.id || el.className || el.textContent.trim().slice(0, 20))
+  }
+  return { korean: texts.filter(t => /[가-힣]/.test(t)), overflow }
+})
+await scenario('i18n: English — no Korean on any screen, nothing clipped, survives reload, back to Korean', 'violin_A4.wav', async p => {
+  await p.goto(URL_); await waitNote(p, t => t.note === '라')
+  await p.click('#settings-hdr-btn'); await sleep(p, 300)
+  await p.click('#lang-steps .step-btn[data-v="1"]'); await sleep(p, 200)
+  assert.equal(await p.evaluate(() => document.documentElement.lang), 'en')
+  assert.equal(await p.evaluate(() => document.getElementById('notenames-row').hidden), true, 'note-name row hidden in English')
+  const seen = []
+  const check = async where => { const r = await screenText(p); seen.push(where); assert.deepEqual(r.korean, [], `Korean on ${where}: ${JSON.stringify(r.korean)}`); assert.deepEqual(r.overflow, [], `clipped text on ${where}: ${JSON.stringify(r.overflow)}`) }
+  await check('settings')
+  await p.click('#settings-back-btn'); await sleep(p, 400)
+  await waitNote(p, t => t.note === 'A'); await check('tuner (A, letter names)')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent), '', 'no Korean secondary name')
+  await sizeTap(p); await check('metronome expanded')
+  await sizeTap(p); await check('metronome full')
+  await sizeTap(p)
+  await p.click('#rec-hdr-btn'); await sleep(p, 1500); await p.click('#rec-hdr-btn'); await sleep(p, 900)
+  await p.click('#menu-btn'); await sleep(p, 400); await check('menu with a recording')
+  assert.match(await p.evaluate(() => document.querySelector('.ref-note-btn[data-note="도"]').textContent), /^C$/)
+  await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 500); await check('editor')
+  await p.click('#ed-a-btn'); await sleep(p, 100); await p.click('#ed-zoom-btn'); await sleep(p, 200); await check('editor toast')
+  await p.click('#ed-back-btn'); await sleep(p, 500)
+  await p.reload(); await waitNote(p, t => t.note === 'A', 5000)
+  assert.equal(await p.evaluate(() => document.documentElement.lang), 'en', 'English persists')
+  await check('after reload')
+  await p.click('#settings-hdr-btn'); await sleep(p, 300)
+  await p.click('#lang-steps .step-btn[data-v="0"]'); await sleep(p, 200)
+  assert.equal(await p.evaluate(() => document.querySelector('.settings-title').textContent), '설정', 'back to Korean')
+  await p.click('#settings-back-btn'); await waitNote(p, t => t.note === '라')
+})
+await scenario('i18n: English mic popup when the mic is blocked', 'silence_lowfloor.wav', async p => {
+  await p.addInitScript(() => localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, lang: 'en' })))
+  await p.goto(URL_); await sleep(p, 1500)
+  const r = await screenText(p); assert.deepEqual(r.korean, []); assert.deepEqual(r.overflow, [])
+  assert.equal(await p.evaluate(() => document.documentElement.classList.contains('i18n-pending')), false, 'page is revealed')
+}, { permissions: [] })
+
 // 화면 테마: 기본 다크, 설정에서 라이트 → 첫 그리기부터 적용·영속, 튜너 캔버스까지 다시 그림
 await scenario('theme: 다크 기본 → 라이트 전환·영속(첫 그리기 전 적용), 상태바 색, 튜너 캔버스, 다시 다크', 'violin_A4.wav', async (p, ctx) => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')

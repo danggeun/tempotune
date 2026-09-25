@@ -6,10 +6,12 @@ export const ENHARMONIC: Readonly<Partial<Record<KrNote, string>>> = { '도♯':
 /** 영문 음이름 (설정 noteNames 로 전환) */
 export const EN = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const
 export const EN_ENHARMONIC: Readonly<Record<string, string>> = { 'C♯': 'D♭', 'D♯': 'E♭', 'F♯': 'G♭', 'G♯': 'A♭', 'A♯': 'B♭' }
+import type { Lang } from './i18n/index.ts'
 export type NoteNames = 'ko' | 'en'
 /** 표시용 이름: 선택한 체계의 이름 + 보조 줄(다른 체계의 이름, 이명동음은 '/' 로. 예: 라♯→A♯/B♭, 최대 5글자) */
-export function noteLabel(midi: number, system: NoteNames): { name: string; secondary: string } {
+export function noteLabel(midi: number, system: NoteNames, lang: Lang = 'ko'): { name: string; secondary: string } {
   const i = ((midi % 12) + 12) % 12, ko = KR[i]!, en = EN[i]!
+  if (lang === 'en') return { name: en, secondary: EN_ENHARMONIC[en] ?? '' } // 영어 화면에는 한국어 음이름을 섞지 않는다 — 보조 줄은 이명동음만
   if (system === 'en') return { name: en, secondary: ko + (ENHARMONIC[ko] ? '/' + ENHARMONIC[ko] : '') }
   return { name: ko, secondary: en + (EN_ENHARMONIC[en] ? '/' + EN_ENHARMONIC[en] : '') }
 }

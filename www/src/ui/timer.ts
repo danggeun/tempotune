@@ -3,12 +3,14 @@ import { sessionStore, tunerStore } from '../state/index.ts'
 import { fmt } from '../core/format.ts'
 import { q, on } from './dom.ts'
 import { toast } from './toast.ts'
+import { t } from '../core/i18n/index.ts'
+import { onLangChange } from './lang.ts'
 
 let int: ReturnType<typeof setInterval> | null = null
 function render(): void {
   const s = sessionStore.get()
   q('timer-elapsed').textContent = fmt(s.elapsedSec); q('timer-detected').textContent = fmt(s.detectedSec)
-  const btn = q('timer-toggle-btn'); btn.textContent = s.timerRunning ? '정지' : '시작'; btn.classList.toggle('active', s.timerRunning)
+  const btn = q('timer-toggle-btn'); btn.textContent = t(s.timerRunning ? 'common.stop' : 'common.start'); btn.classList.toggle('active', s.timerRunning)
 }
 export function stopTimer(): void { if (int) clearInterval(int); int = null; sessionStore.set({ timerRunning: false }) }
 function startTimer(): void {
@@ -30,7 +32,8 @@ export function mountTimer(): void {
   on(q('timer-reset-btn'), 'click', () => {
     const { elapsedSec, detectedSec, timerRunning } = sessionStore.get()
     stopTimer(); sessionStore.set({ elapsedSec: 0, detectedSec: 0 })
-    if (elapsedSec > 0) toast('초기화됨 · 실행 취소', 5000, () => { sessionStore.set({ elapsedSec, detectedSec }); if (timerRunning) startTimer() })
+    if (elapsedSec > 0) toast(t('menu.resetDone') + t('common.undoSuffix'), 5000, () => { sessionStore.set({ elapsedSec, detectedSec }); if (timerRunning) startTimer() })
   })
   sessionStore.select(s => [s.elapsedSec, s.detectedSec, s.timerRunning].join(), render, { immediate: true })
+  onLangChange(render)
 }

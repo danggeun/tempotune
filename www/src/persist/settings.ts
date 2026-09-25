@@ -1,5 +1,6 @@
 /** 설정 영속화 (localStorage). 스키마 v2 + v1 마이그레이션 */
 import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, V201_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
+import { t } from '../core/i18n/index.ts'
 
 export const SETTINGS_KEY = 'tempotune_settings_v1'
 export const LEGACY_SETTINGS_KEYS = ['gopractice_settings_v1', 'gp_mic_intro'] // 이름 변경 전 키 — persist/legacy.ts 가 지운다
@@ -48,6 +49,7 @@ export function parseStored(raw: string | null): Partial<Settings> {
     if (s.noteNames === 'ko' || s.noteNames === 'en') out.noteNames = s.noteNames
     if (typeof s.autoDelete === 'boolean') out.autoDelete = s.autoDelete
     if (s.theme === 'dark' || s.theme === 'light') out.theme = s.theme
+    if (s.lang === 'ko' || s.lang === 'en') out.lang = s.lang
     if (out.timeSig === 6) out.subDiv = 1 // 6/8 은 세분 없음 — 따로 저장된 옛 값이 시퀀서·스윕을 어긋나게 한다
     return out
   }
@@ -78,7 +80,7 @@ export function onPersistError(fn: (m: string) => void): void { persistError = f
 function writeNow(): void {
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
   const d: StoredV2 = { v: 2, ...settingsStore.get() }
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(d)) } catch { if (!warned) { warned = true; persistError?.('설정을 저장할 수 없어요 — 저장 공간이 없거나 프라이빗 모드예요') } }
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(d)) } catch { if (!warned) { warned = true; persistError?.(t('set.saveFailed')) } }
 }
 export function startSettingsAutosave(): void {
   settingsStore.subscribe(() => { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(writeNow, 300) }) // BPM 드래그 중 연속 쓰기 방지
