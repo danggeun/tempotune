@@ -1,14 +1,12 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
-let sha = ''; try { sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { /* git 없는 빌드 */ }
 
 // base: GitHub Pages 는 /tempotune/, Capacitor 빌드(build:cap)는 / (package.json scripts 참고)
 export default defineConfig(({ mode }) => ({
   root: 'www',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version), __APP_SHA__: JSON.stringify(sha) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   base: process.env.BASE ?? '/tempotune/',
   build: { outDir: '../dist', emptyOutDir: true, target: 'es2022' },
   server: { port: 5173, open: false },

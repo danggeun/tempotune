@@ -391,8 +391,8 @@ await scenario('metro: expanded → full shrinks the tuner along with it', 'sile
 // 기기별 땜빵이 아니라 규칙(다이얼이 남는 높이를 흡수, 글자는 렌더 크기 고정)으로 닫고, 이 행렬이 회귀를 잡는다.
 // Chromium 은 env(safe-area-inset-*) 가 0 이라 노치·홈 인디케이터를 #app padding 으로 흉내 낸다(근사 — 실기기 1회 확인).
 const LAYOUT_MATRIX = [
-  ['Android 소형', 360, 640, 12, 12], ['iPhone SE', 375, 667, 12, 12], ['iPhone 13 mini', 375, 812, 59, 46],
-  ['iPhone 15', 393, 852, 59, 46], ['Pixel', 412, 915, 36, 30], ['iPhone Pro Max', 430, 932, 59, 46], ['태블릿', 768, 1024, 24, 20],
+  ['Android small', 360, 640, 12, 12], ['iPhone SE', 375, 667, 12, 12], ['iPhone 13 mini', 375, 812, 59, 46],
+  ['iPhone 15', 393, 852, 59, 46], ['Pixel', 412, 915, 36, 30], ['iPhone Pro Max', 430, 932, 59, 46], ['Tablet', 768, 1024, 24, 20],
 ]
 for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: full mode ${name} ${w}×${h} — no scroll or overflow, text keeps its rendered size`, 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel').catch(() => {})

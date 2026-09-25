@@ -6,6 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - English — Settings › Language switches between 한국어 and English (Korean stays the default). Every screen, message and label is translated; note names are C D E in English
 - Recovered recordings are named with `_recovered` in English
 - Repository docs are now in English
+- Settings footer shows just the version, with the tagline centered under it
+- Note icons (♩ next to the BPM and the rhythm buttons) redrawn from a music engraving font, with stems and beams placed by engraving rules
 
 ## [2.3.8] — 2026-09-25
 - Tuner ♭/♯ looked stretched on the iPhone start screen
