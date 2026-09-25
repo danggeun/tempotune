@@ -13,6 +13,18 @@ export const isIOS = (): boolean => {
 }
 
 /** 앱(Capacitor)이면 body 에 표식. 상태바 색은 setStatusBarTheme */
+/** 홈 화면 앱이 상태바 밑까지 그려지는지(위쪽 safe-area > 0) 재서 html.sb-under 로 알린다 — style.css 가 그때만 높이를 lvh 로 */
+export function fitStandaloneHeight(): void {
+  const measure = (): void => {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;visibility:hidden;height:env(safe-area-inset-top,0px)'
+    document.body.appendChild(probe)
+    const under = probe.offsetHeight > 0 && matchMedia('(display-mode: standalone)').matches
+    probe.remove()
+    document.documentElement.classList.toggle('sb-under', under)
+  }
+  measure(); window.addEventListener('resize', measure)
+}
 export function initStatusBar(): void {
   if (!isNative()) return
   document.body.classList.add('capacitor')

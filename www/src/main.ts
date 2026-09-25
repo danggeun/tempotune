@@ -12,7 +12,7 @@ import { openMic, closeMic, onMic, A, resumeIfRunning, onEngineFatal, setIdleChe
 import { startAnalysis, lastFrameMs, metroCalibMs } from './audio/analysis.ts'
 import { playbackActive, playbackDiag } from './audio/playback.ts'
 import { restoreRecordings, recoverInProgress, onRecorderError } from './audio/recorder.ts'
-import { initStatusBar, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
+import { initStatusBar, fitStandaloneHeight, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
 import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag, retheme } from './ui/tuner.ts'
@@ -33,7 +33,7 @@ import { stopRec } from './audio/recorder.ts'
 import { sessionStore } from './state/index.ts'
 import { registerSW } from 'virtual:pwa-register'
 
-initStatusBar()
+initStatusBar(); fitStandaloneHeight()
 
 clearLegacyStorage()
 

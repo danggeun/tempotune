@@ -448,6 +448,19 @@ await scenario('settings: persist across reload (cents, smooth, rms, wakelock, b
   assert.equal(await p.evaluate(() => document.querySelector('[data-ts].on').dataset.ts), '3')
 })
 
+// iPhone home-screen app (iOS 26): when the page draws under the status bar (top safe-area > 0) the height comes up short — mark it so CSS can use lvh.
+// Decided by the real inset, not the theme: iOS fixes the layout at launch and keeps it when the theme changes
+for (const top of [0, 59]) await scenario(`ios: home-screen app ${top ? 'drawn under' : 'below'} the status bar → sb-under ${top ? 'on' : 'off'} (both themes)`, 'silence_lowfloor.wav', async p => {
+  const s = await p.context().newCDPSession(p)
+  if (top) await s.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34 } })
+  await p.addInitScript(() => { const mm = window.matchMedia.bind(window); window.matchMedia = q => q.includes('display-mode: standalone') ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : mm(q) })
+  for (const theme of ['dark', 'light']) {
+    await p.addInitScript(t => localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: t })), theme)
+    await p.goto(URL_); await sleep(p, 600)
+    assert.equal(await p.evaluate(() => document.documentElement.classList.contains('sb-under')), top > 0, theme)
+  }
+})
+
 // 화면 테마: 기본 다크, 설정에서 라이트 → 첫 그리기부터 적용·영속, 튜너 캔버스까지 다시 그림
 await scenario('theme: 다크 기본 → 라이트 전환·영속(첫 그리기 전 적용), 상태바 색, 튜너 캔버스, 다시 다크', 'violin_A4.wav', async (p, ctx) => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
