@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <!-- user-scalable=no: 튜너를 보면서 두 손가락이 닿아 확대되는 사고를 막는다. viewport-fit=cover: 엣지투엣지 safe-area 값 제공 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="TempoTune">
 <meta name="mobile-web-app-capable" content="yes">
 <title>TempoTune</title>
@@ -15,9 +15,9 @@
 <meta property="og:title" content="TempoTune — 현악기 연습">
 <meta property="og:description" content="in time, in tune. — 튜너 · 메트로놈 · 기준음 · 녹음 편집을 한 화면에서.">
 <meta property="og:image" content="https://danggeun.github.io/tempotune/icons/icon-512.png">
-<meta name="theme-color" content="#181b21">
-<!-- 저장된 테마·언어를 첫 그리기 전에 적용한다. 영어면 문구를 바꿀 때까지 가린다(ui/lang.ts 가 푼다) -->
-<script>try{var s=JSON.parse(localStorage.getItem('tempotune_settings_v1')||'{}'),t=s.theme;if(s.lang==='en'){document.documentElement.lang='en';document.documentElement.classList.add('i18n-pending')}if(t==='light'){document.documentElement.dataset.theme='light';document.querySelector('meta[name="theme-color"]').content='#eef0f3';document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content='default'}}catch(e){}</script>
+<meta name="theme-color" content="#eef0f3">
+<!-- 저장된 테마·언어를 첫 그리기 전에 적용한다. 기본 라이트는 html 에 박혀 있고, 다크를 저장했으면 뗀다. 영어면 문구를 바꿀 때까지 가린다(ui/lang.ts 가 푼다) -->
+<script>try{var s=JSON.parse(localStorage.getItem('tempotune_settings_v1')||'{}'),t=s.theme;if(s.lang==='en'){document.documentElement.lang='en';document.documentElement.classList.add('i18n-pending')}if(t==='dark'){delete document.documentElement.dataset.theme;document.querySelector('meta[name="theme-color"]').content='#181b21';document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content='black-translucent'}}catch(e){}</script>
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"> <!-- 탭 크기(32 px)에선 글자가 안 읽혀 T 한 글자만 -->
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"> <!-- 없으면 브라우저가 /favicon.ico 를 요청하고, 오프라인에선 콘솔 오류가 된다 -->

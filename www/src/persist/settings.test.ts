@@ -34,7 +34,7 @@ describe('parseStored', () => {
     expect(parseStored(JSON.stringify(v2))).toEqual(rest)
   })
   test('v2 rejects bad timeSig', () => expect(parseStored(JSON.stringify({ v: 2, timeSig: 5 }))).toEqual({}))
-  test('theme: only dark/light pass, anything else is ignored (dark by default)', () => {
+  test('theme: only dark/light pass, anything else is ignored (the default applies)', () => {
     expect(parseStored(JSON.stringify({ v: 2, theme: 'light' })).theme).toBe('light')
     expect(parseStored(JSON.stringify({ v: 2, theme: 'dark' })).theme).toBe('dark')
     expect(parseStored(JSON.stringify({ v: 2, theme: 'auto' }))).toEqual({})

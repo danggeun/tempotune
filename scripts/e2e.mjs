@@ -221,6 +221,7 @@ await scenario('metro: beats-only mode — no bars, no first-beat accent', 'sile
   assert.equal(sawAccent, false, '정박 모드에서는 액센트가 없어야 한다')
 })
 await scenario('metro: full mode is the second expanded step — only the tuner hides, header and mic stay, LEDs sweep end to end and hit green at the ends', 'violin_A4.wav', async p => {
+  await p.addInitScript(() => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: 'dark' })) }) // 아래 색 단언은 다크 토큰 값
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용 (순환, M10)
   assert.equal(await p.evaluate(() => document.getElementById('metro-card').classList.contains('full')), true)
@@ -511,31 +512,31 @@ await scenario('i18n: English mic popup when the mic is blocked', 'silence_lowfl
   assert.equal(await p.evaluate(() => document.documentElement.classList.contains('i18n-pending')), false, 'page is revealed')
 }, { permissions: [] })
 
-// 화면 테마: 기본 다크, 설정에서 라이트 → 첫 그리기부터 적용·영속, 튜너 캔버스까지 다시 그림
-await scenario('theme: dark by default → light persists (applied before first paint), status bar color, tuner canvas, back to dark', 'violin_A4.wav', async (p, ctx) => {
+// 화면 테마: 기본 라이트, 설정에서 다크 → 첫 그리기부터 적용·영속, 튜너 캔버스까지 다시 그림
+await scenario('theme: light by default → dark persists (applied before first paint), status bar color, tuner canvas, back to light', 'violin_A4.wav', async (p, ctx) => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
   const st = () => p.evaluate(() => ({ attr: document.documentElement.dataset.theme ?? null, meta: document.querySelector('meta[name="theme-color"]').content, bg: getComputedStyle(document.body).backgroundColor, card: getComputedStyle(document.getElementById('tuner-card')).backgroundColor }))
   const canvasPx = () => p.evaluate(() => { const c = document.getElementById('tuner-history'); const d = c.getContext('2d').getImageData(2, 2, 1, 1).data; return d[0] + d[1] + d[2] })
-  let s = await st(); assert.equal(s.attr, null); assert.equal(s.meta, '#181b21')
-  assert.ok(await canvasPx() < 150, '다크 캔버스 배경')
-  await p.click('#settings-hdr-btn'); await sleep(p, 300)
-  await p.click('#theme-steps .step-btn[data-v="1"]'); await sleep(p, 200)
-  s = await st(); assert.equal(s.attr, 'light'); assert.equal(s.meta, '#eef0f3'); assert.equal(s.bg, 'rgb(238, 240, 243)')
-  await p.click('#settings-back-btn'); await sleep(p, 400)
-  assert.equal((await st()).card, 'rgb(255, 255, 255)', '튜너 카드 흰색')
-  assert.ok(await canvasPx() > 600, '라이트 캔버스 배경 — 즉시 다시 그림')
-  await sleep(p, 600)
-  // 첫 그리기 전 적용: 앱 스크립트를 막아도 head 의 인라인 스크립트만으로 라이트여야 깜빡임이 없다
-  const bare = await ctx.newPage(); await bare.route('**/assets/*.js', r => r.abort()); await bare.goto(URL_)
-  assert.equal(await bare.evaluate(() => document.documentElement.dataset.theme), 'light', '첫 그리기 전 적용')
-  assert.equal(await bare.evaluate(() => document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content), 'default', 'iOS 상태바 글자 어둡게')
-  await bare.close()
-  await p.reload()
-  await waitNote(p, t => t.note === '라')
-  assert.equal(await p.evaluate(() => document.querySelector('#theme-steps .step-btn.on').dataset.v), '1')
+  let s = await st(); assert.equal(s.attr, 'light'); assert.equal(s.meta, '#eef0f3'); assert.equal(s.bg, 'rgb(238, 240, 243)'); assert.equal(s.card, 'rgb(255, 255, 255)', '튜너 카드 흰색')
+  assert.ok(await canvasPx() > 600, '라이트 캔버스 배경')
   await p.click('#settings-hdr-btn'); await sleep(p, 300)
   await p.click('#theme-steps .step-btn[data-v="0"]'); await sleep(p, 200)
   s = await st(); assert.equal(s.attr, null); assert.equal(s.meta, '#181b21'); assert.equal(s.bg, 'rgb(24, 27, 33)')
+  await p.click('#settings-back-btn'); await sleep(p, 400)
+  assert.ok(await canvasPx() < 150, '다크 캔버스 배경 — 즉시 다시 그림')
+  await sleep(p, 600)
+  // 첫 그리기 전 적용: 앱 스크립트를 막아도 head 의 인라인 스크립트만으로 다크여야 깜빡임이 없다
+  const bare = await ctx.newPage(); await bare.route('**/assets/*.js', r => r.abort()); await bare.goto(URL_)
+  assert.equal(await bare.evaluate(() => document.documentElement.dataset.theme ?? null), null, '첫 그리기 전 적용')
+  assert.equal(await bare.evaluate(() => document.querySelector('meta[name="theme-color"]').content), '#181b21')
+  assert.equal(await bare.evaluate(() => document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content), 'black-translucent', 'iOS 상태바 글자 밝게')
+  await bare.close()
+  await p.reload()
+  await waitNote(p, t => t.note === '라')
+  assert.equal(await p.evaluate(() => document.querySelector('#theme-steps .step-btn.on').dataset.v), '0')
+  await p.click('#settings-hdr-btn'); await sleep(p, 300)
+  await p.click('#theme-steps .step-btn[data-v="1"]'); await sleep(p, 200)
+  s = await st(); assert.equal(s.attr, 'light'); assert.equal(s.meta, '#eef0f3'); assert.equal(s.bg, 'rgb(238, 240, 243)')
 })
 
 // 녹음 / 편집

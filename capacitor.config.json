@@ -2,7 +2,7 @@
   "appId": "com.tempotune.app",
   "appName": "TempoTune",
   "webDir": "dist",
-  "backgroundColor": "#181b21",
+  "backgroundColor": "#eef0f3",
   "server": {
     "androidScheme": "https"
   },

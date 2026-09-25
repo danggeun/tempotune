@@ -64,7 +64,7 @@ Changing Capacitor's `androidScheme` or `appId` changes the origin, and the data
 
 - On-screen text lives in `core/i18n/ko.ts` (source) and `en.ts`; the type system requires the same keys in both. Static text in `index.html` carries `data-t` / `data-t-aria` keys that `ui/lang.ts` fills in; dynamic text calls `t(key)`.
 - Korean is the default. In English, note names are always C D E and the note-name setting is hidden.
-- Colors are tokens with a dark set (default) and a light set (`[data-theme=light]`).
+- Colors are tokens with a dark set (`:root`) and a light set (`[data-theme=light]`). The app starts in light: `<html>` carries `data-theme="light"` and the inline script in `index.html` removes it before the first paint when dark is saved.
 - A small inline script in `index.html` applies the saved theme and language before the first paint.
 - `scripts/i18n.test.mjs` fails if Korean text appears in code outside the dictionary. The English e2e scenario checks every screen for leftover Korean and clipped text.
 
