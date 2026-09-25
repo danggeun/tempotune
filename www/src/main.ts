@@ -65,7 +65,7 @@ const tryOpenMic = async (popupOnDenied = false): Promise<boolean> => {
     return false
   }
   // iOS/Firefox: 권한 프롬프트 중 제스처가 만료되면 컨텍스트가 suspended 로 남는다 → resume 을 1.5 s 까지 기다린 뒤 탭 안내
-  setTimeout(async () => { for (let i = 0; i < 5 && A.ac && A.ac.state !== 'running'; i++) await new Promise(r => setTimeout(r, 250)); if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }, 400)
+  setTimeout(async () => { for (let i = 0; i < 5 && A.ac && A.ac.state !== 'running'; i++) await new Promise(r => setTimeout(r, 250)); if (A.ac && A.ac.state !== 'running' && tunerStore.get().running) showResumeHint() }, 400)
   return r.ok
 }
 /** 권한 상태. 사파리는 microphone 을 지원하지 않아 null — '모른다' 로 다룬다 */
@@ -143,7 +143,7 @@ onContextState(state => {
     interruptedTimer = null
     if (A.ac && A.ac.state !== 'running' && document.visibilityState === 'visible') {
       if (metroStore.get().playing) { stopMetro(); toast('오디오가 중단되어 메트로놈을 멈췄어요') }
-      else if (tunerStore.get().running) { toast('오디오가 중단됐어요 — 화면을 탭하면 다시 시작해요'); showTapHint(async () => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }) }
+      else if (tunerStore.get().running) { toast('오디오가 중단됐어요 — 화면을 탭하면 다시 시작해요'); showResumeHint() }
     }
   }, 1500)
 })
@@ -160,6 +160,17 @@ const fsRow = q('fullscreen-row')
 if (isNative() || matchMedia('(display-mode: standalone)').matches) fsRow.style.display = 'none'
 on(q('fullscreen-btn'), 'click', () => toggleFullscreen(() => toast('이 기기에서는 홈 화면에 추가하면 전체화면으로 사용할 수 있어요')))
 
+/**
+ * 오디오가 멈춘 채 남았을 때(사용자 동작 없이 열린 경우 — 예: 새 버전 적용 뒤 자동 새로고침) 시작 버튼을 띄우되,
+ * 화면 어디든 첫 터치로도 깨운다. pointerup·keydown 은 브라우저가 '사용자 동작'으로 치는 이벤트다
+ */
+function showResumeHint(): void {
+  const resume = async (): Promise<boolean> => { await A.ac?.resume().catch(() => {}); return A.ac?.state === 'running' }
+  showTapHint(resume)
+  const any = (): void => { off(); void resume().then(ok => { if (ok) hideTapHint() }) }
+  const off = (): void => { document.removeEventListener('pointerup', any, true); document.removeEventListener('keydown', any, true) }
+  document.addEventListener('pointerup', any, true); document.addEventListener('keydown', any, true)
+}
 // 시작 시퀀스: denied 가 확실할 때만 팝업, 그 외는 바로 시도 → 실패하면 탭 안내
 // iOS 웹: WebKit 의 wake lock 은 DOM 터치(transient activation)가 필요하고 OS 권한 시트의 탭은 해당 안 됨 → 첫 탭 안에서 먼저 쥔다
 const startInGesture = async (): Promise<boolean> => {

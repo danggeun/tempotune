@@ -323,6 +323,44 @@ await scenario('metro: 전용 모드 다이얼 — 링을 돌린 만큼 BPM, 끝
   assert.deepEqual(xs, ['−', 'metro-play-btn', '+'])
   await p.click('#metro-size-btn')
 })
+// 카드 끌기: 손가락을 따라 높이가 바뀌고, 조금 끌다 멈춰 놓으면 제자리, 충분히 끌면 다음 단계. 위아래 모두
+await scenario('metro: 카드 끌기 — 손을 따라 커지고 줄어든다, 덜 끌면 제자리, 충분히 끌면 한 단계 (위·아래)', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 1200)
+  const st = () => p.evaluate(() => { const c = document.getElementById('metro-card'); return c.classList.contains('full') ? 'f' : document.getElementById('metro-body-wrap').classList.contains('collapsed') ? 'c' : 'e' })
+  const cardH = () => p.evaluate(() => document.getElementById('metro-card').getBoundingClientRect().height)
+  const clean = () => p.evaluate(() => { const c = document.getElementById('metro-card'), t = document.getElementById('tuner-card'), w = document.getElementById('metro-body-wrap'); return c.style.height + t.style.height + t.style.marginBottom + w.style.gridTemplateRows + (c.className.match(/dragging|no-anim|h-anim/) || '') })
+  /** 헤더 가운데 빈 곳을 잡고 dy 만큼 천천히 끈다. hold 면 놓기 전 멈춰 속도를 0 으로 */
+  const drag = async (dy, { hold = true, check } = {}) => {
+    const b = await p.locator('#metro-hdr').boundingBox(), x = b.x + b.width / 2, y = b.y + Math.min(20, b.height / 2)
+    await p.mouse.move(x, y); await p.mouse.down()
+    const n = hold ? 12 : 4; for (let i = 1; i <= n; i++) { await p.mouse.move(x, y + (dy * i) / n); if (hold) await sleep(p, 16) } // 튕기기는 쉬지 않고
+    if (check) await check()
+    if (hold) await sleep(p, 150)
+    await p.mouse.up(); await settled(p); await sleep(p, 100)
+  }
+  assert.equal(await st(), 'c')
+  // 접힘 → 위로 조금(40px) 끌고 멈춤: 카드가 40px 커져 있다가, 놓으면 제자리
+  const h0 = await cardH()
+  await drag(-40, { check: async () => { const h = await cardH(); assert.ok(Math.abs(h - h0 - 40) <= 2, `손을 따라 커진다 ${h0} → ${h}`) } })
+  assert.equal(await st(), 'c', '덜 끌면 제자리'); assert.ok(Math.abs(await cardH() - h0) <= 1); assert.equal(await clean(), '', '인라인 잔재 없음')
+  // 위로 충분히 → 펼침
+  await drag(-200); assert.equal(await st(), 'e', '위로 끌어 펼침'); assert.equal(await clean(), '')
+  // 위로 충분히 → 펼침2 (튜너가 줄어든다)
+  const t0 = await p.evaluate(() => document.getElementById('tuner-card').offsetHeight)
+  await drag(-150, { check: async () => { const t = await p.evaluate(() => document.getElementById('tuner-card').offsetHeight); assert.ok(t < t0 - 100, `끄는 동안 튜너가 줄어든다 ${t0} → ${t}`) } })
+  assert.equal(await st(), 'f', '위로 끌어 펼침2'); assert.equal(await clean(), '')
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none')
+  // 펼침2 → 아래로 조금: 튜너가 드러났다가 제자리
+  await drag(60, { check: async () => { const t = await p.evaluate(() => document.getElementById('tuner-card').offsetHeight); assert.ok(t >= 40, '끄는 동안 튜너가 드러난다 ' + t) } })
+  assert.equal(await st(), 'f', '덜 끌면 펼침2 그대로'); assert.equal(await clean(), '')
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'none', '튜너는 다시 숨는다')
+  // 아래로 충분히 → 펼침 → 접힘
+  await drag(250); assert.equal(await st(), 'e', '아래로 끌어 펼침'); assert.equal(await clean(), '')
+  await drag(200); assert.equal(await st(), 'c', '아래로 끌어 접힘'); assert.equal(await clean(), '')
+  // 튕기기: 짧아도 빠르면 넘어간다
+  await drag(-50, { hold: false }); assert.equal(await st(), 'e', '위로 튕기면 펼침')
+})
+
 // 접힌 채 재생: 세 자리 BPM·좁은 폰에서도 헤더 버튼이 카드 안에 있다 — LED 간격만 줄어든다
 for (const w of [360, 384]) await scenario(`layout: 접힌 채 재생 ${w}px · BPM 200 — 크기 버튼이 카드 밖으로 밀리지 않는다`, 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800)
@@ -684,6 +722,9 @@ await scenario('ios: 첫 실행은 시작 버튼 — 탭 전엔 마이크가 닫
   await p.goto(URL_); await sleep(p, 900)
   const before = await p.evaluate(() => ({ hint: document.getElementById('tuner-card').classList.contains('tap-hint'), sub: document.getElementById('tuner-start-sub').textContent, mic: window.__tt.stats().micOpen, btnVisible: getComputedStyle(document.getElementById('tuner-start')).display !== 'none' }))
   assert.deepEqual(before, { hint: true, sub: '마이크 사용을 물어볼게요', mic: false, btnVisible: true }, '탭 전: 시작 버튼 + 부제, 마이크는 닫힘')
+  // 마이크 프레임이 없어도 캔버스 비트맵이 보이는 크기와 같아야 한다 — 다르면 ♭♯ 가 늘어나 보인다
+  const cv = await p.evaluate(() => { const c = document.getElementById('tuner-history'); return { bmp: c.height / devicePixelRatio, css: c.getBoundingClientRect().height } })
+  assert.ok(Math.abs(cv.bmp - cv.css) <= 1, '캔버스 비트맵 높이 = 화면 높이 ' + JSON.stringify(cv))
   await p.click('#tuner-start-btn'); await waitUntil(p, () => window.__tt.stats().micOpen, 4000, '탭하면 마이크가 열린다')
   await sleep(p, 300)
   assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), false, '열리면 버튼이 걷힌다')
@@ -918,6 +959,24 @@ await scenario('offline: service worker precaches everything; reload with networ
   assert.equal(await p.evaluate(() => document.fonts.check("12px 'DM Mono'")), true, 'self-hosted DM Mono available offline')
   const font = await p.evaluate(() => getComputedStyle(document.getElementById('tuner-cents')).fontFamily); assert.match(font, /DM Mono/)
   await ctx.setOffline(false)
+})
+// 새 버전 적용 뒤 자동 새로고침처럼 사용자 동작 없이 열리면 오디오가 멈춘 채다 — 시작 버튼이 뜨되, 화면 어디를 눌러도 깨어난다
+await scenario('lifecycle: 동작 없이 열려 오디오가 멈추면 시작 버튼, 화면 아무 데나 눌러도 다시 시작', 'violin_A4.wav', async p => {
+  // 자동재생 정책 흉내: 컨텍스트는 멈춘 채 태어나고, resume 은 실제 터치·키 이후에만 먹힌다
+  // (navigator.userActivation 은 못 쓴다 — Playwright 의 evaluate 가 사용자 동작으로 쳐진다)
+  await p.addInitScript(() => {
+    let gesture = false; const mark = e => { if (e.isTrusted) gesture = true }
+    addEventListener('pointerup', mark, true); addEventListener('keydown', mark, true)
+    const AC = window.AudioContext, resume = AC.prototype.resume
+    AC.prototype.resume = function () { return gesture ? resume.call(this) : Promise.resolve() }
+    window.AudioContext = class extends AC { constructor(...a) { super(...a); void this.suspend() } }
+  })
+  await p.goto(URL_)
+  await waitUntil(p, () => document.getElementById('tuner-card').classList.contains('tap-hint'), 5000, '멈춘 오디오 → 시작 버튼')
+  assert.notEqual(await p.evaluate(() => window.__tt.stats().acState), 'running')
+  await p.click('#hdr', { position: { x: 200, y: 10 } }) // 튜너 카드 밖, 버튼이 아닌 곳
+  await waitUntil(p, () => window.__tt.stats().acState === 'running' && !document.getElementById('tuner-card').classList.contains('tap-hint'), 3000, '아무 데나 눌러 재개')
+  await waitNote(p, t => t.note === '라')
 })
 await scenario('lifecycle: context suspended externally while metronome plays → auto-resume on visible', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 500); await sizeTap(p); await p.click('#metro-play-btn'); await sleep(p, 800)

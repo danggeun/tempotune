@@ -7,7 +7,7 @@ import { setBPM, adjBPM, setTimeSig, setSubDiv, setMetroVol, toggleMetro } from 
 import { tickKind } from '../core/metro/sequencer.ts'
 import { isPhoneLayout } from '../platform/index.ts'
 import { buildDial, setDialBpm, onDialChange } from './dial.ts'
-import { attachSwipeStep } from './swipeStep.ts'
+import { attachVDrag } from './swipeStep.ts'
 import { beatDurS, isBeatStart, sweepX, ledIndex, hitIndex } from '../core/metro/sweep.ts'
 import { q, qsa, on, reflow } from './dom.ts'
 import { toast } from './toast.ts'
@@ -70,7 +70,8 @@ function applyFull(): void {
   // 튜너 카드의 display:none 은 애니메이션이 안 되므로 전환 전후 두 카드 높이를 재서 픽셀로 함께 움직인다. 폰 세로 배치에서만
   const anim = isPhoneLayout() && !matchMedia('(prefers-reduced-motion: reduce)').matches
   // 570 ms 안에 또 누르면 이전 인라인 높이가 남아 있다: before 는 지금 보이는 높이, 인라인을 걷어낸 뒤 최종을 잰다
-  const before = anim ? { t: tuner.offsetHeight, m: card.offsetHeight, collapsed: wrap.classList.contains('collapsed') } : null
+  const hand = handoff; handoff = null // 카드를 끌다 놓았으면 손을 뗀 그 높이에서 이어 간다
+  const before = anim ? { t: hand?.t ?? tuner.offsetHeight, m: hand?.m ?? card.offsetHeight, mb: hand?.mb, collapsed: wrap.classList.contains('collapsed') } : null
   if (before) { clearAnim(tuner); clearAnim(card) }
   card.classList.add('no-anim') // 최종 높이를 재려면 본체 접힘 트랜지션이 즉시 끝나 있어야 한다
   q('main-body').classList.toggle('metro-full', full)
@@ -86,7 +87,7 @@ function applyFull(): void {
   reflow(card); card.classList.remove('no-anim'); reflow(card)
   wrap.style.gridTemplateRows = ''; q('metro-body-clip').style.opacity = ''
   const gap = '-' + getComputedStyle(q('main-body')).gap // 튜너가 0 이 돼도 카드 사이 gap 은 남는다 → 음수 margin 으로 같이 접는다
-  animHeight(tuner, before.t, after.t, full ? ['0px', gap] : [gap, '0px'], full ? 'flex' : '') // 펼침2로 갈 때 튜너는 CSS 로 display:none — 애니메이션 동안만 이긴다
+  animHeight(tuner, before.t, after.t, full ? [before.mb || '0px', gap] : [before.mb || gap, '0px'], full ? 'flex' : '') // 펼침2로 갈 때 튜너는 CSS 로 display:none — 애니메이션 동안만 이긴다
   animHeight(card, before.m, after.m, ['0px', '0px'])
 }
 const animTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>()
@@ -152,11 +153,12 @@ export function mountMetro(): void {
   attachDrag(q('metro-bpm-wrap')); attachDrag(q('metro-hdr-label'))
   on(q('metro-play-hdr-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
   on(q('metro-play-btn'), 'click', () => { const r = toggleMetro(); if (!r.ok) toast(r.error) })
-  // 크기 버튼은 순환(접힘 → 펼침 → 전용 → 접힘), 내려가는 길은 카드를 아래로 미는 스와이프
+  // 크기 버튼은 순환(접힘 → 펼침 → 전용 → 접힘). 카드를 위아래로 끌어도 한 단계씩 — 손을 따라온다
   on(q('metro-size-btn'), 'click', sizeUp)
   const ignore = '#metro-hdr-label, #metro-bpm-wrap, #dial, input[type=range], button, .m-seg' // BPM ↕ 드래그 영역도 제외 — 없으면 BPM 내리기가 접힘이 된다
-  attachSwipeStep(q('metro-hdr'), { onStep: sizeDown, ignore })
-  attachSwipeStep(q('metro-body'), { onStep: sizeDown, ignore })
+  const drag = { start: dragStart, move: dragMove, end: dragEnd, ignore }
+  attachVDrag(q('metro-hdr'), drag)
+  attachVDrag(q('metro-body'), drag)
   qsa('.m-adj, .m-adj-pad').forEach(b => on(b, 'click', () => adjBPM(b.textContent === '−' ? -1 : 1)))
   const volMain = q<HTMLInputElement>('metro-vol'), volPad = q<HTMLInputElement>('metro-vol-pad-input')
   on(volMain, 'input', () => { setMetroVol(+volMain.value); volPad.value = volMain.value })
@@ -217,11 +219,91 @@ function sizeUp(): void {
   else if (collapsed) metroStore.set({ collapsed: false })
   else metroStore.set({ full: true })
 }
-/** 한 단계 아래로 (스와이프): 전용 → 펼침 → 접힘 */
-function sizeDown(): void {
-  const { collapsed, full } = metroStore.get()
-  if (full) metroStore.set({ full: false, collapsed: false })
-  else if (!collapsed) metroStore.set({ collapsed: true })
+
+// ── 카드 끌기: 손가락을 따라 카드 높이가 바뀌고, 놓으면 다음 단계로 넘어가거나 제자리로 돌아간다 (폰 세로 배치) ──
+// 위로 끌면 접힘 → 펼침 → 펼침2, 아래로 끌면 반대. 넓은 화면·동작 줄이기에서는 아래로 40 px 밀면 한 단계(예전 방식)
+type St = 'c' | 'e' | 'f'
+const UP: Record<St, St | null> = { c: 'e', e: 'f', f: null }
+const DOWN: Record<St, St | null> = { f: 'e', e: 'c', c: null }
+const COMMIT_P = 0.3, COMMIT_VEL = 0.35, STEP_PX = 40
+type Drag = { live: boolean; dir: -1 | 1; from: St; to: St; h0: number; h1: number; t0: number; gap: number; p: number }
+let drag: Drag | null = null
+let handoff: { t: number; m: number; mb: string } | null = null
+let wrapTimer: ReturnType<typeof setTimeout> | null = null
+
+function stateNow(): St { const { collapsed, full } = metroStore.get(); return full ? 'f' : collapsed ? 'c' : 'e' }
+function go(st: St): void { metroStore.set(st === 'f' ? { full: true } : st === 'e' ? { full: false, collapsed: false } : { collapsed: true }) }
+const liveDrag = (): boolean => isPhoneLayout() && !matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** 상태 st 일 때의 카드 높이 — 클래스를 잠깐 바꿔 재고 되돌린다(그리기 전이라 화면에 안 나온다) */
+function measureCard(st: St): number {
+  const card = q('metro-card'), wrap = q('metro-body-wrap'), mb = q('main-body')
+  const was = { full: card.classList.contains('full'), mf: mb.classList.contains('metro-full'), col: wrap.classList.contains('collapsed'), noAnim: card.classList.contains('no-anim') }
+  card.classList.add('no-anim')
+  card.classList.toggle('full', st === 'f'); mb.classList.toggle('metro-full', st === 'f'); wrap.classList.toggle('collapsed', st === 'c')
+  const h = card.offsetHeight
+  card.classList.toggle('full', was.full); mb.classList.toggle('metro-full', was.mf); wrap.classList.toggle('collapsed', was.col)
+  reflow(card); if (!was.noAnim) card.classList.remove('no-anim') // 되돌린 값으로 계산을 끝낸 뒤에 트랜지션을 살린다 — 아니면 되돌림이 애니메이션된다
+  return h
+}
+/** 접힘 전환 동안 붙여 둔 본체 인라인을 걷는다 */
+function clearWrap(): void {
+  if (wrapTimer) { clearTimeout(wrapTimer); wrapTimer = null }
+  const card = q('metro-card')
+  q('metro-body-wrap').style.gridTemplateRows = ''; q('metro-body-clip').style.opacity = ''
+  reflow(card); card.classList.remove('no-anim')
+}
+
+function dragStart(dir: -1 | 1): boolean {
+  const from = stateNow(), to = dir < 0 ? UP[from] : DOWN[from]
+  if (!to) return false
+  if (!liveDrag()) { if (dir < 0) return false; drag = { live: false, dir, from, to, h0: 0, h1: 0, t0: 0, gap: 0, p: 0 }; return true }
+  const card = q('metro-card'), tuner = q('tuner-card')
+  clearAnim(tuner); clearAnim(card); if (wrapTimer) clearWrap() // 이전 전환이 남아 있으면 끝난 상태에서 시작
+  const h0 = card.offsetHeight, t0 = tuner.offsetHeight, h1 = measureCard(to)
+  const gap = parseFloat(getComputedStyle(q('main-body')).rowGap) || 0
+  card.classList.add('dragging'); card.style.height = h0 + 'px'
+  if (from === 'c') { q('metro-body-wrap').style.gridTemplateRows = '1fr'; q('metro-body-clip').style.opacity = '1' } // 접힌 본체를 펴 둔다 — 카드가 커지는 만큼 드러난다
+  if (from === 'f') { tuner.style.display = 'flex'; tuner.style.marginBottom = -gap + 'px' } // 숨은 튜너를 0 높이로 꺼내 둔다
+  drag = { live: true, dir, from, to, h0, h1, t0, gap, p: 0 }
+  return true
+}
+function dragMove(dy: number): void {
+  const d = drag; if (!d || !d.live) return
+  const h = Math.min(Math.max(d.h0, d.h1), Math.max(Math.min(d.h0, d.h1), d.h0 - dy)) // 카드는 아래에 붙어 있어 손이 위로 가면 커진다
+  d.p = (h - d.h0) / ((d.h1 - d.h0) || 1)
+  q('metro-card').style.height = h + 'px'
+  // 튜너가 0 이 돼도 카드 사이 gap 은 남는다 — 펼침2 쪽으로 간 만큼 음수 margin 으로 접는다
+  if (d.from === 'f' || d.to === 'f') q('tuner-card').style.marginBottom = -d.gap * (d.to === 'f' ? d.p : 1 - d.p) + 'px'
+}
+function dragEnd(dy: number, vy: number): void {
+  const d = drag; drag = null; if (!d) return
+  if (!d.live) { if (dy * d.dir >= STEP_PX) go(d.to); return }
+  const commit = d.p >= COMMIT_P || (vy * d.dir > COMMIT_VEL && d.p > 0.03) // 멀리 끌었거나, 그 방향으로 튕겼거나
+  const card = q('metro-card'), tuner = q('tuner-card'), wrap = q('metro-body-wrap'), clip = q('metro-body-clip')
+  const cur = card.offsetHeight
+  if (d.from === 'f' || d.to === 'f') {
+    const tNow = tuner.offsetHeight, mbNow = tuner.style.marginBottom
+    card.classList.remove('dragging')
+    if (commit) {
+      handoff = { t: tNow, m: cur, mb: mbNow }
+      card.style.height = ''; tuner.style.display = ''; tuner.style.marginBottom = ''
+      go(d.to) // applyFull 이 handoff 에서 이어 간다
+    } else {
+      animHeight(card, cur, d.h0, ['0px', '0px'])
+      animHeight(tuner, tNow, d.from === 'f' ? 0 : d.t0, [mbNow, d.from === 'f' ? -d.gap + 'px' : '0px'], d.from === 'f' ? 'flex' : '')
+    }
+    return
+  }
+  // 접힘 ↔ 펼침: 본체 트랜지션은 끄고 카드 높이만 움직인다
+  card.classList.add('no-anim'); card.classList.remove('dragging')
+  card.style.height = ''; wrap.style.gridTemplateRows = ''; clip.style.opacity = ''
+  if (commit) go(d.to)
+  const after = card.offsetHeight
+  // 접히는 쪽이면 내용은 카드와 함께 잘려 들어간다 — 먼저 사라지면 빈 카드만 줄어든다
+  if ((commit ? d.to : d.from) === 'c') { wrap.style.gridTemplateRows = '1fr'; clip.style.opacity = '1' }
+  animHeight(card, cur, after, ['0px', '0px'])
+  wrapTimer = setTimeout(clearWrap, 560) // animHeight 가 인라인 높이를 지우는 570 ms 보다 먼저
 }
 /** 버튼 글리프·라벨 = 다음 목적지 */
 function syncSizeBtn(): void {

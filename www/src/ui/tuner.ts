@@ -147,6 +147,8 @@ export function mountTuner(): void {
     renderNote(s.midi, s.cents, s.inTune, s.inTune && dualOk, s.hz); drawHistory(s.inTune && dualOk)
   }
   tunerStore.select(s => s.sampleRate, sr => resizeHist(sr), { immediate: true })
+  // 캔버스 크기가 바뀌면 마이크 프레임이 없어도 다시 그린다 — 안 그리면 옛 크기의 비트맵이 늘어나 ♭♯ 가 길쭉해진다(시작 버튼 화면)
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => drawHistory(lastInTune)).observe(q('tuner-history'))
   tunerStore.select(s => s.frame, () => {
     const s = tunerStore.get()
     // 무엇을 트레이스에 쌓을지는 core/trace.ts 가 정한다
