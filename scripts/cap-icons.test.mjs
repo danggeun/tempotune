@@ -3,35 +3,52 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSy
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PNG } from 'pngjs'
-import { stripInset, applyIcons, ADAPTIVE_PX } from './cap-icons.mjs'
+import { stripInset, ensureMonochrome, applyIcons, ADAPTIVE_PX } from './cap-icons.mjs'
 
-// @capacitor/assets 3.0.5 가 실제로 내보내는 형태
+// @capacitor/assets 3.0.5 가 실제로 내보내는 형태 — <monochrome> 이 없다(테마 아이콘이 빠진다)
 const GENERATED = `<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
+    <background>
+        <inset android:drawable="@mipmap/ic_launcher_background" android:inset="16.7%" />
+    </background>
     <foreground>
-        <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%"/>
+        <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%" />
     </foreground>
-    <monochrome>
+</adaptive-icon>`
+// 단색까지 inset 으로 감싼 형태(다른 생성기)
+const WITH_MONO = GENERATED.replace('</adaptive-icon>', `    <monochrome>
         <inset android:drawable="@mipmap/ic_launcher_monochrome" android:inset="16.7%"/>
     </monochrome>
-</adaptive-icon>`
+</adaptive-icon>`)
 
 describe('stripInset — removes the inset wrapper that shrank the icon twice', () => {
   test('strips the inset from foreground and monochrome and uses the drawable directly', () => {
-    const out = stripInset(GENERATED)
-    expect(out).not.toMatch(/inset/)
+    const out = stripInset(WITH_MONO)
     expect(out).toContain('<foreground android:drawable="@mipmap/ic_launcher_foreground"/>')
     expect(out).toContain('<monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>')
-    expect(out).toContain('<background android:drawable="@color/ic_launcher_background"/>') // 배경은 손대지 않는다
+    expect(out).toContain('<inset android:drawable="@mipmap/ic_launcher_background"') // 배경은 손대지 않는다
   })
   test('idempotent — already stripped XML stays the same', () => {
-    const once = stripInset(GENERATED)
+    const once = stripInset(WITH_MONO)
     expect(stripInset(once)).toBe(once)
   })
   test('leaves XML without an inset (made by other tools) alone', () => {
     const plain = '<adaptive-icon><foreground android:drawable="@mipmap/x"/></adaptive-icon>'
     expect(stripInset(plain)).toBe(plain)
+  })
+})
+
+describe('ensureMonochrome — Android 13 themed icon layer', () => {
+  test('adds a monochrome layer the generator leaves out', () => {
+    const out = ensureMonochrome(stripInset(GENERATED))
+    expect(out).toContain('<monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>')
+    expect(out.trimEnd().endsWith('</adaptive-icon>')).toBe(true)
+  })
+  test('idempotent and keeps an existing monochrome layer', () => {
+    const once = ensureMonochrome(GENERATED)
+    expect(ensureMonochrome(once)).toBe(once)
+    expect(ensureMonochrome(WITH_MONO)).toBe(WITH_MONO)
+    expect(ensureMonochrome('<vector/>')).toBe('<vector/>')
   })
 })
 
@@ -45,21 +62,26 @@ describe('applyIcons — replaces mipmaps', () => {
       // 생성기가 내놓는 작은 전경 (192 px 고정) 을 흉내
       writeFileSync(join(res, `mipmap-${d}`, 'ic_launcher_foreground.png'), PNG.sync.write(new PNG({ width: 192, height: 192 })))
       writeFileSync(join(src, `ic_launcher_foreground-${d}.png`), PNG.sync.write(new PNG({ width: px, height: px })))
+      writeFileSync(join(src, `ic_launcher_monochrome-${d}.png`), PNG.sync.write(new PNG({ width: px, height: px })))
     }
     mkdirSync(join(res, 'mipmap-anydpi-v26'), { recursive: true })
     writeFileSync(join(res, 'mipmap-anydpi-v26', 'ic_launcher.xml'), GENERATED)
     writeFileSync(join(res, 'mipmap-anydpi-v26', 'ic_launcher_round.xml'), GENERATED)
     return { res, src }
   }
-  test('writes a full-size foreground per density and fixes both XML files', () => {
+  test('writes a full-size foreground and monochrome per density and fixes both XML files', () => {
     const { res, src } = fixture()
     const r = applyIcons(res, src, () => {})
-    expect(r).toEqual({ copied: 5, xml: 2, skipped: false })
-    for (const [d, px] of Object.entries(ADAPTIVE_PX)) {
-      const p = PNG.sync.read(readFileSync(join(res, `mipmap-${d}`, 'ic_launcher_foreground.png')))
+    expect(r).toEqual({ copied: 5, mono: 5, xml: 2, skipped: false })
+    for (const [d, px] of Object.entries(ADAPTIVE_PX)) for (const layer of ['foreground', 'monochrome']) {
+      const p = PNG.sync.read(readFileSync(join(res, `mipmap-${d}`, `ic_launcher_${layer}.png`)))
       expect(p.width).toBe(px)
     }
-    expect(readFileSync(join(res, 'mipmap-anydpi-v26', 'ic_launcher.xml'), 'utf8')).not.toMatch(/inset/)
+    for (const f of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
+      const xml = readFileSync(join(res, 'mipmap-anydpi-v26', f), 'utf8')
+      expect(xml).toContain('<foreground android:drawable="@mipmap/ic_launcher_foreground"/>')
+      expect(xml).toContain('<monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>')
+    }
   })
   test('quietly does nothing without android/ (generated, not in the repo)', () => {
     expect(applyIcons('/nonexistent-res', '/nonexistent-src', () => {}).skipped).toBe(true)
@@ -68,17 +90,17 @@ describe('applyIcons — replaces mipmaps', () => {
     const { res, src } = fixture()
     applyIcons(res, src, () => {})
     const r2 = applyIcons(res, src, () => {})
-    expect(r2.copied).toBe(5); expect(r2.xml).toBe(0) // XML 은 이미 벗겨져 변경 없음
+    expect(r2.copied).toBe(5); expect(r2.mono).toBe(5); expect(r2.xml).toBe(0) // XML 은 이미 고쳐져 변경 없음
   })
 })
 
 describe('generated foreground — full size and visible mark width', () => {
   const dir = join(import.meta.dirname, '..', 'resources', 'android')
   const files = Object.entries(ADAPTIVE_PX)
-  test.skipIf(!existsSync(dir))('밀도별 크기가 108dp 정식값이다', () => {
-    for (const [d, px] of files) {
-      const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_foreground-${d}.png`)))
-      expect([p.width, p.height]).toEqual([px, px])
+  test.skipIf(!existsSync(dir))('밀도별 크기가 108dp 정식값이다 (전경·단색)', () => {
+    for (const [d, px] of files) for (const layer of ['foreground', 'monochrome']) {
+      const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_${layer}-${d}.png`)))
+      expect([p.width, p.height], `${layer}-${d}`).toEqual([px, px])
     }
   })
   // 눈에 띄려면 보이는 72dp 의 절반 이상은 차야 한다
@@ -92,9 +114,9 @@ describe('generated foreground — full size and visible mark width', () => {
     }
   })
   // 원형 마스크(적응형은 원으로 잘린다)에서 마크가 잘리지 않는다: 보이는 72dp 원 안에 들어와야 한다
-  test.skipIf(!existsSync(dir))('원형 안전영역(중앙 72dp) 밖으로 잉크가 나가지 않는다', () => {
-    for (const [d, px] of files) {
-      const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_foreground-${d}.png`)))
+  test.skipIf(!existsSync(dir))('원형 안전영역(중앙 72dp) 밖으로 잉크가 나가지 않는다 (전경·단색)', () => {
+    for (const [d, px] of files) for (const layer of ['foreground', 'monochrome']) {
+      const p = PNG.sync.read(readFileSync(join(dir, `ic_launcher_${layer}-${d}.png`)))
       const c = px / 2, r = px * (72 / 108) / 2
       let out = 0
       for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
@@ -107,6 +129,17 @@ describe('generated foreground — full size and visible mark width', () => {
   test.skipIf(!existsSync(dir))('투명 배경이다 (adaptive 전경은 배경 레이어와 합성된다)', () => {
     const p = PNG.sync.read(readFileSync(join(dir, 'ic_launcher_foreground-xxxhdpi.png')))
     expect(p.data[3]).toBe(0) // 좌상단 모서리
+  })
+})
+
+// 브라우저 탭 아이콘: 글자가 안 읽히는 크기라 따로 그린 32 px — 모서리는 투명(둥근 타일), 가운데는 채워져 있다
+describe('favicon', () => {
+  const fav = new URL('../www/public/icons/favicon-32.png', import.meta.url)
+  test.skipIf(!existsSync(fav))('32 px, rounded tile with a transparent corner', () => {
+    const p = PNG.sync.read(readFileSync(fav))
+    expect([p.width, p.height]).toEqual([32, 32])
+    expect(p.data[3]).toBe(0)
+    expect(p.data[(16 * 32 + 16) * 4 + 3]).toBe(255)
   })
 })
 

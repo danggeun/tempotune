@@ -61,4 +61,4 @@ Mic input and recordings are processed and stored only on the device. Nothing is
 
 ## License
 
-[MIT](LICENSE). The bundled DM Mono font is under the SIL Open Font License. Note icons are drawn from glyphs of the Bravura music font (© Steinberg Media Technologies, SIL Open Font License) — see `scripts/gen-note-glyphs.py`.
+[MIT](LICENSE). The bundled DM Mono font is under the SIL Open Font License. Note icons are drawn from glyphs of the Bravura music font (© Steinberg Media Technologies, SIL Open Font License) — see `scripts/gen-note-glyphs.py`. The lettering of the app icon is drawn from the Figtree typeface (© The Figtree Project Authors, SIL Open Font License) — see `resources/icon.svg`.

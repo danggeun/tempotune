@@ -3,7 +3,8 @@
 //   · iOS / PWA 'any':  icon.svg 를 풀블리드 그대로 (OS 가 스퀘어클로 깎는다 — 미리 둥글면 안 된다)
 //   · PWA maskable:     배경 + 전경을 중앙 원 안으로
 //   · Android adaptive: 전경(투명, 바닥 그림자 없음)을 중앙 66 % 안으로, 배경은 icon-background. 밀도별로 직접 렌더
-//   · Android 13 테마:  icon-monochrome(흰 실루엣, 창은 뚫림)
+//   · Android 13 테마:  icon-monochrome(흰 실루엣) — 전경과 같은 맞춤으로 밀도별 렌더
+//   · 브라우저 탭:      favicon.svg(글자가 안 읽히는 크기라 호 T 한 글자) → 32 px
 // 사용: node scripts/gen-icons.mjs [--out DIR]
 import { chromium } from 'playwright'
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs'
@@ -12,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUTDIR = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : null
-export const LAYERS = { full: 'resources/icon.svg', background: 'resources/icon-background.svg', foreground: 'resources/icon-foreground.svg', mono: 'resources/icon-monochrome.svg' }
+export const LAYERS = { full: 'resources/icon.svg', background: 'resources/icon-background.svg', foreground: 'resources/icon-foreground.svg', mono: 'resources/icon-monochrome.svg', favicon: 'resources/favicon.svg' }
 export const MASKABLE_CIRCLE = 0.74   // 규격 80 % 에 6 %p 여유
 export const ADAPTIVE_SAFE = 0.66     // 108dp 중 보이는 72dp
 export const ADAPTIVE_PX = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 }
@@ -53,9 +54,10 @@ async function render(size, mode, circle = 0) {
     maskable: { bg: svg(LAYERS.background), art: svg(LAYERS.foreground), circle },
     foreground: { art: svg(LAYERS.foreground), circle },
     mono: { art: svg(LAYERS.mono), circle },
+    favicon: { art: svg(LAYERS.favicon) },
   }[mode]
   info = (await page.evaluate(drawFn, { S: size, ...P })) ?? info
-  const buf = await page.screenshot({ type: 'png', omitBackground: mode === 'mono' || mode === 'foreground' }); await page.close(); return buf
+  const buf = await page.screenshot({ type: 'png', omitBackground: mode === 'mono' || mode === 'foreground' || mode === 'favicon' }); await page.close(); return buf
 }
 mkdirSync(join(ROOT, 'resources', 'android'), { recursive: true }); mkdirSync(join(ROOT, 'www/public/icons'), { recursive: true })
 const full = await render(1024, 'full')
@@ -66,8 +68,11 @@ writeFileSync(join(ROOT, 'www/public/icons/icon-192.png'), await render(192, 'fu
 writeFileSync(join(ROOT, 'www/public/icons/icon-maskable-512.png'), await render(512, 'maskable', MASKABLE_CIRCLE))
 writeFileSync(join(ROOT, 'resources/icon-background.png'), await render(1024, 'background'))
 writeFileSync(join(ROOT, 'resources/icon-foreground.png'), await render(1024, 'foreground', ADAPTIVE_SAFE * 0.94))
-for (const [density, px] of Object.entries(ADAPTIVE_PX)) // 밀도별 정식 크기로 직접 렌더
+for (const [density, px] of Object.entries(ADAPTIVE_PX)) { // 밀도별 정식 크기로 직접 렌더
   writeFileSync(join(ROOT, `resources/android/ic_launcher_foreground-${density}.png`), await render(px, 'foreground', ADAPTIVE_SAFE * 0.94))
+  writeFileSync(join(ROOT, `resources/android/ic_launcher_monochrome-${density}.png`), await render(px, 'mono', ADAPTIVE_SAFE * 0.94))
+}
 writeFileSync(join(ROOT, 'resources/icon-monochrome.png'), await render(1024, 'mono', ADAPTIVE_SAFE * 0.94))
+writeFileSync(join(ROOT, 'www/public/icons/favicon-32.png'), await render(32, 'favicon'))
 await browser.close()
 console.log(`icons written — 잉크 ${(info.artW * 100).toFixed(0)}×${(info.artH * 100).toFixed(0)} %, 대각선 ${(info.diag * 100).toFixed(0)} %`)
