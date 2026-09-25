@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative, dirname } from 'node:path'
+import { join, relative, dirname, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stringLiterals } from './lib/strings.mjs'
 import { KO } from '../www/src/core/i18n/ko.ts'
@@ -43,7 +43,7 @@ describe('no hard-coded Korean on screen', () => {
   test('every Korean string in code goes through the dictionary', () => {
     const bad = []
     for (const f of walk(SRC)) {
-      const rel = relative(SRC, f)
+      const rel = relative(SRC, f).split(sep).join('/') // Windows 는 역슬래시로 돌려준다
       if (ALLOWED_FILES.includes(rel)) continue
       for (const s of stringLiterals(readFileSync(f, 'utf8'))) if (HANGUL.test(s.text) && !ALLOWED_TEXT.has(s.text)) bad.push(`${rel}:${s.line} ${s.text.slice(0, 40)}`)
     }
