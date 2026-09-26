@@ -1,8 +1,8 @@
 /**
  * 녹음 영속화 (IndexedDB). recordings = 큰 blob(거의 안 바뀜), meta = 편집 상태(자주 바뀜, blob 을 다시 쓰지 않게 분리), chunks = 녹음 중 조각.
  */
-export const REC_DB = 'tempotune_rec', REC_STORE = 'recordings', META_STORE = 'meta', CHUNK_STORE = 'chunks'
-export const LEGACY_REC_DB = 'gopractice_rec' // 이름 변경 전 DB — persist/legacy.ts 가 지운다
+export const REC_DB = 'intonome_rec', REC_STORE = 'recordings', META_STORE = 'meta', CHUNK_STORE = 'chunks'
+export const LEGACY_REC_DBS = ['gopractice_rec', 'tempotune_rec'] // 옛 이름(Go practice · TempoTune) DB — persist/legacy.ts 가 지운다
 export const REC_DB_VERSION = 4 // v3: meta 분리, v4: chunks
 import { REC_TTL, expires } from '../core/recPolicy.ts'
 import { t } from '../core/i18n/index.ts'

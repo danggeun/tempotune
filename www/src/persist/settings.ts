@@ -2,8 +2,8 @@
 import { settingsStore, RMS_LEVELS, V1_RMS_LEVELS, V201_RMS_LEVELS, SMOOTH_LEVELS, CFG, type Settings, type SubDiv, type TimeSig } from '../state/index.ts'
 import { t } from '../core/i18n/index.ts'
 
-export const SETTINGS_KEY = 'tempotune_settings_v1'
-export const LEGACY_SETTINGS_KEYS = ['gopractice_settings_v1', 'gp_mic_intro'] // 이름 변경 전 키 — persist/legacy.ts 가 지운다
+export const SETTINGS_KEY = 'intonome_settings_v1'
+export const LEGACY_SETTINGS_KEYS = ['gopractice_settings_v1', 'gp_mic_intro', 'tempotune_settings_v1', 'tempotune_legacy_cleared_v1'] // 옛 이름(Go practice · TempoTune) 키 — persist/legacy.ts 가 지운다
 
 type StoredV2 = { v: 2 } & Settings
 interface StoredV1 { cents?: number; rms?: number; smooth?: number; wakelock?: boolean; bpm?: number; timeSig?: number; subDiv?: number | string; refHz?: number; vol?: number; savedAt?: number }

@@ -1,6 +1,6 @@
 {
-  "appId": "com.tempotune.app",
-  "appName": "TempoTune",
+  "appId": "com.intonome.app",
+  "appName": "Intonome",
   "webDir": "dist",
   "backgroundColor": "#eef0f3",
   "server": {

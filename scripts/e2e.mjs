@@ -48,7 +48,7 @@ const tunerText = p => p.evaluate(() => ({ note: document.getElementById('tuner-
 const waitNote = async (p, pred, ms = 4000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const t = await tunerText(p); if (pred(t)) return t; await p.waitForTimeout(100) } throw new Error('note not reached: ' + JSON.stringify(await tunerText(p))) }
 const sleep = (p, ms) => p.waitForTimeout(ms)
 /** 색·캔버스 픽셀을 다크 토큰 기준으로 재는 시나리오용 — 기본 테마는 라이트라 다크를 저장해 두고 연다 */
-const darkTheme = p => p.addInitScript(() => { if (!localStorage.getItem('tempotune_settings_v1')) localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: 'dark' })) })
+const darkTheme = p => p.addInitScript(() => { if (!localStorage.getItem('intonome_settings_v1')) localStorage.setItem('intonome_settings_v1', JSON.stringify({ v: 2, theme: 'dark' })) })
 /** 카드를 아래로 밀어 한 단계 내리기. 헤더의 빈 가운데에서 시작한다 */
 const swipeDown = async (p, sel = '#metro-hdr') => {
   const b = await p.locator(sel).boundingBox()
@@ -493,7 +493,7 @@ for (const top of [0, 59]) await scenario(`ios: home-screen app ${top ? 'drawn u
   if (top) await s.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34 } })
   await p.addInitScript(() => { const mm = window.matchMedia.bind(window); window.matchMedia = q => q.includes('display-mode: standalone') ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : mm(q) })
   for (const theme of ['dark', 'light']) {
-    await p.addInitScript(t => localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, theme: t })), theme)
+    await p.addInitScript(t => localStorage.setItem('intonome_settings_v1', JSON.stringify({ v: 2, theme: t })), theme)
     await p.goto(URL_); await sleep(p, 600)
     assert.equal(await p.evaluate(() => document.documentElement.classList.contains('sb-under')), top > 0, theme)
   }
@@ -543,7 +543,7 @@ await scenario('i18n: English — no Korean on any screen, nothing clipped, surv
   await p.click('#settings-back-btn'); await waitNote(p, t => t.note === '라')
 })
 await scenario('i18n: English mic popup when the mic is blocked', 'silence_lowfloor.wav', async p => {
-  await p.addInitScript(() => localStorage.setItem('tempotune_settings_v1', JSON.stringify({ v: 2, lang: 'en' })))
+  await p.addInitScript(() => localStorage.setItem('intonome_settings_v1', JSON.stringify({ v: 2, lang: 'en' })))
   await p.goto(URL_); await sleep(p, 1500)
   const r = await screenText(p); assert.deepEqual(r.korean, []); assert.deepEqual(r.overflow, [])
   assert.equal(await p.evaluate(() => document.documentElement.classList.contains('i18n-pending')), false, 'page is revealed')
@@ -583,7 +583,7 @@ await scenario('rec: chunks of an unfinished recording are recovered on the next
   // 짧게 녹음해 진짜 조각(헤더가 있는 첫 블롭)을 얻고, 그걸 '끝나지 않은 세션' 인 것처럼 chunks 에 넣는다
   await p.click('#rec-hdr-btn'); await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
   const seeded = await p.evaluate(async () => {
-    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) })
+    const db = await new Promise(r => { const q = indexedDB.open('intonome_rec', 4); q.onsuccess = () => r(q.result) })
     const rows = await new Promise(r => { const g = db.transaction('recordings').objectStore('recordings').getAll(); g.onsuccess = () => r(g.result) })
     if (!rows.length) return 'no recording'
     const src = rows[0], session = Date.now() - 30000
@@ -598,7 +598,7 @@ await scenario('rec: chunks of an unfinished recording are recovered on the next
   const names = await p.evaluate(() => Array.from(document.querySelectorAll('#rec-list .rec-item-name')).map(e => e.textContent))
   assert.equal(await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item').length), before + 1, '복구된 항목 하나가 늘어난다: ' + names.join(','))
   assert.ok(names.some(n => /복구/.test(n)), '이름에 복구 표시: ' + names.join(','))
-  assert.equal(await p.evaluate(async () => { const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) }); return new Promise(r => { const g = db.transaction('chunks').objectStore('chunks').count(); g.onsuccess = () => r(g.result) }) }), 0, '복구 뒤 조각은 비운다')
+  assert.equal(await p.evaluate(async () => { const db = await new Promise(r => { const q = indexedDB.open('intonome_rec', 4); q.onsuccess = () => r(q.result) }); return new Promise(r => { const g = db.transaction('chunks').objectStore('chunks').count(); g.onsuccess = () => r(g.result) }) }), 0, '복구 뒤 조각은 비운다')
   await p.reload(); await waitNote(p, t => t.note === '라'); await sleep(p, 800)
   assert.equal(await p.evaluate(() => document.querySelectorAll('#rec-list .rec-item').length), before + 1, '다시 켜도 중복 복구는 없다')
 })
@@ -661,7 +661,7 @@ await scenario('rec: keep — only inside the notice, toggles, persists, hidden 
   assert.equal(await link(), null, '예고 전에는 남기기 글자도 없다 (정보는 있는 것만)')
   // 녹음을 27일 전으로 돌려 예고 구간(마지막 7일)에 넣는다
   await p.evaluate(async () => {
-    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) })
+    const db = await new Promise(r => { const q = indexedDB.open('intonome_rec', 4); q.onsuccess = () => r(q.result) })
     const tx = db.transaction('recordings', 'readwrite'), st = tx.objectStore('recordings')
     const rows = await new Promise(r => { const g = st.getAll(); g.onsuccess = () => r(g.result) })
     for (const row of rows) { row.ts -= 27 * 86400000; st.put(row) }
@@ -689,7 +689,7 @@ await scenario('rec: keep — only inside the notice, toggles, persists, hidden 
   // 31일 전 = 기한 지난 항목을 남긴 상태에서 해제하면 미리 알린다 (되돌리기)
   await p.click('#rec-list .rec-keep-link'); await sleep(p, 300)
   await p.evaluate(async () => {
-    const db = await new Promise(r => { const q = indexedDB.open('tempotune_rec', 4); q.onsuccess = () => r(q.result) })
+    const db = await new Promise(r => { const q = indexedDB.open('intonome_rec', 4); q.onsuccess = () => r(q.result) })
     const tx = db.transaction('recordings', 'readwrite'), st = tx.objectStore('recordings')
     const rows = await new Promise(r => { const g = st.getAll(); g.onsuccess = () => r(g.result) })
     for (const row of rows) { row.ts -= 5 * 86400000; st.put(row) }

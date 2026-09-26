@@ -1,10 +1,10 @@
-# Privacy Policy — TempoTune
+# Privacy Policy — Intonome
 
-Last updated: 2026-09-25 · [한국어](#개인정보처리방침--tempotune)
+Last updated: 2026-09-26 · [한국어](#개인정보처리방침--intonome)
 
 ## Summary
 
-**TempoTune does not collect any personal information and does not send any data off your device.** Mic input and recordings are processed and stored only on the device you use.
+**Intonome does not collect any personal information and does not send any data off your device.** Mic input and recordings are processed and stored only on the device you use.
 
 ## Microphone
 
@@ -40,7 +40,7 @@ The app collects no personal information, so it is safe to use at any age.
 
 ## Deleting data
 
-You can delete recordings one by one in the app. To remove everything, clear the site data in your browser (web), or uninstall the app or use Settings › Apps › TempoTune › Storage › Clear data (Android). No copy remains on our side.
+You can delete recordings one by one in the app. To remove everything, clear the site data in your browser (web), or uninstall the app or use Settings › Apps › Intonome › Storage › Clear data (Android). No copy remains on our side.
 
 ## Changes
 
@@ -48,17 +48,17 @@ Changes to this policy are recorded in this file and the repository history.
 
 ## Contact
 
-<https://github.com/danggeun/tempotune/issues>
+<https://github.com/danggeun/intonome/issues>
 
 ---
 
-# 개인정보처리방침 — TempoTune
+# 개인정보처리방침 — Intonome
 
-최종 수정일: 2026-09-25
+최종 수정일: 2026-09-26
 
 ## 요약
 
-**TempoTune 은 어떤 개인정보도 수집하지 않고, 어떤 데이터도 외부로 전송하지 않습니다.** 마이크 입력과 녹음 파일은 사용하시는 기기 안에서만 처리·저장됩니다.
+**Intonome 은 어떤 개인정보도 수집하지 않고, 어떤 데이터도 외부로 전송하지 않습니다.** 마이크 입력과 녹음 파일은 사용하시는 기기 안에서만 처리·저장됩니다.
 
 ## 마이크
 
@@ -94,7 +94,7 @@ Changes to this policy are recorded in this file and the repository history.
 
 ## 데이터 삭제
 
-앱 안에서 녹음을 개별 삭제할 수 있습니다. 전부 지우려면 웹은 브라우저의 사이트 데이터 삭제, Android 는 앱 삭제 또는 설정 › 앱 › TempoTune › 저장공간 › 데이터 삭제를 사용하시면 됩니다. 저희 쪽에 남는 사본은 없습니다.
+앱 안에서 녹음을 개별 삭제할 수 있습니다. 전부 지우려면 웹은 브라우저의 사이트 데이터 삭제, Android 는 앱 삭제 또는 설정 › 앱 › Intonome › 저장공간 › 데이터 삭제를 사용하시면 됩니다. 저희 쪽에 남는 사본은 없습니다.
 
 ## 변경
 
@@ -102,4 +102,4 @@ Changes to this policy are recorded in this file and the repository history.
 
 ## 문의
 
-<https://github.com/danggeun/tempotune/issues>
+<https://github.com/danggeun/intonome/issues>

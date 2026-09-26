@@ -375,7 +375,7 @@ async function exportAB(): Promise<void> {
     else src.connect(offAC.destination)
     src.start()
     const rendered = await offAC.startRendering()
-    handOff(new Blob([bufToWav(rendered)], { type: 'audio/wav' }), 'tempotune_' + item.name + '_cut.wav') // 아이폰: 탭 안에서 공유
+    handOff(new Blob([bufToWav(rendered)], { type: 'audio/wav' }), 'intonome_' + item.name + '_cut.wav') // 아이폰: 탭 안에서 공유
   } catch (e) { toast(tr('common.saveFailed', { e: e instanceof Error ? e.message : String(e) })) }
 }
 /** 다운로드 — 목록과 같은 경로 (recList.downloadRec) */

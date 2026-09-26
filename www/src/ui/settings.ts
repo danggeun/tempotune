@@ -26,5 +26,5 @@ export function mountSettings(): void {
   settingsStore.select(s => s.autoDelete, v => markSteps('autodelete-steps', v ? 1 : 0), { immediate: true })
   settingsStore.select(s => s.theme, v => markSteps('theme-steps', v === 'light' ? 1 : 0), { immediate: true })
   settingsStore.select(s => s.lang, v => markSteps('lang-steps', v === 'en' ? 1 : 0), { immediate: true })
-  q('settings-version').textContent = `TempoTune ${__APP_VERSION__}`
+  q('settings-version').textContent = `Intonome ${__APP_VERSION__}`
 }

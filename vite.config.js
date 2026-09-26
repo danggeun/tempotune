@@ -3,11 +3,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
-// base: GitHub Pages 는 /tempotune/, Capacitor 빌드(build:cap)는 / (package.json scripts 참고)
+// base: GitHub Pages 는 /intonome/, Capacitor 빌드(build:cap)는 / (package.json scripts 참고)
 export default defineConfig(({ mode }) => ({
   root: 'www',
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-  base: process.env.BASE ?? '/tempotune/',
+  base: process.env.BASE ?? '/intonome/',
   build: { outDir: '../dist', emptyOutDir: true, target: 'es2022' },
   server: { port: 5173, open: false },
   worker: { format: 'es' },
@@ -23,8 +23,8 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ['icons/*.png'],
       manifest: {
         // id 를 못 박아 둔다 — 없으면 start_url 이 곧 identity 라 base 가 바뀌면 '다른 앱' 이 되어 재설치된다
-        id: process.env.BASE ?? '/tempotune/',
-        name: 'TempoTune', short_name: 'TempoTune', description: '현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집',
+        id: process.env.BASE ?? '/intonome/',
+        name: 'Intonome', short_name: 'Intonome', description: '현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집',
         display: 'standalone', orientation: 'portrait', background_color: '#232830', theme_color: '#eef0f3', lang: 'ko',
         // 크기마다 바로 그린 파일을 다 알려 준다 — 브라우저·런처가 맞는 크기를 골라 다시 줄이지 않게(scripts/gen-icons.mjs)
         icons: [

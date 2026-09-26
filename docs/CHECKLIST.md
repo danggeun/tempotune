@@ -90,7 +90,7 @@ User-facing scenarios. `[A]` items are automated (CI checks them every time); `[
 - [A] Header LED row fits with a three-digit BPM on 360 px phones
 - [D] Readable from 60–90 cm; REC, size and drum usable while holding a bow
 - [D] Larger system font sizes on the tuner card layout
-- [D] Android 15 edge-to-edge: header clear of the status bar; adaptive launcher icon; app name "TempoTune"
+- [D] Android 15 edge-to-edge: header clear of the status bar; adaptive launcher icon; app name "Intonome"
 - [D] iPhone home-screen app: no gap at the bottom (iOS 26), nothing cut off in either theme
 
 ## Settings / other

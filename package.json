@@ -1,14 +1,14 @@
 {
-  "name": "tempotune",
+  "name": "intonome",
   "version": "2.4.0",
-  "description": "TempoTune — tuner, metronome, reference tones and practice recorder for string players (PWA + Capacitor Android)",
+  "description": "Intonome — tuner, metronome, reference tones and practice recorder for string players (PWA + Capacitor Android)",
   "private": true,
   "license": "MIT",
   "author": "Yeonho (danggeun)",
-  "homepage": "https://danggeun.github.io/tempotune/",
+  "homepage": "https://danggeun.github.io/intonome/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danggeun/tempotune.git"
+    "url": "https://github.com/danggeun/intonome.git"
   },
   "engines": {
     "node": ">=22"

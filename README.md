@@ -1,14 +1,15 @@
-# TempoTune
+# Intonome
 
 > **in time, in tune.**
 > Chromatic tuner, metronome, reference tones and a practice recorder for string players.
 > Web (PWA) and Android (Capacitor). Works offline; audio never leaves the device.
+> Formerly TempoTune.
 
-[![CI](https://github.com/danggeun/tempotune/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/tempotune/actions/workflows/ci.yml)
-[![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/tempotune/)
+[![CI](https://github.com/danggeun/intonome/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/intonome/actions/workflows/ci.yml)
+[![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/intonome/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-**<https://danggeun.github.io/tempotune/>** — current Chrome, Safari and Edge. Add it to your home screen to use it as an offline app.
+**<https://danggeun.github.io/intonome/>** — current Chrome, Safari and Edge. Add it to your home screen to use it as an offline app.
 
 Korean by default; English in Settings › Language.
 
@@ -26,7 +27,7 @@ Korean by default; English in Settings › Language.
 ```bash
 npm install          # Node 22+
 npm run dev          # http://localhost:5173 — the mic needs localhost or HTTPS
-npm run build        # for GitHub Pages (base=/tempotune/) → dist/
+npm run build        # for GitHub Pages (base=/intonome/) → dist/
 ```
 
 ## Verify

@@ -6,11 +6,11 @@ The app is Korean-first, so there is a Korean listing (default) and an English o
 ## App name (30 characters)
 
 ```
-TempoTune — 튜너·메트로놈
+Intonome — 튜너·메트로놈
 ```
 
 ```
-TempoTune — Tuner & Metronome
+Intonome — Tuner & Metronome
 ```
 
 ## Short description (80 characters)
@@ -26,7 +26,7 @@ in time, in tune. Tuner, metronome and recorder for strings. No ads, works offli
 ## Full description — Korean
 
 ```
-TempoTune 은 현악기 연습에 필요한 것만 담은 도구입니다.
+Intonome 은 현악기 연습에 필요한 것만 담은 도구입니다.
 튜너와 메트로놈이 한 화면에 있고, 연습을 녹음해 바로 들어볼 수 있습니다.
 
 ■ 튜너
@@ -61,7 +61,7 @@ TempoTune 은 현악기 연습에 필요한 것만 담은 도구입니다.
 ## Full description — English
 
 ```
-TempoTune has just what you need to practice a string instrument.
+Intonome has just what you need to practice a string instrument.
 The tuner and metronome share one screen, and you can record yourself and listen back right away.
 
 ■ Tuner
@@ -96,7 +96,7 @@ The tuner and metronome share one screen, and you can record yourself and listen
 ## Privacy policy URL
 
 ```
-https://github.com/danggeun/tempotune/blob/main/PRIVACY.md
+https://github.com/danggeun/intonome/blob/main/PRIVACY.md
 ```
 
 **Required for Play review** — the app uses the microphone permission and is rejected without it.

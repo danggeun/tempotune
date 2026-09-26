@@ -18,6 +18,6 @@ describe('setAllowBackup', () => {
 })
 
 describe('isWebBuildHtml', () => {
-  test('detects a Pages build (any repo name)', () => { expect(isWebBuildHtml('<script src="/tempotune/assets/a.js">')).toBe(true); expect(isWebBuildHtml('<link href="/anything/assets/a.css">')).toBe(true) })
+  test('detects a Pages build (any repo name)', () => { expect(isWebBuildHtml('<script src="/intonome/assets/a.js">')).toBe(true); expect(isWebBuildHtml('<link href="/anything/assets/a.css">')).toBe(true) })
   test('app builds pass', () => expect(isWebBuildHtml('<script src="/assets/a.js">')).toBe(false))
 })

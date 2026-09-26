@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { clearLegacyStorage } from './legacy.ts'
-import { LEGACY_REC_DB } from './recordingsDb.ts'
+import { LEGACY_REC_DBS, REC_DB } from './recordingsDb.ts'
 import { LEGACY_SETTINGS_KEYS } from './settings.ts'
 import { SETTINGS_KEY } from './settings.ts'
 
@@ -23,21 +23,21 @@ describe('cleaning up abandoned storage', () => {
     for (const k of LEGACY_SETTINGS_KEYS) store[k] = 'x'
     clearLegacyStorage()
     for (const k of LEGACY_SETTINGS_KEYS) expect(store[k]).toBeUndefined()
-    expect(deleted).toEqual([LEGACY_REC_DB])
+    expect(deleted).toEqual(LEGACY_REC_DBS)
   })
 
   test('leaves the new keys alone', () => {
     store[SETTINGS_KEY] = 'keep-me'
-    store['tempotune_rec'] = 'keep-me-too'
+    store[REC_DB] = 'keep-me-too'
     clearLegacyStorage()
     expect(store[SETTINGS_KEY]).toBe('keep-me')
-    expect(store['tempotune_rec']).toBe('keep-me-too')
-    expect(deleted).not.toContain('tempotune_rec')
+    expect(store[REC_DB]).toBe('keep-me-too')
+    expect(deleted).not.toContain(REC_DB)
   })
 
   test('does nothing from the second launch on (doesn’t open IndexedDB every time)', () => {
     clearLegacyStorage()
-    expect(deleted.length).toBe(1)
+    expect(deleted.length).toBe(LEGACY_REC_DBS.length)
     deleted.length = 0
     clearLegacyStorage()
     expect(deleted).toEqual([])

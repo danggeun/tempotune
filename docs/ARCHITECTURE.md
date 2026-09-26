@@ -1,4 +1,4 @@
-# TempoTune — Architecture
+# Intonome — Architecture
 
 ## 1. Layers
 
@@ -54,8 +54,9 @@ mic ─ getUserMedia ─▶ AudioWorkletNode (capture.worklet)        audio thre
 
 | What | Where | Schema |
 |---|---|---|
-| Settings | `localStorage["tempotune_settings_v1"]` | `{v:2, …}`, value ranges validated on read |
-| Recordings | IndexedDB `tempotune_rec` v4 | `recordings` (blob) · `meta` (bookmarks, A-B, waveform, speed, extension, peak, keep) · `chunks` (pieces while recording) |
+| Settings | `localStorage["intonome_settings_v1"]` | `{v:2, …}`, value ranges validated on read |
+| Recordings | IndexedDB `intonome_rec` v4 | `recordings` (blob) · `meta` (bookmarks, A-B, waveform, speed, extension, peak, keep) · `chunks` (pieces while recording) |
+| Old names | `persist/legacy` | keys and DBs from earlier names (Go practice, TempoTune) are deleted once on start |
 | Retention | `core/recPolicy` | 30-day TTL (can be turned off), notice in the last 7 days, 60-minute cap |
 
 Changing Capacitor's `androidScheme` or `appId` changes the origin, and the data above is lost.
@@ -80,7 +81,7 @@ Only `platform/index.ts` looks at `window.Capacitor`.
 | Back button | — | backButton: editor → settings → menu → popup; `minimizeApp` on the main screen |
 | Service worker | Precache. A new version is applied when idle; otherwise a toast offers it | Not registered |
 
-Builds: `npm run build` (base `/tempotune/`, Pages) · `npm run build:cap` (base `/`, Capacitor).
+Builds: `npm run build` (base `/intonome/`, Pages) · `npm run build:cap` (base `/`, Capacitor).
 
 ## 6. Verification
 

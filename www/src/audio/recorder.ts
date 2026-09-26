@@ -14,7 +14,7 @@ let timerInt: ReturnType<typeof setInterval> | null = null
 
 /** 확장자: 저장 때 파일 내용으로 판정해 둔 값이 우선, 없으면(옛 행) mime 으로 추정 */
 export const recExt = (item: Pick<RecItem, 'ext' | 'mime'>): RecContainer => item.ext ?? extFromMime(item.mime)
-export function recFileName(item: RecItem): string { return 'tempotune_' + item.name + '.' + recExt(item) }
+export function recFileName(item: RecItem): string { return 'intonome_' + item.name + '.' + recExt(item) }
 
 export type RecResult = { ok: true } | { ok: false; error: string }
 /** 조각 간격. 앱이 죽어도 이만큼만 잃는다 */

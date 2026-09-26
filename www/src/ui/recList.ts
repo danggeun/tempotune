@@ -63,7 +63,7 @@ export async function downloadRec(item: RecItem): Promise<void> {
     try {
       const arrayBuf = await (await fetch(item.url)).arrayBuffer()
       const decoded = await new OfflineAudioContext(1, 1, 48000).decodeAudioData(arrayBuf)
-      handOff(new Blob([bufToWav(decoded)], { type: 'audio/wav' }), 'tempotune_' + item.name + '.wav')
+      handOff(new Blob([bufToWav(decoded)], { type: 'audio/wav' }), 'intonome_' + item.name + '.wav')
     } catch (e) { toast(tr('rec.convertFailed', { e: e instanceof Error ? e.message : String(e) })) }
     return
   }
