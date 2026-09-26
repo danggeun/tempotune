@@ -1017,7 +1017,8 @@ await scenario('ux: speed label tap cycles 1.0→0.5→0.7→0.85→1.0 and is r
 })
 await scenario('ux: edge swipe goes back — menu, settings, editor; ignored from the middle, vertical or too short', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  const swipe = async (x0, y0, x1, y1, steps = 8) => { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i <= steps; i++) await p.mouse.move(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps); await p.mouse.up() }
+  // hold: 끝에서 멈춘 채 기다렸다 놓기 (ms). 안 멈추고 바로 놓으면 속도에 따라 튕김으로 닫힐 수 있다 — 러너 속도에 좌우되지 않게 멈춘다
+  const swipe = async (x0, y0, x1, y1, steps = 8, hold = 0) => { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i <= steps; i++) await p.mouse.move(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps); if (hold) await sleep(p, hold); await p.mouse.up() }
   const menuOpen = () => p.evaluate(() => document.getElementById('menu-overlay').classList.contains('open'))
   const settingsOpen = () => p.evaluate(() => document.getElementById('settings-page').classList.contains('open'))
   const W = await p.evaluate(() => innerWidth)
@@ -1025,7 +1026,7 @@ await scenario('ux: edge swipe goes back — menu, settings, editor; ignored fro
   await p.click('#menu-btn'); await sleep(p, 300); assert.equal(await menuOpen(), true)
   await swipe(200, 400, 320, 400); await sleep(p, 300); assert.equal(await menuOpen(), true, '가운데서 그은 건 무시')
   await swipe(8, 400, 12, 560); await sleep(p, 300); assert.equal(await menuOpen(), true, '세로로 그은 건 스크롤')
-  await swipe(8, 400, 8 + W * 0.2, 400); await sleep(p, 500); assert.equal(await menuOpen(), true, '35 % 못 미치면 제자리')
+  await swipe(8, 400, 8 + W * 0.2, 400, 8, 150); await sleep(p, 500); assert.equal(await menuOpen(), true, '35 % 못 미치고 멈췄다 놓으면 제자리')
   assert.equal(await p.evaluate(() => document.getElementById('menu-overlay').style.transform), '', '되돌아간 뒤 transform 은 지운다')
   await swipe(8, 400, 8 + W * 0.5, 400); await sleep(p, 600); assert.equal(await menuOpen(), false, '절반 넘게 끌면 닫힘')
   assert.equal(await p.evaluate(() => document.getElementById('menu-overlay').style.transform), '', '닫힌 뒤 transform 은 지운다')

@@ -2,61 +2,67 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
-## [2.4.1] — 2026-09-27
-- DRONE — a new button next to ☰. Pick one of the 12 notes and it keeps sounding (octave 4, a pure tone) while you practice; tap the red note to stop. Like the metronome, it keeps the screen awake and stops when you leave the app. The first time you open it, a line explains what it's for
-- The tuner keeps reading you over the drone — it cuts out the drone's exact frequency, so an octave or a fifth above the drone reads as your note, not the drone's. With only the drone sounding the tuner shows nothing, and the practice timer doesn't count it
-- Play A follows your instrument — Settings › Play A pitch: A4 violin and viola, A3 cello, A2 double bass
+## [2.4.1] - 2026-09-27
+- DRONE: a new button next to ☰. Pick one of the 12 notes and it keeps sounding (octave 4, a pure tone) while you practice; tap the red note to stop. Like the metronome, it keeps the screen awake and stops when you leave the app. The first time you open it, a line explains what it's for
+- The tuner keeps reading you over the drone. It cuts out the drone's exact frequency, so an octave or a fifth above the drone reads as your note, not the drone's. With only the drone sounding the tuner shows nothing, and the practice timer doesn't count it
+- Play A follows your instrument: Settings › Play A pitch sets A4 (violin, viola), A3 (cello) or A2 (double bass)
 - Play A and the drone never sound together; turning one on turns the other off
 - Play A lights red while it sounds, like the other buttons that are on
-- The MIC button is gone — the tuner's start button turns the mic on, and REC turns it on and starts recording
+- The MIC button is gone. The tuner's start button turns the mic on, and REC turns it on and starts recording
 - Reference tones left the menu; the drone replaces them
 - The metronome, Play A and the drone share one soft limiter, so a click over the drone no longer clips
 - When the mic closes, the tuner clears the last note right away instead of sometimes redrawing it
+- The tagline is now "in tune, in time.": tuner first and metronome second, in the same order as the screen and the name
+- The page title and description mention the drone
+- Messages read as plain sentences instead of being split by dashes
+- If recording can't start, the message suggests reloading the app (there is no mic switch to turn off and on anymore)
+- When the browser has blocked the mic, the message points to the icon at the left of the address bar (Chrome no longer shows a lock there)
+- Edge swipe back: a drag that stops before you lift springs back unless it passed 35 % of the width; only a drag still moving fast when you lift counts as a flick
 
-## [2.4.0] — 2026-09-25
+## [2.4.0] - 2026-09-25
 - Renamed to **Intonome** (intonation + metronome), with a new web address: danggeun.github.io/intonome. Settings and recordings saved under the old name are cleared once
-- English — Settings › Language switches between 한국어 and English (Korean stays the default). Every screen, message and label is translated; note names are C D E in English
+- English: Settings › Language switches between 한국어 and English (Korean stays the default). Every screen, message and label is translated; note names are C D E in English
 - Recovered recordings are named with `_recovered` in English
 - Repository docs are now in English
 - Settings footer shows just the version, with the tagline centered under it
 - Note icons (♩ next to the BPM and the rhythm buttons) redrawn from a music engraving font, with stems and beams placed by engraving rules
-- New app icon — a white violin bridge with its heart and curled kidneys on the red of the app's play button, three strings over it and beat marks on both sides. Drawn crisp at each home-screen size; Android 13+ themed icons follow the wallpaper color, and the browser tab shows the bridge on a rounded tile
+- New app icon: a white violin bridge with its heart and curled kidneys on the red of the app's play button, three strings over it and beat marks on both sides. Drawn crisp at each home-screen size; Android 13+ themed icons follow the wallpaper color, and the browser tab shows the bridge on a rounded tile
 - Settings button in the header is drawn as a proper, symmetric gear
 - Light theme is the default for new installs; a theme you already use is kept
 - The collapsed metronome has a play button in its header even when stopped, so it starts and stops without expanding
-- Header beat dots are one size — they no longer grow when the metronome starts
+- Header beat dots are one size; they no longer grow when the metronome starts
 - Header beat dots stay in place when the tempo goes from two to three digits (the BPM keeps a three-digit width)
 - The full-screen metronome has −5 and +5 buttons at the two ends of the row, for bigger tempo steps
 
-## [2.3.8] — 2026-09-25
+## [2.3.8] - 2026-09-25
 - Tuner ♭/♯ looked stretched on the iPhone start screen
-- Removed the status bar notice when switching themes — it changes right away
+- Removed the status bar notice when switching themes; it changes right away
 - First-beat LED in light mode is black with a stronger glow (the counterpart of white with a glow in dark)
 - Dragging the metronome card follows your finger up and down; a short drag springs back, a longer drag or a flick moves one step (upward too)
 - When audio opens paused (for example right after an update), a tap anywhere starts it, not just the start button
 - The iPhone home-screen app left a gap at the bottom when launched in light mode
 
-## [2.3.7] — 2026-09-25
-- Light mode — choose dark or light in Settings (dark by default)
+## [2.3.7] - 2026-09-25
+- Light mode: choose dark or light in Settings (dark by default)
 - A three-digit BPM pushed the right-hand buttons out of the collapsed card while playing
 - Expanded → full filled in from the top instead of growing upward
 - The iPhone home-screen app left a gap the height of the status bar at the bottom
 - The dial shows tempo terms (LARGO, ANDANTE, ALLEGRO, PRESTO) on smaller screens too
 
-## [2.3.6] — 2026-09-25
+## [2.3.6] - 2026-09-25
 - Removed the settings button from the menu (settings is the ⚙ in the header)
 - First-beat LED is the same size as the other beats, told apart by color only, with less glow
 
-## [2.3.5] — 2026-09-25
+## [2.3.5] - 2026-09-25
 - Recordings are saved every 10 seconds and recovered on the next launch if the app is killed
 - A new version is applied when the app is idle, otherwise you're notified. Build number next to the version in Settings
 - Mac Safari records mp4 too
 - Deploys only after CI passes
 
-## [2.3.4] — 2026-09-24
+## [2.3.4] - 2026-09-24
 ### Recording and editing
 - Cutting A-B from long recordings froze on iPhone
-- Saving on iPhone did nothing — now "Ready · Tap to save"
+- Saving on iPhone did nothing; now it shows "Ready · Tap to save"
 - Downloads from the list also convert old webm recordings to WAV for iPhone
 - Cut sections get the same loudness correction as in-app playback
 - Android list seek bar, editing during delete-undo, errors right after starting a recording
@@ -70,14 +76,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Swiping down on Android Chrome reloaded the page
 - Subdivisions stayed on in 6/8, BPM jumped after an interrupted touch, holding Space repeated
 
-## [2.3.3] — 2026-09-22
-- The full-screen metronome is now the second step of "expanded" — header, mic and recording stay; only the tuner hides
+## [2.3.3] - 2026-09-22
+- The full-screen metronome is now the second step of "expanded": header, mic and recording stay, and only the tuner hides
 - Animated expanded ↔ full ↔ collapsed transitions. Size button shows ∧ ∧ ∨
 - METRONOME title at the top of full mode
 - LEDs light at the same moment as the sound
 - iPhone web app: the start button turns on keep-screen-on and the mic together
 
-## [2.3.2] — 2026-09-21
+## [2.3.2] - 2026-09-21
 - One size button that cycles; swipe the card down to go down a step
 - BPM range 40–200 (finer dial)
 - Changing the time signature while playing starts from the left
@@ -85,7 +91,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Header: ☰ on the left, ⚙ settings on the right. Settings closes with X
 - The metronome stops when you leave the app
 
-## [2.3.1] — 2026-09-20
+## [2.3.1] - 2026-09-20
 - Full mode fits every screen size without scrolling; dial text keeps its size
 - Removed the app name from the header; full-screen toggle moved to Settings
 - Removed the beat flash in full mode; first-beat LED is white
@@ -93,12 +99,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - One notation for sharps' secondary name (`A♯/B♭`)
 - Subdivision note spacing
 
-## [2.3.0] — 2026-09-17
+## [2.3.0] - 2026-09-17
 - Hz readout on the tuner
 - Full-screen metronome with a round dial (turn it to set BPM) and tempo terms
 - Swipe from the left edge to go back (menu, settings, editor)
 
-## [2.2.0] — 2026-09-17
+## [2.2.0] - 2026-09-17
 - The mic froze after turning it off and on in iOS
 - Removed the tuner needle (the trace shows the same thing)
 - Subdivisions drawn as real notation (beams, triplets, dotted), sixteenths added
@@ -108,7 +114,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - The mic is released while the editor is open
 - Android icon padding
 
-## [2.1.0] — 2026-09-15
+## [2.1.0] - 2026-09-15
 - Renamed to TempoTune, new icon, new storage and identifiers (old data cleaned up)
 - Playing no longer collapses the metronome
 - The permission popup appears only when the mic is really blocked
@@ -121,8 +127,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Android auto-backup off, no external font requests
 - Space key, accessibility, long names, editor dragging
 
-## [2.0.2] — 2026-09-13
-- iPhone recordings were saved in a format that couldn't be opened — now mp4, saved via the share sheet
+## [2.0.2] - 2026-09-13
+- iPhone recordings were saved in a format that couldn't be opened; now they are mp4, saved via the share sheet
 - The tuner display jumped when the note changed; 4-second trace window
 - Sensitivity tuned so muted playing is detected
 - Note names wobbled during double stops
@@ -130,14 +136,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Dark only
 - Loudness correction for recording playback; metronome click volume
 
-## [2.0.1] — 2026-09-06
-- Double stops showed a lower note that wasn't played — now follows the upper voice
+## [2.0.1] - 2026-09-06
+- Double stops showed a lower note that wasn't played; the tuner now follows the upper voice
 
-## [2.0.0] — 2026-09-05
+## [2.0.0] - 2026-09-05
 - Rebuilt in TypeScript, AudioWorklet + Worker analysis, offline playing detection
 - Sample-accurate metronome, single AudioContext
 - Recording editor (A-B, bookmarks, waveform, speed), saving on Android
 - PWA, offline, design tokens, CI
 
-## [1.0.0] — 2026-06-01
+## [1.0.0] - 2026-06-01
 - Single-file web prototype

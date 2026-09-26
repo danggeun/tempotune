@@ -1,6 +1,6 @@
 # Intonome
 
-> **in time, in tune.**
+> **in tune, in time.**
 > Chromatic tuner, metronome, drone and a practice recorder for string players.
 > Web (PWA) and Android (Capacitor). Works offline; audio never leaves the device.
 
@@ -8,25 +8,25 @@
 [![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/intonome/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-**<https://danggeun.github.io/intonome/>** — current Chrome, Safari and Edge. Add it to your home screen to use it as an offline app.
+**<https://danggeun.github.io/intonome/>** works in current Chrome, Safari and Edge. Add it to your home screen to use it as an offline app.
 
 Korean by default; English in Settings › Language.
 
 ## Features
 
-- **Tuner** — 40 Hz (double bass E1) to 4.2 kHz, reference A = 410–466 Hz, tolerance ±5–25 ¢, pitch trace, double stops.
-- **Metronome** — sample-accurate clicks from an AudioWorklet, steady with the screen off. 40–200 BPM, 2/4 · 3/4 · 4/4 · 6/8, four subdivisions, a full-screen dial.
-- **Play A** — the A at your reference pitch, in the octave of your A string: A4 violin and viola, A3 cello, A2 double bass (Settings › Play A pitch). No mic needed.
-- **Drone** — any of the 12 notes held in octave 4 while you practice. The tuner cuts the drone's own frequency out and keeps reading you; with only the drone sounding it shows nothing, and the practice timer doesn't count it.
-- **Recorder and editor** — waveform, A-B loop, zoom, bookmarks, 0.5–1.5× speed, save a section as WAV. Recordings are saved every 10 s and recovered if the app is killed.
-- **Practice timer** — counts the time you actually played; speech and noise are ignored.
+- **Tuner**: 40 Hz (double bass E1) to 4.2 kHz, reference A = 410–466 Hz, tolerance ±5–25 ¢, pitch trace, double stops.
+- **Metronome**: sample-accurate clicks from an AudioWorklet, 40–200 BPM, 2/4 · 3/4 · 4/4 · 6/8, four subdivisions, a full-screen dial. The screen stays on while it plays.
+- **Play A**: the A at your reference pitch, in your A string's octave (A4 violin and viola, A3 cello, A2 double bass; Settings › Play A pitch).
+- **Drone**: any of the 12 notes, held in octave 4 while you practice. The tuner cuts the drone's own frequency out and keeps reading you; with only the drone sounding it shows nothing, and the practice timer doesn't count it.
+- **Recorder and editor**: waveform, A-B loop, zoom, bookmarks, 0.5–1.5× speed, save a section as WAV. Recordings are saved every 10 s and recovered if the app is killed.
+- **Practice timer**: counts the time you actually played; speech and noise are ignored.
 - Dark and light themes, touch targets of 44 px, WCAG AA contrast.
 
 ## Run
 
 ```bash
 npm install          # Node 22+
-npm run dev          # http://localhost:5173 — the mic needs localhost or HTTPS
+npm run dev          # http://localhost:5173 (the mic needs localhost or HTTPS)
 npm run build        # for GitHub Pages (base=/intonome/) → dist/
 ```
 
@@ -43,7 +43,7 @@ npm run verify       # check + shots + e2e
 e2e and screenshots need Playwright's Chromium: `npx playwright install chromium` (or point `CHROMIUM_PATH` at an existing Chrome).
 CI runs the same checks on every push and PR, and deploys to GitHub Pages when `main` is green.
 
-The source is split into `core / state / audio / persist / platform / ui` layers — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+The source is split into `core / state / audio / persist / platform / ui` layers (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Android
 
@@ -54,7 +54,7 @@ npm run cap:sync      # Capacitor build + sync + manifest fixes
 npx cap open android  # Android Studio → Build › Generate Signed App Bundle / APK
 ```
 
-Don't change `androidScheme` or `appId` in `capacitor.config.json` — a new origin loses saved recordings and settings, and the store doesn't allow a new `appId`. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#7-android-release).
+Don't change `androidScheme` or `appId` in `capacitor.config.json`: a new origin loses saved recordings and settings, and the store doesn't allow a new `appId`. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#7-android-release).
 
 ## Privacy
 
@@ -62,4 +62,4 @@ Mic input and recordings are processed and stored only on the device. Nothing is
 
 ## License
 
-[MIT](LICENSE). The bundled DM Mono font is under the SIL Open Font License. Note icons are drawn from glyphs of the Bravura music font (© Steinberg Media Technologies, SIL Open Font License) — see `scripts/gen-note-glyphs.py`.
+[MIT](LICENSE). The bundled DM Mono font is under the SIL Open Font License. Note icons are drawn from glyphs of the Bravura music font (© Steinberg Media Technologies, SIL Open Font License); see `scripts/gen-note-glyphs.py`.

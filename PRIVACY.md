@@ -1,6 +1,6 @@
-# Privacy Policy — Intonome
+# Intonome Privacy Policy
 
-Last updated: 2026-09-26 · [한국어](#개인정보처리방침--intonome)
+Last updated: 2026-09-26 · [한국어](#intonome-개인정보처리방침)
 
 ## Summary
 
@@ -52,7 +52,7 @@ Changes to this policy are recorded in this file and the repository history.
 
 ---
 
-# 개인정보처리방침 — Intonome
+# Intonome 개인정보처리방침
 
 최종 수정일: 2026-09-26
 

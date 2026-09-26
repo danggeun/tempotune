@@ -1,20 +1,20 @@
-# Intonome — Architecture
+# Intonome architecture
 
 ## 1. Layers
 
 ```
 www/src/
-  main.ts      Wiring — connects modules, startup sequence, service worker, diagnostics hook window.__tt
-  ui/          DOM bindings per card: tuner, refDrum, refPanel, metro, dial, swipeBack, swipeStep, menu, settings, timer,
+  main.ts      Wiring: connects modules, startup sequence, service worker, diagnostics hook window.__tt
+  ui/          DOM bindings per card: tuner, refDrum, refPanel (Play A), drone, metro, dial, swipeBack, swipeStep, menu, settings, timer,
                micPopup, recHeader, recList, editor, toast, theme, lang. mount*() binds the DOM and subscribes to stores
   audio/       Web Audio adapters: engine (single AudioContext, mic session), analysis (+worker), capture.worklet,
-               metronome (+metro.worklet), refTone, recorder, playback, messages
-  state/       Stores per domain (settings / tuner / metro / refTone / session / recList). Source of the types
+               metronome (+metro.worklet), refTone (Play A and drone), recorder, playback, messages
+  state/       Stores per domain (settings / tuner / metro / refTone / drone / session / recList). Source of the types
   persist/     Settings in localStorage, recordings in IndexedDB
   platform/    Web / Capacitor branches (status bar, wake lock, full screen, file saving, back button)
   core/        Pure logic, no browser APIs, all unit-tested:
                pitch/(fft, yinFast, spectrum, tracker, dual, analyzer) · playing/detector · metro/(sequencer, arrival, sweep, dial)
-               i18n/(ko, en), note, wav, peaks, format, recPolicy, hist, trace, hzReadout, softclip, playbackGain, container,
+               i18n/(ko, en), drone, note, wav, peaks, format, recPolicy, hist, trace, hzReadout, softclip, playbackGain, container,
                yin (reference only, not bundled)
 ```
 
@@ -39,13 +39,16 @@ mic ─ getUserMedia ─▶ AudioWorkletNode (capture.worklet)        audio thre
                          │  1024-sample transferable Float32Array over a direct MessagePort
                          ▼
                   Analysis Worker (analysis.worker)             ≈43 Hz
-                    ring buffer → 4096 window → FFT-YIN → spectrum (octave correction) → tracker → playing detector
+                    drone notch (only while a drone sounds) → ring buffer → 4096 window → FFT-YIN → spectrum (octave correction)
+                    → tracker → playing detector
                     a reference other than 440 is normalized before the tracker and restored for display
                          ▼
                   tunerStore.set(...) → ui/tuner renders only the latest value on rAF
 ```
 
-- One `AudioContext` (engine.ts). It is suspended when idle (no mic, metronome or reference tone). Mic sessions are identified by `micGen`.
+- One `AudioContext` (engine.ts). It is suspended when idle (no mic, metronome, Play A or drone). Mic sessions are identified by `micGen`.
+- Everything the app plays (metronome, Play A, drone) goes through one soft limiter, `output()` in engine.ts.
+- The drone is a sine the app plays, so its frequency is known exactly. While it sounds, the worker notches that frequency out of the mic signal before analysis (`core/drone.ts`: Q 35, 0.3 s to settle). A window that holds only the drone and speaker distortion (what is left is under 12 % of the drone) is analyzed as silence, so the tuner shows nothing and the practice timer doesn't count it.
 - The sample rate is not forced. No SharedArrayBuffer (COOP/COEP can't be set on Pages or in Capacitor).
 - The metronome runs in its own worklet (metro.worklet + core/metro/sequencer). Click times (including output latency) are sent to the worker, which lowers confidence for frames in that window.
 - Recording uses MediaRecorder: mp4 (AAC) first on iOS and Safari, webm/opus elsewhere. Chunks go to IndexedDB every 10 s, and an unfinished recording is recovered on the next launch.
@@ -78,7 +81,7 @@ Only `platform/index.ts` looks at `window.Capacitor`.
 | Saving files | iOS: share sheet (inside a tap) · elsewhere: `<a download>` | `@capacitor/filesystem` → `@capacitor/share` |
 | Keep screen on | Wake Lock. iOS web needs a DOM tap for the first request, so it shows a start button first | Same |
 | Status bar | `theme-color` meta | `@capacitor/status-bar` |
-| Back button | — | backButton: editor → settings → menu → popup; `minimizeApp` on the main screen |
+| Back button | Browser default | backButton: editor → settings → menu → mic popup → drone picker; `minimizeApp` on the main screen |
 | Service worker | Precache. A new version is applied when idle; otherwise a toast offers it | Not registered |
 
 Builds: `npm run build` (base `/intonome/`, Pages) · `npm run build:cap` (base `/`, Capacitor).
@@ -88,9 +91,9 @@ Builds: `npm run build` (base `/intonome/`, Pages) · `npm run build:cap` (base 
 | Layer | Tool |
 |---|---|
 | Pure logic | Vitest `*.test.ts`, `scripts/*.test.mjs` |
-| Tuner benchmark | `npm run bench` — synthetic signals: bias, p90, octave errors, lock latency, F1. Changes to the tuner or detector must not regress |
-| Browser integration | `npm run e2e` — headless Chromium with WAV files as a fake mic. `--only <regex>` |
-| Visual regression | `npm run shots` — 18 screens (dark, light, English) compared with `test-assets/screens/baseline/` via pixelmatch |
+| Tuner benchmark | `npm run bench`: synthetic signals: bias, p90, octave errors, lock latency, F1. Changes to the tuner or detector must not regress |
+| Browser integration | `npm run e2e`: headless Chromium with WAV files as a fake mic. `--only <regex>` |
+| Visual regression | `npm run shots`: 18 screens (dark, light, English) compared with `test-assets/screens/baseline/` via pixelmatch |
 | Module boundaries | `scripts/check-deps.mjs` |
 
 CI (`ci.yml`): check → build → e2e; screenshots run separately. `deploy-pages.yml` deploys only when CI is green on main.

@@ -15,7 +15,6 @@ export function noteLabel(midi: number, system: NoteNames, lang: Lang = 'ko'): {
   if (system === 'en') return { name: en, secondary: ko + (ENHARMONIC[ko] ? '/' + ENHARMONIC[ko] : '') }
   return { name: ko, secondary: en + (EN_ENHARMONIC[en] ? '/' + EN_ENHARMONIC[en] : '') }
 }
-export const KR_MIDI: Readonly<Record<KrNote, number>> = { '도': 0, '도♯': 1, '레': 2, '레♯': 3, '미': 4, '파': 5, '파♯': 6, '솔': 7, '솔♯': 8, '라': 9, '라♯': 10, '시': 11 }
 
 /** 주파수 → 가장 가까운 MIDI 번호 (A4=440 기준; 기준음 보정은 centsFrom에서) */
 export function hzToMidi(hz: number): number { return Math.round(12 * Math.log2(hz / 440)) + 69 }

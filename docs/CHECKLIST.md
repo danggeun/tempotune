@@ -4,8 +4,9 @@ User-facing scenarios. `[A]` items are automated (CI checks them every time); `[
 
 ## Startup / mic
 - [A] First launch opens the mic without a popup (iOS web shows a start button first). If the browser requires a gesture, a start button appears
-- [A] Permission already granted → mic turns on automatically, header MIC button hidden
-- [A] Permission blocked → popup explaining where to allow it; the header MIC button can retry
+- [A] Permission already granted → mic turns on automatically
+- [A] Permission blocked → popup explaining where to allow it; the tuner shows a start button to retry
+- [A] Mic closed and not reopening (device gone, worker crash, closed by the app) → start button on the tuner; REC turns the mic on and starts recording
 - [A] AudioContext starts suspended (for example after an automatic update reload) → start button, and a tap anywhere resumes
 - [D] Android app: tries the mic on launch; a toast explains how to allow it if denied
 
@@ -22,7 +23,7 @@ User-facing scenarios. `[A]` items are automated (CI checks them every time); `[
 
 ## Metronome
 - [A] Plays without the mic
-- [A] Play/stop from the card button, the header button (whenever collapsed — ▶ when stopped, ■ when playing) and the space bar
+- [A] Play/stop from the card button, the header button (whenever collapsed: ▶ when stopped, ■ when playing) and the space bar
 - [A] Header beat dots are one size in collapsed and expanded, playing or stopped
 - [A] BPM −/+, drag (2 px per BPM), clamped to 40–200
 - [A] Time signatures none/2/4/3/4/4/4/6/8, subdivisions; 6/8 disables subdivisions
@@ -35,21 +36,29 @@ User-facing scenarios. `[A]` items are automated (CI checks them every time); `[
 - [A] Changing BPM while playing takes effect on the next tick without restarting
 - [A] Full mode fits every tested screen size without scrolling; dial text keeps its rendered size
 
-## Reference tone
-- [A] C–B (with sharps) and C↑; tapping the same button again stops it
-- [A] Octave −/+ (2–6), changes apply immediately while playing
+## Play A
+- [A] Tap plays A at the reference pitch and lights red; tapping again stops it
+- [A] Plays without the mic and doesn't ask for it
+- [A] Settings › Play A pitch (A4 / A3 / A2) is saved and restored; [D] check A3 and A2 by ear
+
+## Drone
+- [A] DRONE opens a 12-note picker; a note starts the drone and closes it; the button shows the note in red; tapping it stops the drone
+- [A] Tapping outside only closes the picker (the tap doesn't reach the metronome); Esc closes it
+- [A] Play A and the drone turn each other off
 - [A] Plays without the mic
+- [A] The tuner reads the player over the drone (octave, fifth, third, second, unison), and a drone alone with 10 % speaker distortion counts as silence (unit tests with the real analyzer)
+- [D] On a phone speaker: the drone is clearly audible, the tuner reads you while it sounds, and the screen stays on; leaving the app stops it
 
 ## Recording
 - [A] Start/stop from the header REC or the menu, elapsed time shown
-- [A] Without the mic: "Turn on the mic first"
+- [A] Without the mic, REC turns it on and then records
 - [A] New recording at the top of the list, named `YYYYMMDD_HHMM`, with its length
 - [A] Newest one open, the rest behind "Show N older recordings"
 - [A] Play/pause, seek, only one plays at a time
 - [A] Delete removes it from the list and IndexedDB; undo within 5 s
 - [A] List survives a restart; items older than 30 days are deleted (can be turned off); last-7-days notice with "Keep"
 - [A] An unfinished recording (app killed) is recovered on the next launch
-- [A] Download: browser download on the web; Filesystem + share sheet in the Android app — [D] check the share sheet on a device
+- [A] Download: browser download on the web; Filesystem + share sheet in the Android app. [D] Check the share sheet on a device
 
 ## Editor
 - [A] Opens with title, 00:00 / length, play button enabled when ready
@@ -65,20 +74,20 @@ User-facing scenarios. `[A]` items are automated (CI checks them every time); `[
 - [A] Back returns to the menu, stops audio, releases handlers
 
 ## Timer
-- [A] Start/stop/reset; elapsed always counts, playing time only while playing is detected
+- [A] Start/stop/reset; elapsed always counts, playing time only while playing is detected (a drone alone doesn't count)
 - [A] Reset shows an undo toast that restores the counts and running state
 - [A] 15 minutes without sound → mic turns off with a toast
 
 ## Robustness
 - [A] Offline: the service worker precache lets the tuner run after a reload without network; fonts are self-hosted
 - [A] If the context is stopped from outside (iOS "interrupted"), it resumes on return; if it can't within 1.5 s, the metronome stops with a notice
-- [A] App update: a new service worker is applied only when idle (no mic session in use, metronome, recording or editor)
+- [A] App update: a new service worker is applied only when idle (no mic session in use, metronome, drone, recording or editor)
 - [D] Android app going to the background saves an in-progress recording
-- [A] Idle (mic off, metronome stopped, no reference tone) suspends the context and releases audio focus
+- [A] Idle (mic off, metronome stopped, no Play A or drone) suspends the context and releases audio focus
 - [A] getUserMedia errors become actionable messages (no mic / another app / HTTPS required)
 - [A] No silent failures: settings save, recording storage, edit info and wake lock problems all show a toast
-- [A] Worker frame p95 < 12 ms in headless Chromium — [D] check real phones with `window.__tt.stats()`
-- [D] Android back button: editor → settings → menu → popup, then background on the main screen
+- [A] Worker frame p95 < 12 ms in headless Chromium. [D] Check real phones with `window.__tt.stats()`
+- [D] Android back button: editor → settings → menu → mic popup → drone picker, then background on the main screen
 - [D] Phone calls during and after use, Bluetooth headphone latency
 
 ## Look and feel
