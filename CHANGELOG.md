@@ -8,7 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Repository docs are now in English
 - Settings footer shows just the version, with the tagline centered under it
 - Note icons (♩ next to the BPM and the rhythm buttons) redrawn from a music engraving font, with stems and beams placed by engraving rules
-- New app icon — the TempoTune wordmark on the app's dark surface, with the T of Tune in the in-tune green. Android 13+ themed icons follow the wallpaper color, and the browser tab shows the green T
+- New app icon — the TempoTune wordmark on the app's dark surface, with the T of Tune in the in-tune green, drawn crisp at each home-screen size. Android 13+ themed icons follow the wallpaper color, and the browser tab shows the green T
 - Settings button in the header is drawn as a proper, symmetric gear
 - Light theme is the default for new installs; a theme you already use is kept
 - The collapsed metronome has a play button in its header even when stopped, so it starts and stops without expanding

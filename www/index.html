@@ -18,7 +18,7 @@
 <meta name="theme-color" content="#eef0f3">
 <!-- 저장된 테마·언어를 첫 그리기 전에 적용한다. 기본 라이트는 html 에 박혀 있고, 다크를 저장했으면 뗀다. 영어면 문구를 바꿀 때까지 가린다(ui/lang.ts 가 푼다) -->
 <script>try{var s=JSON.parse(localStorage.getItem('tempotune_settings_v1')||'{}'),t=s.theme;if(s.lang==='en'){document.documentElement.lang='en';document.documentElement.classList.add('i18n-pending')}if(t==='dark'){delete document.documentElement.dataset.theme;document.querySelector('meta[name="theme-color"]').content='#181b21';document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content='black-translucent'}}catch(e){}</script>
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png"> <!-- 아이폰 홈 화면 60pt × 3 — 192 를 주면 다시 줄여 흐려진다 -->
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"> <!-- 탭 크기(32 px)에선 글자가 안 읽혀 T 한 글자만 -->
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"> <!-- 없으면 브라우저가 /favicon.ico 를 요청하고, 오프라인에선 콘솔 오류가 된다 -->
 <!-- 한글은 시스템 글꼴. 외부 글꼴 요청 없음 — 라틴 폰트만 fonts.css 에서 자체 호스팅 -->

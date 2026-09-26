@@ -132,6 +132,25 @@ describe('generated foreground — full size and visible mark width', () => {
   })
 })
 
+// 웹앱 아이콘: 매니페스트·apple-touch-icon 이 가리키는 파일이 적힌 크기 그대로 있어야 한다 — 다른 크기를 받으면 홈 화면이 다시 줄여 흐려진다
+describe('web app icons are drawn at the size they declare', () => {
+  const pub = new URL('../www/public/', import.meta.url)
+  const vite = readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
+  const html = readFileSync(new URL('../www/index.html', import.meta.url), 'utf8')
+  const declared = [...vite.matchAll(/src: '(icons\/[^']+\.png)', sizes: '(\d+)x(\d+)'/g)].map(m => [m[1], +m[2]])
+  const apple = /rel="apple-touch-icon" sizes="(\d+)x\d+" href="([^"]+)"/.exec(html)
+  test('the manifest lists each size once, for both purposes', () => {
+    expect(declared.length).toBeGreaterThanOrEqual(6)
+    expect(apple, 'apple-touch-icon 에 sizes 가 있다').not.toBeNull()
+  })
+  test.skipIf(!existsSync(new URL('icons/icon-192.png', pub)))('each file exists at its declared size', () => {
+    for (const [src, n] of [...declared, [apple[2], +apple[1]]]) {
+      const p = PNG.sync.read(readFileSync(new URL(src, pub)))
+      expect([p.width, p.height], src).toEqual([n, n])
+    }
+  })
+})
+
 // 브라우저 탭 아이콘: 글자가 안 읽히는 크기라 따로 그린 32 px — 모서리는 투명(둥근 타일), 가운데는 채워져 있다
 describe('favicon', () => {
   const fav = new URL('../www/public/icons/favicon-32.png', import.meta.url)

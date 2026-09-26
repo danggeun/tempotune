@@ -26,9 +26,13 @@ export default defineConfig(({ mode }) => ({
         id: process.env.BASE ?? '/tempotune/',
         name: 'TempoTune', short_name: 'TempoTune', description: '현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집',
         display: 'standalone', orientation: 'portrait', background_color: '#232830', theme_color: '#eef0f3', lang: 'ko',
+        // 크기마다 바로 그린 파일을 다 알려 준다 — 브라우저·런처가 맞는 크기를 골라 다시 줄이지 않게(scripts/gen-icons.mjs)
         icons: [
+          { src: 'icons/icon-144.png', sizes: '144x144', type: 'image/png' },
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-maskable-144.png', sizes: '144x144', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
           { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
