@@ -3,7 +3,6 @@
 > **in time, in tune.**
 > Chromatic tuner, metronome, reference tones and a practice recorder for string players.
 > Web (PWA) and Android (Capacitor). Works offline; audio never leaves the device.
-> Formerly TempoTune.
 
 [![CI](https://github.com/danggeun/intonome/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/intonome/actions/workflows/ci.yml)
 [![Live](https://img.shields.io/badge/Web-Live-22c55e?style=flat-square)](https://danggeun.github.io/intonome/)
