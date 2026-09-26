@@ -175,6 +175,7 @@ button{font-family:inherit;color:inherit;}
 #metro-hdr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;padding:8px 12px 8px 16px;border-bottom:1px solid var(--line);gap:10px;min-height:52px;}
 #metro-hdr-label{position:relative;display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:var(--fs-xl);color:var(--text);font-weight:var(--fw-md);white-space:nowrap;cursor:ns-resize;touch-action:none;user-select:none;padding:8px 10px 8px 0;margin:-8px 0;}
 #metro-hdr-label .note-glyph{width:8.1px;height:20px;vertical-align:0;}
+#metro-hdr-bpm{display:inline-block;width:3ch;} /* 늘 세 자리 폭(DM Mono 는 숫자 폭이 같다, BPM 은 최대 200) — 80 → 120 으로 바뀌어도 옆 LED 줄이 움직이지 않는다 */
 #metro-hdr-title{display:none;font-size:var(--fs-sm);color:var(--ink);font-weight:var(--fw-b);letter-spacing:var(--ls-caps-wide);align-items:center;} /* #tuner-label 과 같은 글씨 */
 #metro-card.full #metro-hdr-label{display:none;} #metro-card.full #metro-hdr-title{display:flex;}
 /* LED 9칸(metro.ts HDR_LEDS). 폭이 모자라면(세 자리 BPM·좁은 폰·접힘의 재생 버튼) 간격만 줄인다 — 고정 gap 이면 오른쪽 버튼이 카드 밖으로 밀린다.

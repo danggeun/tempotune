@@ -409,6 +409,17 @@ for (const w of [360, 384]) await scenario(`layout: collapsed, stopped and playi
   await p.keyboard.press('Space')
 }, { viewport: { width: w, height: 800 } })
 
+for (const w of [360, 384, 412]) await scenario(`layout: collapsed at ${w}px — the header LEDs stay put when BPM goes from two to three digits`, 'silence_lowfloor.wav', async p => {
+  const leds = async bpm => {
+    await p.addInitScript(b => localStorage.setItem('intonome_settings_v1', JSON.stringify({ v: 2, bpm: b })), bpm)
+    await p.goto(URL_); await sleep(p, 800)
+    assert.equal(await p.evaluate(() => document.getElementById('metro-hdr-bpm').textContent), String(bpm))
+    return p.evaluate(() => Array.from(document.querySelectorAll('#beat-vis .led')).map(e => Math.round(e.getBoundingClientRect().left * 10) / 10))
+  }
+  const two = await leds(99), three = await leds(100), low = await leds(40)
+  assert.deepEqual(three, two, '99 → 100: LED 자리 그대로'); assert.deepEqual(low, two, '40 도 같은 자리')
+}, { viewport: { width: w, height: 800 } })
+
 // 펼침 → 펼침2: 튜너가 같이 줄어들며 카드가 위로 커진다 (튜너가 즉시 사라지면 카드가 위에서부터 아래로 커져 보인다)
 await scenario('metro: expanded → full shrinks the tuner along with it', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await sizeTap(p)
