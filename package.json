@@ -31,7 +31,7 @@
     "e2e": "npm run build:cap && node scripts/e2e.mjs --dist dist",
     "verify": "npm run check && npm run shots && npm run e2e",
     "cap:manifest": "node scripts/cap-manifest.mjs",
-    "cap:assets": "capacitor-assets generate --android --iconBackgroundColor #232830 --iconBackgroundColorDark #232830 --splashBackgroundColor #232830 --splashBackgroundColorDark #232830 && node scripts/cap-icons.mjs",
+    "cap:assets": "capacitor-assets generate --android --iconBackgroundColor #9e421f --iconBackgroundColorDark #9e421f --splashBackgroundColor #732812 --splashBackgroundColorDark #732812 && node scripts/cap-icons.mjs",
     "icons": "node scripts/gen-icons.mjs"
   },
   "dependencies": {

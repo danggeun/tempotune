@@ -183,7 +183,8 @@ describe('the iOS / PWA icon is full-bleed', () => {
     const p = PNG.sync.read(readFileSync(full)), bg = PNG.sync.read(readFileSync(new URL('../resources/icon-background.png', import.meta.url)))
     const W = p.width, H = p.height, m = Math.round(W * 0.04)
     const pts = []
-    for (const d of [0, m]) pts.push([d, d], [W - 1 - d, d], [d, H - 1 - d], [W - 1 - d, H - 1 - d], [W >> 1, d], [W >> 1, H - 1 - d], [d, H >> 1], [W - 1 - d, H >> 1])
+    // 위·아래 가장자리는 ¼·¾ 지점을 본다 — 가운데엔 현이 가장자리까지 이어진다(그림의 일부지 테두리가 아니다)
+    for (const d of [0, m]) pts.push([d, d], [W - 1 - d, d], [d, H - 1 - d], [W - 1 - d, H - 1 - d], [W >> 2, d], [(3 * W) >> 2, d], [W >> 2, H - 1 - d], [(3 * W) >> 2, H - 1 - d], [d, H >> 1], [W - 1 - d, H >> 1])
     for (const [x, y] of pts) {
       const i = (y * W + x) * 4
       expect(p.data[i + 3]).toBe(255)
@@ -198,11 +199,12 @@ describe('maskable icons keep a margin inside the safe zone', () => {
   const file = new URL('../www/public/icons/icon-maskable-512.png', import.meta.url)
   test.skipIf(!existsSync(file))('필요한 원 지름 ≤ 76 % (규격 80 % 에 최소 4 %p 여유)', () => {
     const p = PNG.sync.read(readFileSync(file))
-    const bg = [p.data[0], p.data[1], p.data[2]]
+    // 바탕이 나무결·그라디언트라 한 색이 아니다 — 바탕 층(1024)의 같은 자리와 비교해 다른 곳만 잉크로 본다
+    const bgL = PNG.sync.read(readFileSync(new URL('../resources/icon-background.png', import.meta.url))), sc = bgL.width / p.width
     let x0 = p.width, x1 = -1, y0 = p.height, y1 = -1
     for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
-      const i = (y * p.width + x) * 4
-      if (Math.abs(p.data[i] - bg[0]) + Math.abs(p.data[i + 1] - bg[1]) + Math.abs(p.data[i + 2] - bg[2]) <= 60) continue
+      const i = (y * p.width + x) * 4, j = (Math.floor(y * sc) * bgL.width + Math.floor(x * sc)) * 4
+      if (Math.abs(p.data[i] - bgL.data[j]) + Math.abs(p.data[i + 1] - bgL.data[j + 1]) + Math.abs(p.data[i + 2] - bgL.data[j + 2]) <= 60) continue
       if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y
     }
     const c = p.width / 2

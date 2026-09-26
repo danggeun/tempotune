@@ -4,7 +4,7 @@
 //   · PWA maskable:     배경 + 전경을 중앙 원 안으로
 //   · Android adaptive: 전경(투명, 바닥 그림자 없음)을 중앙 66 % 안으로, 배경은 icon-background. 밀도별로 직접 렌더
 //   · Android 13 테마:  icon-monochrome(흰 실루엣) — 전경과 같은 맞춤으로 밀도별 렌더
-//   · 브라우저 탭:      favicon.svg(글자가 안 읽히는 크기라 호 T 한 글자) → 32 px
+//   · 브라우저 탭:      favicon.svg(둥근 나무 타일에 브리지를 크게 — 16·32 px 에서도 모양이 읽히게) → 32 px
 // 사용: node scripts/gen-icons.mjs [--out DIR]
 import { chromium } from 'playwright'
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs'
