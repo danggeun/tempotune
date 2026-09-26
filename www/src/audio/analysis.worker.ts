@@ -1,6 +1,7 @@
 /** 분석 워커 — 워클릿 청크를 링버퍼에 쌓고, 청크마다(hop 1024) 최신 창(4096)을 분석기에 넣어 프레임을 메인에 보낸다. 알고리즘은 core/ */
 import { createAnalyzer, type Analyzer } from '../core/pitch/analyzer.ts'
 import { createArrival } from '../core/metro/arrival.ts'
+import { createNotch, rms, onlyDrone, DRONE_SETTLE_S, DRONE_TAIL_S, type Notch } from '../core/drone.ts'
 import type { WorkerIn, WorkerOut, ChunkMsg, RecycleMsg } from './messages.ts'
 
 const WINDOW = 4096
@@ -16,6 +17,13 @@ const arrival = createArrival() // 클릭 도착 시각 자가 보정
 const BLK = 256 // 차분 에너지 블록 (≈5 ms @48k) — 클릭 어택 스파이크를 찾는 해상도
 let minOffset = Infinity // 벽시계 − 오디오시계 의 최소값(기준선). 지연이 커지면 이보다 커진다
 let skipped = 0
+// 드론 잘라내기 — 링에는 드론을 뺀 소리가, removedRing 에는 빠진 소리가 쌓인다
+const removedRing = new Float32Array(ring.length)
+const removedWin = new Float32Array(WINDOW)
+const silent = new Float32Array(WINDOW)
+let notch: Notch | null = null
+let droneHoldUntil = -1, droneOffAt = Infinity
+let chunkOut = new Float32Array(0), chunkRem = new Float32Array(0)
 
 const post = (m: WorkerOut, transfer?: Transferable[]) => (self as unknown as Worker).postMessage(m, transfer ?? [])
 
@@ -29,7 +37,12 @@ function onChunk(e: MessageEvent<ChunkMsg>): void {
     for (let b = 0; b < c.length; b += BLK) { let e = 0; const n = Math.min(BLK, c.length - b)
       for (let i = 0; i < n; i++) { const v = c[b + i]!; const d = v - prev; e += d * d; prev = v }
       arrival.pushEnergy(m.t - (c.length - b - n) / sr, e / n) } }
-  for (let i = 0; i < c.length; i++) { ring[ringPos] = c[i]!; ringPos = (ringPos + 1) % ring.length }
+  if (notch && m.t > droneOffAt) { notch = null; droneOffAt = Infinity } // 끈 드론의 꼬리까지 지나갔다
+  if (notch) {
+    if (chunkOut.length !== c.length) { chunkOut = new Float32Array(c.length); chunkRem = new Float32Array(c.length) }
+    notch.process(c, chunkOut, chunkRem)
+    for (let i = 0; i < c.length; i++) { ring[ringPos] = chunkOut[i]!; removedRing[ringPos] = chunkRem[i]!; ringPos = (ringPos + 1) % ring.length }
+  } else for (let i = 0; i < c.length; i++) { ring[ringPos] = c[i]!; removedRing[ringPos] = 0; ringPos = (ringPos + 1) % ring.length }
   filled = Math.min(ring.length, filled + c.length)
   recycle()
   if (filled < WINDOW) return
@@ -45,9 +58,11 @@ function onChunk(e: MessageEvent<ChunkMsg>): void {
   for (let i = mutes.length - 1; i >= 0; i--) { const r = mutes[i]!; if (r.until + off < t0 - 1) mutes.splice(i, 1); else if (t0 < r.until + off && m.t > r.from + off) muted = true }
   // 최신 WINDOW 샘플을 선형 버퍼로
   let src = (ringPos - WINDOW + ring.length) % ring.length
-  for (let i = 0; i < WINDOW; i++) { win[i] = ring[src]!; src = (src + 1) % ring.length }
+  for (let i = 0; i < WINDOW; i++) { win[i] = ring[src]!; removedWin[i] = removedRing[src]!; src = (src + 1) % ring.length }
+  // 드론이 켜져 있으면: 노치가 자리 잡는 동안, 그리고 남은 소리가 드론 찌꺼기뿐이면 무음으로 분석 (튜너 '--', 연주 시간도 안 센다)
+  const droneOnly = !!notch && (t0 < droneHoldUntil || onlyDrone(rms(win), rms(removedWin)))
   const t0w = performance.now()
-  const frame = analyzer.process(win, muted)
+  const frame = analyzer.process(droneOnly ? silent : win, muted)
   post({ type: 'frame', frame, t: m.t, ms: performance.now() - t0w, skipped, calib: off })
   skipped = 0
 }
@@ -60,11 +75,17 @@ self.onmessage = (e: MessageEvent<WorkerIn>) => {
       analyzer = createAnalyzer({ sampleRate: sr, windowSize: WINDOW, hzMin: 40, hzMax: 4200 })
       analyzer.setSettings(m.settings)
       ringPos = 0; filled = 0; dropBefore = -1; minOffset = Infinity; mutes.length = 0; arrival.reset()
+      notch = null; droneHoldUntil = -1; droneOffAt = Infinity
       port = m.port; port.onmessage = onChunk
       post({ type: 'ready' })
       break
     case 'settings': analyzer?.setSettings(m.settings); break
     case 'reset': analyzer?.reset(); filled = 0; dropBefore = m.afterT; minOffset = Infinity; break
     case 'mute': mutes.push({ from: m.from, until: m.until }); if (mutes.length > 64) mutes.shift(); arrival.expect(m.at); break
+    case 'drone':
+      if (m.hz === null) { if (notch) droneOffAt = m.at + DRONE_TAIL_S; break }
+      if (!notch || Math.abs(notch.hz - m.hz) > 1e-6) { notch = createNotch(sr, m.hz); droneHoldUntil = m.at + DRONE_SETTLE_S }
+      droneOffAt = Infinity
+      break
   }
 }

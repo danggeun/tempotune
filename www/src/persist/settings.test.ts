@@ -44,6 +44,10 @@ describe('parseStored', () => {
     expect(parseStored(JSON.stringify({ v: 2, lang: 'ko' })).lang).toBe('ko')
     expect(parseStored(JSON.stringify({ v: 2, lang: 'fr' }))).toEqual({})
   })
+  test('Play A octave: only 2/3/4 pass (A2 double bass, A3 cello, A4 violin/viola), anything else keeps A4', () => {
+    for (const v of [2, 3, 4] as const) expect(parseStored(JSON.stringify({ v: 2, aOctave: v })).aOctave).toBe(v)
+    for (const v of [1, 5, '3', null, 3.5]) expect(parseStored(JSON.stringify({ v: 2, aOctave: v }))).toEqual({})
+  })
 })
 
 describe('parseStored hardening', () => {

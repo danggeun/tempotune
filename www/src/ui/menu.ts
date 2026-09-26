@@ -1,6 +1,7 @@
 /** 풀스크린 메뉴 + 설정 페이지 열기/닫기 */
 import { q, qs, on, reflow } from './dom.ts'
 import { attachSwipeBack } from './swipeBack.ts'
+import { dronePopOpen } from './drone.ts'
 
 export function toggleMenu(): void { q('menu-overlay').classList.toggle('open') }
 /** 편집기에서 돌아올 때: 트랜지션 없이 즉시 열린 상태로 */
@@ -13,7 +14,7 @@ export const closeSettings = (): void => q('settings-page').classList.remove('op
 
 /** 화면을 덮고 있는 오버레이가 있는가 — 전역 단축키(Space)는 지금 보이는 화면의 것 */
 export const overlayOpen = (): boolean =>
-  q('menu-overlay').classList.contains('open') || q('settings-page').classList.contains('open') || q('mic-popup-bg').classList.contains('show')
+  q('menu-overlay').classList.contains('open') || q('settings-page').classList.contains('open') || q('mic-popup-bg').classList.contains('show') || dronePopOpen()
 
 export function mountMenu(): void {
   on(q('menu-btn'), 'click', toggleMenu)

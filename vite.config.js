@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         // id 를 못 박아 둔다 — 없으면 start_url 이 곧 identity 라 base 가 바뀌면 '다른 앱' 이 되어 재설치된다
         id: process.env.BASE ?? '/intonome/',
-        name: 'Intonome', short_name: 'Intonome', description: '현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집',
+        name: 'Intonome', short_name: 'Intonome', description: '현악기 연습을 위한 튜너 · 메트로놈 · 드론 · 녹음 편집',
         display: 'standalone', orientation: 'portrait', background_color: '#cc473e', theme_color: '#eef0f3', lang: 'ko',
         // 크기마다 바로 그린 파일을 다 알려 준다 — 브라우저·런처가 맞는 크기를 골라 다시 줄이지 않게(scripts/gen-icons.mjs)
         icons: [

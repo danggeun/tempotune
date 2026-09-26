@@ -1,29 +1,9 @@
-/** 기준음 버튼(메뉴) + 튜너 헤더의 'A 듣기'. 라벨은 음이름 표기 설정을 따른다 */
-import { refToneStore, settingsStore } from '../state/index.ts'
-import { toggleRefNote, adjRefOctave, toggleRefA } from '../audio/refTone.ts'
-import { KR, EN, type KrNote } from '../core/note.ts'
-import { q, qsa, on } from './dom.ts'
-import { getLang } from '../core/i18n/index.ts'
-import { onLangChange } from './lang.ts'
+/** 튜너 헤더의 'A 듣기' — 누르면 켜고, 켜져 있으면(빨강) 끈다. 옥타브는 설정의 'A 듣기 높이' */
+import { refToneStore } from '../state/index.ts'
+import { toggleRefA } from '../audio/refTone.ts'
+import { q, on } from './dom.ts'
 
 export function mountRefPanel(): void {
-  qsa('.ref-oct-btn').forEach(b => on(b, 'click', () => adjRefOctave(b.textContent === '−' ? -1 : 1)))
-  qsa<HTMLElement>('.ref-note-btn').forEach(b => on(b, 'click', () => toggleRefNote(b.dataset.note!)))
   on(q('ref-a-btn'), 'click', toggleRefA)
-  refToneStore.select(s => s.octave, o => { q('ref-oct-num-menu').textContent = String(o) }, { immediate: true })
-  refToneStore.select(s => s.active, active => {
-    qsa<HTMLElement>('.ref-note-btn').forEach(b => b.classList.toggle('on', b.dataset.note === active))
-    q('ref-a-btn').classList.toggle('on', active === 'A4')
-  }, { immediate: true })
-  // 버튼 라벨: 도레미 / C D E (data-note 는 내부 키라 그대로)
-  // 영어 화면은 언제나 C D E
-  const label = (): void => {
-    const sys = getLang() === 'en' ? 'en' : settingsStore.get().noteNames
-    qsa<HTMLElement>('.ref-note-btn').forEach(b => {
-      const key = b.dataset.note!
-      if (key === '도2') { b.textContent = sys === 'en' ? 'C↑' : '도↑'; return }
-      const i = KR.indexOf(key as KrNote); b.textContent = sys === 'en' ? EN[i]! : key
-    })
-  }
-  settingsStore.select(s => s.noteNames, label, { immediate: true }); onLangChange(label)
+  refToneStore.select(s => s.active, active => q('ref-a-btn').classList.toggle('on', active), { immediate: true })
 }

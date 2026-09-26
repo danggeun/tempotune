@@ -96,14 +96,17 @@ button{font-family:inherit;color:inherit;}
 /* 앱 */
 #app{height:100%;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + var(--s3)) var(--s3) max(var(--s3),env(safe-area-inset-bottom,0px));gap:var(--gap);} /* 엣지투엣지(Android 15+)에서 워드마크가 상태바 밑으로 들어가지 않게 */
 
-/* 헤더 — 양 끝에 같은 크기의 아이콘 버튼 하나씩: 왼쪽 ☰, 오른쪽 ⚙ */
+/* 헤더 — 양 끝에 같은 크기의 아이콘 버튼 하나씩: 왼쪽 ☰(+DRONE), 오른쪽 (REC)⚙ */
 #hdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;}
+#hdr-left{display:flex;align-items:center;gap:4px;min-width:0;}
 #hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+/* DRONE — 꺼짐 'DRONE', 켜짐 빨간 음이름. 폭을 고정해 글자가 바뀌어도 흔들리지 않는다 */
+#drone-btn{min-width:72px;justify-content:center;}
+#drone-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-size:var(--fs-md);letter-spacing:0;}
 #hdr-rec-time{display:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);font-weight:500;letter-spacing:.04em;min-width:2.6em;text-align:right;}
 #hdr-rec-time.show{display:inline;}
 #rec-hdr-btn.rec-on{border-color:var(--accent);color:var(--accent);animation:recpulse 1s infinite;}
-#hdr-mic-dot,#rec-hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--text-2);transition:background var(--t-std);flex-shrink:0;}
-#hdr-mic-dot{background:var(--text);}
+#rec-hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--text-2);transition:background var(--t-std);flex-shrink:0;}
 #rec-hdr-btn.rec-on #rec-hdr-dot,.rec-live-dot{background:var(--accent);animation:pulse 1s infinite;}
 .rec-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;}
 /* 44 px 터치 영역은 두고 글리프만 화면 모서리에 맞춘다 */
@@ -127,7 +130,7 @@ button{font-family:inherit;color:inherit;}
 #tuner-hdr-right{display:flex;align-items:center;gap:10px;}
 /* 'A 듣기' — 회색 테두리·글자, 켜짐 = 흰 테두리+흰 글자 (채움 없음) */
 #ref-a-btn{height:var(--h-chip);padding:0 9px;border-color:var(--tuner-ctl);color:var(--tuner-text-2);font-size:var(--fs-xs);font-weight:var(--fw-md);}
-#ref-a-btn.on{border-color:var(--tuner-ink);color:var(--tuner-ink);}
+#ref-a-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);} /* 울리는 중 — 앱 공통 '켜짐' 빨강 */
 /* 드럼 히트 영역: 행 전체(라벨 포함)를 잡고 상하 12 px 여유 — 보이는 크기는 그대로 */
 #ref-row{display:flex;align-items:center;gap:8px;padding:12px 8px;margin:-12px -8px;cursor:ns-resize;touch-action:none;user-select:none;}
 #ref-lbl{font-size:var(--fs-xs);color:var(--tuner-text-1);letter-spacing:var(--ls-caps);} /* 흰색은 음이름·바늘·TUNER 만 */
@@ -147,7 +150,6 @@ button{font-family:inherit;color:inherit;}
 #tuner-note{font-family:'DM Mono',monospace;font-size:min(var(--fs-d3),26vw);font-weight:var(--fw-md);line-height:1;letter-spacing:-.02em;color:var(--tuner-ink);display:block;transition:color var(--t-fast);}
 #tuner-note.tune{color:var(--ok);text-shadow:var(--tune-glow);}
 #tuner-note.empty{color:var(--tuner-empty);font-size:64px;letter-spacing:.05em;}
-#tuner-note.empty.hint{font-size:var(--fs-xl);letter-spacing:.02em;color:var(--tuner-text-2);font-family:inherit;font-weight:var(--fw-md);}
 /* 시작 버튼 — 마이크를 열려면 탭이 필요한 상태. 큰 음 자리에 버튼 하나 + 다음에 벌어질 일 한 줄 */
 #tuner-start{display:none;flex-direction:column;align-items:center;gap:var(--s3);}
 #tuner-card.tap-hint #tuner-start{display:flex;} #tuner-card.tap-hint #tuner-note-main{display:none;}
@@ -291,12 +293,13 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .m-seg.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 
 /* 기준음 패널 */
-.ref-oct-lbl{font-size:var(--fs-md);color:var(--text);font-weight:var(--fw-md);margin-right:4px;}
-.ref-oct-btn{width:44px;height:44px;background:transparent;border:none;color:var(--text);font-size:var(--fs-xl);font-weight:var(--fw-md);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7;}
-.ref-oct-btn:active{opacity:1;}
-#ref-oct-num-menu{font-family:'DM Mono',monospace;font-size:var(--fs-base);color:var(--text-3);font-weight:var(--fw-md);min-width:20px;text-align:center;}
-.ref-note-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;}
-.ref-note-grid .m-seg{flex:0 1 calc(12.5% - 4px);min-width:0;height:var(--h-seg);font-size:var(--fs-md);padding:0;font-family:inherit;}
+/* 드론 음 고르기 — 헤더 바로 아래, 튜너 카드 폭. 바깥 탭은 배경이 받아 닫기만 한다 */
+#drone-pop-bg{position:fixed;inset:0;z-index:69;display:none;} #drone-pop-bg.open{display:block;}
+#drone-pop{position:fixed;z-index:70;display:flex;flex-direction:column;gap:6px;padding:var(--s3);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-lg);
+  box-shadow:0 10px 30px rgba(var(--shadow-rgb),.18);opacity:0;transform:translateY(-4px);pointer-events:none;visibility:hidden;transition:opacity var(--t-std) var(--ease),transform var(--t-std) var(--ease),visibility 0s var(--t-std);}
+#drone-pop.open{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:opacity var(--t-std) var(--ease),transform var(--t-std) var(--ease);}
+.drone-grid{display:flex;justify-content:center;gap:4px;}
+.drone-grid .m-seg{flex:0 1 calc(100% / 7 - 4px);min-width:0;height:var(--h-seg);font-size:var(--fs-md);padding:0;font-family:inherit;}
 
 /* 풀스크린 메뉴 — 닫혔을 때 visibility:hidden 으로 Tab 순서·스크린리더에서 뺀다(inert 는 WebView 94 미만 미지원). 전환은 페이드 뒤로 미룬다 */
 #menu-overlay{position:fixed;inset:0;touch-action:pan-y;background:var(--bg);z-index:50;opacity:0;pointer-events:none;visibility:hidden;transition:opacity var(--t-std),visibility 0s var(--t-std);overflow-y:auto;}

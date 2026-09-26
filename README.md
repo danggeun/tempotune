@@ -1,7 +1,7 @@
 # Intonome
 
 > **in time, in tune.**
-> Chromatic tuner, metronome, reference tones and a practice recorder for string players.
+> Chromatic tuner, metronome, drone and a practice recorder for string players.
 > Web (PWA) and Android (Capacitor). Works offline; audio never leaves the device.
 
 [![CI](https://github.com/danggeun/intonome/actions/workflows/ci.yml/badge.svg)](https://github.com/danggeun/intonome/actions/workflows/ci.yml)
@@ -16,7 +16,8 @@ Korean by default; English in Settings › Language.
 
 - **Tuner** — 40 Hz (double bass E1) to 4.2 kHz, reference A = 410–466 Hz, tolerance ±5–25 ¢, pitch trace, double stops.
 - **Metronome** — sample-accurate clicks from an AudioWorklet, steady with the screen off. 40–200 BPM, 2/4 · 3/4 · 4/4 · 6/8, four subdivisions, a full-screen dial.
-- **Reference tones** — C to B with sharps, octaves 2–6, no mic needed.
+- **Play A** — the A at your reference pitch, in the octave of your A string: A4 violin and viola, A3 cello, A2 double bass (Settings › Play A pitch). No mic needed.
+- **Drone** — any of the 12 notes held in octave 4 while you practice. The tuner cuts the drone's own frequency out and keeps reading you; with only the drone sounding it shows nothing, and the practice timer doesn't count it.
 - **Recorder and editor** — waveform, A-B loop, zoom, bookmarks, 0.5–1.5× speed, save a section as WAV. Recordings are saved every 10 s and recovered if the app is killed.
 - **Practice timer** — counts the time you actually played; speech and noise are ignored.
 - Dark and light themes, touch targets of 44 px, WCAG AA contrast.

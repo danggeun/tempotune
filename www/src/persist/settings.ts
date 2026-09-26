@@ -50,6 +50,7 @@ export function parseStored(raw: string | null): Partial<Settings> {
     if (typeof s.autoDelete === 'boolean') out.autoDelete = s.autoDelete
     if (s.theme === 'dark' || s.theme === 'light') out.theme = s.theme
     if (s.lang === 'ko' || s.lang === 'en') out.lang = s.lang
+    if (s.aOctave === 2 || s.aOctave === 3 || s.aOctave === 4) out.aOctave = s.aOctave
     if (out.timeSig === 6) out.subDiv = 1 // 6/8 은 세분 없음 — 따로 저장된 옛 값이 시퀀서·스윕을 어긋나게 한다
     return out
   }

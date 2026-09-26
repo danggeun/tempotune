@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-title" content="Intonome">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Intonome</title>
-<meta name="description" content="Intonome — 현악기 연습을 위한 튜너 · 메트로놈 · 기준음 · 녹음 편집. 설치 없이 브라우저에서 바로.">
+<meta name="description" content="Intonome — 현악기 연습을 위한 튜너 · 메트로놈 · 드론 · 녹음 편집. 설치 없이 브라우저에서 바로.">
 <!-- 링크 공유 미리보기 (카톡·메신저). og:image 는 절대 URL 이어야 한다 -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Intonome — 현악기 연습">
-<meta property="og:description" content="in time, in tune. — 튜너 · 메트로놈 · 기준음 · 녹음 편집을 한 화면에서.">
+<meta property="og:description" content="in time, in tune. — 튜너 · 메트로놈 · 드론 · 녹음 편집을 한 화면에서.">
 <meta property="og:image" content="https://danggeun.github.io/intonome/icons/icon-512.png">
 <meta name="theme-color" content="#eef0f3">
 <!-- 저장된 테마·언어를 첫 그리기 전에 적용한다. 기본 라이트는 html 에 박혀 있고, 다크를 저장했으면 뗀다. 영어면 문구를 바꿀 때까지 가린다(ui/lang.ts 가 푼다) -->
@@ -37,13 +37,14 @@
 <div id="app">
   <!-- 헤더 — 워드마크 없음. 앱 이름은 홈 화면 아이콘·설정 화면에 있다 -->
   <div id="hdr">
-    <button id="menu-btn" aria-label="메뉴" data-t-aria="hdr.menu"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
+    <div id="hdr-left">
+      <button id="menu-btn" aria-label="메뉴" data-t-aria="hdr.menu"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 4h16M2 10h16M2 16h16"/></svg></button>
+      <!-- 드론: 꺼져 있으면 누르면 음 고르기, 켜져 있으면(빨간 음이름) 누르면 끔 — A 듣기·REC·메트로놈과 같은 규칙 -->
+      <button id="drone-btn" class="compact-btn caps" aria-label="드론 음 고르기" aria-haspopup="dialog" aria-expanded="false">DRONE</button>
+    </div>
     <div id="hdr-right">
-      <button id="hdr-mic-btn" class="compact-btn caps">
-        <span id="hdr-mic-dot"></span>MIC
-      </button>
       <span id="hdr-rec-time">0:00</span>
-      <button id="rec-hdr-btn" class="compact-btn caps" style="opacity:.35;"><span id="rec-hdr-dot"></span>REC</button>
+      <button id="rec-hdr-btn" class="compact-btn caps"><span id="rec-hdr-dot"></span>REC</button>
       <button id="settings-hdr-btn" aria-label="설정" data-t-aria="hdr.settings"><svg class="nav-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.5"/><path d="M8.3 4.14L8.75 2.1A8 8 0 0 1 11.25 2.1L11.7 4.14A6.1 6.1 0 0 1 12.94 4.66L14.7 3.53A8 8 0 0 1 16.47 5.3L15.34 7.06A6.1 6.1 0 0 1 15.86 8.3L17.9 8.75A8 8 0 0 1 17.9 11.25L15.86 11.7A6.1 6.1 0 0 1 15.34 12.94L16.47 14.7A8 8 0 0 1 14.7 16.47L12.94 15.34A6.1 6.1 0 0 1 11.7 15.86L11.25 17.9A8 8 0 0 1 8.75 17.9L8.3 15.86A6.1 6.1 0 0 1 7.06 15.34L5.3 16.47A8 8 0 0 1 3.53 14.7L4.66 12.94A6.1 6.1 0 0 1 4.14 11.7L2.1 11.25A8 8 0 0 1 2.1 8.75L4.14 8.3A6.1 6.1 0 0 1 4.66 7.06L3.53 5.3A8 8 0 0 1 5.3 3.53L7.06 4.66A6.1 6.1 0 0 1 8.3 4.14Z"/></svg></button>
     </div>
   </div>
@@ -191,38 +192,6 @@
       </div>
     </div>
 
-  <!-- 2. 기준음 -->
-    <div class="menu-sec">
-      <div class="menu-sec-title" data-t="menu.ref">기준음</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="ref-oct-lbl" data-t="menu.octave">옥타브</span>
-          <button class="ref-oct-btn" aria-label="옥타브 내리기" data-t-aria="menu.octDown">−</button>
-          <span id="ref-oct-num-menu">4</span>
-          <button class="ref-oct-btn" aria-label="옥타브 올리기" data-t-aria="menu.octUp">+</button>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <div class="ref-note-grid">
-          <button class="m-seg ref-note-btn" data-note="도">도</button>
-          <button class="m-seg ref-note-btn" data-note="레">레</button>
-          <button class="m-seg ref-note-btn" data-note="미">미</button>
-          <button class="m-seg ref-note-btn" data-note="파">파</button>
-          <button class="m-seg ref-note-btn" data-note="솔">솔</button>
-          <button class="m-seg ref-note-btn" data-note="라">라</button>
-          <button class="m-seg ref-note-btn" data-note="시">시</button>
-          <button class="m-seg ref-note-btn" data-note="도2">도↑</button>
-        </div>
-        <div class="ref-note-grid">
-          <button class="m-seg ref-note-btn" data-note="도♯">도♯</button>
-          <button class="m-seg ref-note-btn" data-note="레♯">레♯</button>
-          <button class="m-seg ref-note-btn" data-note="파♯">파♯</button>
-          <button class="m-seg ref-note-btn" data-note="솔♯">솔♯</button>
-          <button class="m-seg ref-note-btn" data-note="라♯">라♯</button>
-        </div>
-      </div>
-    </div>
-
     <!-- 3. 녹음 -->
     <div class="menu-sec">
       <div class="menu-sec-title" data-t="menu.rec">녹음</div>
@@ -304,6 +273,17 @@
       </div>
     </div>
 
+    <!-- A 듣기 높이 — 악기 A 선의 옥타브 -->
+    <div class="setting-row">
+      <span class="setting-lbl" data-t="set.aPitch">A 듣기 높이</span>
+      <span class="setting-desc" data-t="set.aPitchDesc">바이올린·비올라는 A4, 첼로는 A3, 콘트라베이스는 A2</span>
+      <div class="step-row" id="apitch-steps">
+        <button class="step-btn on" data-v="4">A4</button>
+        <button class="step-btn" data-v="3">A3</button>
+        <button class="step-btn" data-v="2">A2</button>
+      </div>
+    </div>
+
     <!-- 화면 항상 켜짐 -->
     <div class="setting-row">
       <span class="setting-lbl" data-t="set.wake">화면 항상 켜짐</span>
@@ -334,6 +314,28 @@
     <div id="settings-version"></div>
     <div id="settings-tagline">in time, in tune<span class="hang">.</span></div>
 
+  </div>
+</div>
+
+
+<!-- 드론 음 고르기 — 헤더의 DRONE 을 누르면 바로 아래에 열린다. 음을 누르면 울리고 닫힌다 -->
+<div id="drone-pop-bg"></div>
+<div id="drone-pop" role="dialog" aria-label="드론 음 고르기" data-t-aria="drone.pick">
+  <div class="drone-grid">
+    <button class="m-seg drone-note-btn" data-pc="0">도</button>
+    <button class="m-seg drone-note-btn" data-pc="2">레</button>
+    <button class="m-seg drone-note-btn" data-pc="4">미</button>
+    <button class="m-seg drone-note-btn" data-pc="5">파</button>
+    <button class="m-seg drone-note-btn" data-pc="7">솔</button>
+    <button class="m-seg drone-note-btn" data-pc="9">라</button>
+    <button class="m-seg drone-note-btn" data-pc="11">시</button>
+  </div>
+  <div class="drone-grid">
+    <button class="m-seg drone-note-btn" data-pc="1">도♯</button>
+    <button class="m-seg drone-note-btn" data-pc="3">레♯</button>
+    <button class="m-seg drone-note-btn" data-pc="6">파♯</button>
+    <button class="m-seg drone-note-btn" data-pc="8">솔♯</button>
+    <button class="m-seg drone-note-btn" data-pc="10">라♯</button>
   </div>
 </div>
 

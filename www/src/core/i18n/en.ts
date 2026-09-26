@@ -21,7 +21,10 @@ export const EN: Record<TKey, string> = {
 
   'hdr.menu': 'Menu',
   'hdr.settings': 'Settings',
-  'hdr.micOn': 'Mic is on',
+  'hdr.drone': 'DRONE',
+  'drone.pick': 'Choose a drone note',
+  'drone.stop': 'Stop the {note} drone',
+  'drone.hint': 'The note keeps sounding. Tune your intervals against it',
 
   'mic.titleOff': 'Turn on the mic',
   'mic.titleBlocked': 'The mic is blocked',
@@ -47,7 +50,6 @@ export const EN: Record<TKey, string> = {
   'tuner.playA': 'Play A',
   'tuner.playAAria': 'Play reference A',
   'tuner.startSub': 'We’ll ask to use the mic',
-  'tuner.micHint': 'Turn on MIC to start',
   'tuner.doubleStop': 'Double stop · {note} {cents} ¢',
 
   'audio.cantStart': 'Couldn’t start audio',
@@ -78,10 +80,6 @@ export const EN: Record<TKey, string> = {
   'menu.played': 'Playing',
   'menu.reset': 'Reset',
   'menu.resetDone': 'Timer reset',
-  'menu.ref': 'Reference tone',
-  'menu.octave': 'Octave',
-  'menu.octDown': 'Octave down',
-  'menu.octUp': 'Octave up',
   'menu.rec': 'Recordings',
 
   'rec.start': 'Start recording',
@@ -165,6 +163,8 @@ export const EN: Record<TKey, string> = {
   'set.sensDesc': 'Choose High to pick up quiet playing',
   'set.names': 'Note names',
   'set.namesDesc': 'The other system is shown small alongside',
+  'set.aPitch': 'Play A pitch',
+  'set.aPitchDesc': 'Violin and viola A4, cello A3, double bass A2',
   'set.wake': 'Keep screen on',
   'set.wakeDesc': 'The screen stays on while you practice',
   'set.wakeUnsupported': 'This browser can’t keep the screen on',

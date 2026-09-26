@@ -15,6 +15,25 @@ const hzReadout = createHzReadout() // Hz 표시의 평활·갱신 주기
 
 let tapHandler: (() => void) | null = null
 let tapSub: TKey | null = null
+/** 마이크가 꺼진 채로 남았을 때(권한 거절·장치 끊김) 시작 버튼이 부르는 것 — main.ts 가 정한다. 헤더에 MIC 버튼이 없으니 여기가 켜는 곳이다 */
+let micOpener: (() => Promise<boolean>) | null = null
+let offHandler: (() => void) | null = null
+export function setMicOpener(fn: () => Promise<boolean>): void { micOpener = fn }
+/** 꺼짐 상태의 시작 버튼 — 카드 전체가 아니라 버튼만 받는다 (카드를 잡으면 A 듣기를 누를 때도 권한을 묻는다) */
+function showOffStart(): void {
+  const card = q('tuner-card'), btn = q('tuner-start-btn')
+  q('tuner-note').textContent = '--'; q('tuner-note').className = 'empty'
+  tapSub = null; q('tuner-start-sub').textContent = ''
+  card.classList.add('tap-hint')
+  if (!offHandler) { offHandler = () => { void micOpener?.() }; btn.addEventListener('click', offHandler) }
+}
+/** 마이크가 꺼져 있으면 시작 버튼을 띄운다 — 시작할 때 권한이 이미 거절돼 있던 경우 */
+export function showMicOff(): void { const s = tunerStore.get(); if (!s.micReady && !s.micReopening && !tapHandler && micOpener) showOffStart() }
+function clearOffStart(): void {
+  if (!offHandler) return
+  q('tuner-start-btn').removeEventListener('click', offHandler); offHandler = null
+  if (!tapHandler) q('tuner-card').classList.remove('tap-hint')
+}
 // 트레이스 버퍼. 길이는 histSec × 프레임률이라 샘플레이트가 정해지면 다시 잡는다. histMidi 는 같은 인덱스의 음이름 — 음이 바뀐 자리에 가로줄을 안 긋기 위해
 let histSec: number = CFG.tuner.histSec
 let histSr = 44100
@@ -101,7 +120,8 @@ function renderEmpty(): void {
   const nEl = q('tuner-note')
   // 마이크가 꺼져 있으면 빈 상태 카피, 켜져 있거나 스스로 다시 여는 중(micReopening)이면 '--'
   const s = tunerStore.get(), off = !s.micReady && !s.micReopening && !tapHandler
-  nEl.textContent = off ? t('tuner.micHint') : '--'; nEl.className = off ? 'empty hint' : 'empty'
+  nEl.textContent = '--'; nEl.className = 'empty'
+  if (off && micOpener) showOffStart()
   q('tuner-oct').textContent = ''; q('tuner-cents').textContent = ''; q('tuner-enharmonic').textContent = ''; q('tuner-acc').textContent = ''
   hzReadout.reset(); q('tuner-hz').textContent = ''
   clearDual()
@@ -124,6 +144,7 @@ function renderNote(midi: number, cents: number, inTune: boolean, allInTune: boo
 export function showTapHint(onTap: () => Promise<boolean>, sub?: TKey): void {
   const nEl = q('tuner-note'), card = q('tuner-card')
   nEl.textContent = '--'; nEl.className = 'empty'
+  clearOffStart() // 카드 전체가 받으니 버튼 전용 핸들러는 거둔다 (한 번 누름에 두 번 열지 않게)
   tapSub = sub ?? null; q('tuner-start-sub').textContent = sub ? t(sub) : ''
   card.classList.add('tap-hint')
   if (tapHandler) card.removeEventListener('click', tapHandler) // 호출마다 리스너가 쌓이지 않게
@@ -166,11 +187,7 @@ export function mountTuner(): void {
     dirty = true; if (raf == null) raf = requestAnimationFrame(paint)
   })
   // 마이크 꺼짐 → 표시 초기화
-  tunerStore.select(s => s.micReady, ready => {
-    q('hdr-mic-btn').style.display = ready ? 'none' : 'flex'
-    q('rec-hdr-btn').style.opacity = ready ? '1' : '.35'
-    if (!ready) renderEmpty()
-  })
+  tunerStore.select(s => s.micReady, ready => { if (!ready) renderEmpty(); else clearOffStart() })
   // 자동 재개가 실패로 끝나면 그제야 "켜면 시작" — 분석 루프가 안 도니 여기서 직접 그린다
   tunerStore.select(s => s.micReopening, v => { if (!v && !tunerStore.get().micReady) renderEmpty() })
   // 초기 렌더

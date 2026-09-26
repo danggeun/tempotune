@@ -7,6 +7,7 @@ import { isNative } from '../platform/index.ts'
 import { t as tr } from '../core/i18n/index.ts'
 import type { WorkerIn, WorkerOut } from './messages.ts'
 import type { AnalyzerSettings } from '../core/pitch/analyzer.ts'
+import { softClipCurve } from '../core/softclip.ts'
 import captureWorkletUrl from './capture.worklet.ts?worker&url'
 
 export interface EngineNodes {
@@ -56,7 +57,29 @@ export function getContext(): AudioContext {
   if (A.ac.state !== 'running') void A.ac.resume().catch(() => {}) // 'suspended' 뿐 아니라 iOS 'interrupted' 도
   return A.ac
 }
-/** 아무도 컨텍스트를 쓰지 않으면(마이크 off·메트로놈 정지·기준음 없음) 일시정지 — Android 오디오 포커스 반환, 배터리 */
+/**
+ * 앱이 내는 모든 소리(메트로놈·A 듣기·드론)가 모이는 출력. 소프트 리미터 하나를 함께 지나므로
+ * 드론 위에 클릭이 겹쳐 합이 1.0 을 넘어도 찢어지지 않는다. 무릎(0.7) 아래는 항등 — 따로 울릴 때 소리는 그대로
+ */
+let outNode: WaveShaperNode | null = null, outCtx: AudioContext | null = null
+export function output(): AudioNode {
+  const ac = getContext()
+  if (!outNode || outCtx !== ac) {
+    outNode = ac.createWaveShaper(); outNode.curve = softClipCurve(); outNode.oversample = '2x'; outNode.connect(ac.destination); outCtx = ac
+  }
+  return outNode
+}
+/** 출력 지연 — Android 는 outputLatency(40–100 ms) ≫ baseLatency */
+export const outputLatency = (ac: AudioContext): number => (ac as AudioContext & { outputLatency?: number }).outputLatency || ac.baseLatency || 0
+
+/** 드론 주파수를 분석 워커에 알린다 — 튜너가 그 주파수만 잘라내고 읽는다. 마이크를 나중에 열어도 전해지게 기억한다 */
+let droneForAnalysis: number | null = null
+export function setAnalysisDrone(hz: number | null): void {
+  droneForAnalysis = hz
+  if (A.worker && A.ac) sendToWorker({ type: 'drone', hz, at: A.ac.currentTime + outputLatency(A.ac) })
+}
+
+/** 아무도 컨텍스트를 쓰지 않으면(마이크 off·메트로놈 정지·기준음·드론 없음) 일시정지 — Android 오디오 포커스 반환, 배터리 */
 let idleCheck: (() => boolean) | null = null
 export function setIdleCheck(fn: () => boolean): void { idleCheck = fn }
 export function suspendIfIdle(): void { if (A.ac && A.ac.state === 'running' && !A.micStream && idleCheck?.()) void A.ac.suspend().catch(() => {}) }
@@ -121,6 +144,7 @@ export async function openMic(): Promise<MicResult> {
     A.micSource = ac.createMediaStreamSource(stream); A.micSource.connect(A.captureNode)
     // 장치가 빠지거나 다른 앱이 마이크를 가져가면 (track ended) 정리 — 자기 스트림일 때만 (이전 세션의 늦은 ended 가 새 세션을 닫지 않게)
     stream.getAudioTracks()[0]?.addEventListener('ended', () => { if (A.micStream === stream) { closeMic(); onFatal?.(tr('mic.errEnded')) } })
+    if (droneForAnalysis !== null) sendToWorker({ type: 'drone', hz: droneForAnalysis, at: ac.currentTime }) // 이미 울리는 드론 — 지금부터 잘라낸다
     tunerStore.set({ micReady: true, running: true, sampleRate: ac.sampleRate }) // 샘플레이트는 트레이스 창을 초 단위로 유지하는 데 쓰인다
     opening = false
     for (const h of hooks.afterOpen) h()
@@ -155,7 +179,7 @@ function teardownMic(): void {
   A.micStream = null; A.micSource = null; A.captureNode = null; A.worker = null
 }
 export function closeMic(): void {
-  tunerStore.set({ running: false, micReady: false, playing: false })
+  tunerStore.set({ running: false, micReady: false, playing: false, hz: -1 }) // hz 도 비운다 — 닫기 직전 프레임의 그리기가 늦게 돌아도 옛 음을 다시 그리지 않게
   for (const h of hooks.beforeClose) h()
   teardownMic()
   audioSessionHint(false) // 마이크가 없으면 재생 전용 — iOS 가 출력을 감쇠하지 않게

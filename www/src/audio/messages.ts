@@ -14,6 +14,8 @@ export type WorkerIn =
   | { type: 'reset'; afterT: number }
   /** 메트로놈 클릭 누설 구간(초, AudioContext 시계). at = 클릭이 마이크에 닿을 예상 시각(예약 + 출력 지연) */
   | { type: 'mute'; from: number; until: number; at: number }
+  /** 드론이 켜짐(hz)·꺼짐(null). at = 그 변화가 마이크에 닿을 예상 시각(AudioContext 시계, 출력 지연 포함) */
+  | { type: 'drone'; hz: number | null; at: number }
 
 /** 워커 → 메인 */
 export type WorkerOut =

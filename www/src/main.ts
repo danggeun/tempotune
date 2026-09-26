@@ -4,7 +4,7 @@
  */
 import './fonts.css'
 import './style.css'
-import { settingsStore, tunerStore, metroStore, refToneStore, CFG } from './state/index.ts'
+import { settingsStore, tunerStore, metroStore, refToneStore, droneStore, CFG } from './state/index.ts'
 import { loadSettings, startSettingsAutosave, onPersistError } from './persist/settings.ts'
 import { openRecDb, onDbError } from './persist/recordingsDb.ts'
 import { clearLegacyStorage } from './persist/legacy.ts'
@@ -15,7 +15,7 @@ import { restoreRecordings, recoverInProgress, onRecorderError } from './audio/r
 import { initStatusBar, fitStandaloneHeight, isNative, isIOS, acquireWakeLock, releaseWakeLock, toggleFullscreen, onBackButton, onWakeLockUnsupported } from './platform/index.ts'
 import { q, on } from './ui/dom.ts'
 import { toast } from './ui/toast.ts'
-import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag, retheme } from './ui/tuner.ts'
+import { mountTuner, showTapHint, hideTapHint, setHistSec, histDiag, retheme, setMicOpener, showMicOff } from './ui/tuner.ts'
 import { mountTheme, onThemeChange } from './ui/theme.ts'
 import { mountLang } from './ui/lang.ts'
 import { t } from './core/i18n/index.ts'
@@ -23,6 +23,8 @@ import { mountRefDrum } from './ui/refDrum.ts'
 import { mountMetro } from './ui/metro.ts'
 import { onMetroError } from './audio/metronome.ts'
 import { mountRefPanel } from './ui/refPanel.ts'
+import { mountDrone, dronePopOpen, closeDronePop } from './ui/drone.ts'
+import { stopDrone } from './audio/refTone.ts'
 import { mountMenu, hideMenu, closeSettings } from './ui/menu.ts'
 import { mountSettings } from './ui/settings.ts'
 import { mountTimer, stopTimer } from './ui/timer.ts'
@@ -44,9 +46,9 @@ loadSettings(); startSettingsAutosave()
 
 // 화면
 mountLang(); mountTheme(); onThemeChange(retheme)
-mountTuner(); mountRefDrum(); mountMetro(); mountRefPanel(); mountMenu(); mountSettings()
+mountTuner(); mountRefDrum(); mountMetro(); mountRefPanel(); mountDrone(); mountMenu(); mountSettings()
 mountTimer()
-mountRecHeader(); mountRecList(openEditor, closeEditorIfEditing); mountEditor()
+mountRecList(openEditor, closeEditorIfEditing); mountEditor()
 
 // 마이크 생명주기
 /** 마이크 열기. popupOnDenied 는 직접 누른 경우에만 — iOS 웹앱은 제스처 없는 호출도 NotAllowedError 를 낸다 */
@@ -75,26 +77,29 @@ const micPermission = async (): Promise<PermissionState | null> => {
   try { return (await navigator.permissions?.query({ name: 'microphone' as PermissionName }))?.state ?? null } catch { return null }
 }
 mountMicPopup(tryOpenMic)
+mountRecHeader(() => tryOpenMic(true)) // REC 가 마이크를 켠다 — 직접 누른 것이므로 차단이면 안내
+setMicOpener(() => startInGesture()) // 꺼진 채 남은 튜너의 시작 버튼 (정의는 아래 — 누를 때 부른다)
+const droneOn = (): boolean => droneStore.get().pitchClass !== null
 onEngineFatal(toast); onMetroError(toast); onRecorderError(toast); onPersistError(toast); onDbError(toast); onWakeLockUnsupported(toast)
 // 녹음 재생도 유휴가 아니다 — 재생이 보정 게인 그래프를 타면 컨텍스트가 잠들 때 무음이 된다
-setIdleCheck(() => !metroStore.get().playing && !refToneStore.get().active && !playbackActive())
+setIdleCheck(() => !metroStore.get().playing && !refToneStore.get().active && !droneOn() && !playbackActive())
 startAnalysis()
-// wake lock 은 메트로놈만 켜도 쥔다 — 화면이 꺼지면 WebView 가 얼어 박자가 멈춘다
-const wantWake = () => settingsStore.get().wakeLock && (tunerStore.get().running || metroStore.get().playing)
+// wake lock 은 메트로놈이나 드론만 켜도 쥔다 — 화면이 꺼지면 WebView 가 얼어 소리가 멈춘다
+const wantWake = () => settingsStore.get().wakeLock && (tunerStore.get().running || metroStore.get().playing || droneOn())
 const syncWake = () => { if (wantWake()) acquireWakeLock(); else releaseWakeLock() }
 onMic('afterOpen', syncWake)
 // 타이머는 마이크가 닫힐 때 같이 멈추되, 화면 숨김·편집기로 잠시 놓는 경우는 건드리지 않는다
 let releasingForHide = false, releasingForEditor = false
 onMic('afterClose', () => { if (!releasingForHide && !releasingForEditor) stopTimer(); syncWake(); stopInactivityWatch() })
 metroStore.select(s => s.playing, syncWake)
+droneStore.select(s => s.pitchClass, syncWake)
 // 15분 무활동 자동 종료 — 연습 타이머와 무관하게 마이크가 켜져 있으면 항상 감시
 let inactInt: ReturnType<typeof setInterval> | null = null
 function stopInactivityWatch(): void { if (inactInt) clearInterval(inactInt); inactInt = null }
 // 열 때 활동 시각을 새로 잡는다 — 안 하면 15분 넘게 켜둔 뒤 마이크를 (다시) 켜는 순간 바로 종료된다
 onMic('afterOpen', () => { tunerStore.set({ lastActivityMs: Date.now() }); stopInactivityWatch(); inactInt = setInterval(() => { if (Date.now() - tunerStore.get().lastActivityMs > CFG.inactiveMs) { toast(t('mic.idleOff')); closeMic(); showTapHint(tryOpenMic) } }, 30 * 1000) })
-on(q('hdr-mic-btn'), 'click', () => tryOpenMic(true).then(ok => { if (ok) toast(t('hdr.micOn')) })) // 직접 누른 것이므로 차단이면 안내한다
 settingsStore.select(s => s.wakeLock, syncWake)
-// 숨김: 마이크를 놓고 메트로놈을 멈춘다(복귀 시 메트로놈은 자동 재개 안 함). 녹음 중이면 마이크는 둔다
+// 숨김: 마이크를 놓고 메트로놈·드론을 멈춘다(복귀 시 자동 재개 안 함). 녹음 중이면 마이크는 둔다
 // 복귀: 컨텍스트 재개 + wake lock 재획득 + 놓았던 마이크를 다시 연다(못 열면 탭 안내)
 let micReleasedByHide = false, pendingToast: string | null = null
 on(document, 'visibilitychange', () => {
@@ -102,6 +107,7 @@ on(document, 'visibilitychange', () => {
     // Android 는 백그라운드 앱의 마이크를 무음으로 만든다 → 무음 파일이 되기 전에 저장
     if (isNative() && sessionStore.get().recording) { stopRec(); pendingToast = t('rec.savedOnHide') }
     if (metroStore.get().playing) stopMetro()
+    stopDrone()
     if (A.micStream && !sessionStore.get().recording) {
       micReleasedByHide = true; releasingForHide = true
       tunerStore.set({ micReopening: true }) // closeMic 전에 — 닫히는 순간 renderEmpty 가 이 값을 본다
@@ -138,12 +144,13 @@ let interruptedTimer: ReturnType<typeof setTimeout> | null = null
 onContextState(state => {
   if (state === 'running') { if (interruptedTimer) { clearTimeout(interruptedTimer); interruptedTimer = null } if (A.micStream) hideTapHint(); return } // 늦은 resume 뒤에 남는 시작 버튼을 거둔다
   if (state === 'closed') return
-  if (!metroStore.get().playing && !tunerStore.get().running) return // 유휴 suspend 는 정상
+  if (!metroStore.get().playing && !droneOn() && !tunerStore.get().running) return // 유휴 suspend 는 정상
   if (document.visibilityState === 'visible') resumeIfRunning()
   if (interruptedTimer) clearTimeout(interruptedTimer)
   interruptedTimer = setTimeout(() => {
     interruptedTimer = null
     if (A.ac && A.ac.state !== 'running' && document.visibilityState === 'visible') {
+      if (droneOn()) stopDrone()
       if (metroStore.get().playing) { stopMetro(); toast(t('audio.interruptedMetro')) }
       else if (tunerStore.get().running) { toast(t('audio.interruptedTap')); showResumeHint() }
     }
@@ -155,6 +162,7 @@ onBackButton(() => {
   if (q('settings-page').classList.contains('open')) { closeSettings(); return true }
   if (q('menu-overlay').classList.contains('open')) { hideMenu(); return true }
   if (q('mic-popup-bg').classList.contains('show')) { closeMicPopup(); return true }
+  if (dronePopOpen()) { closeDronePop(); return true }
   return false
 })
 // 설치 앱·홈 화면 웹앱은 이미 전체화면이라 행을 숨긴다
@@ -183,7 +191,7 @@ const startInGesture = async (): Promise<boolean> => {
 }
 void (async () => {
   const state = await micPermission()
-  if (state === 'denied') { showMicPopup(true); return }
+  if (state === 'denied') { showMicPopup(true); showMicOff(); return }
   if (isIOS() && !isNative() && settingsStore.get().wakeLock) { showTapHint(startInGesture, 'tuner.startSub'); return }
   if (await tryOpenMic()) return
   showTapHint(startInGesture)
@@ -194,7 +202,7 @@ openRecDb().then(restoreRecordings).then(recoverInProgress).then(n => { if (n) t
 
 // Service Worker (웹 PWA 만): 새 버전은 앱이 유휴일 때 적용해 리로드
 if (!isNative() && 'serviceWorker' in navigator) {
-  const idle = () => !tunerStore.get().running && !metroStore.get().playing && !sessionStore.get().recording && !isEditorOpen()
+  const idle = () => !tunerStore.get().running && !metroStore.get().playing && !droneOn() && !sessionStore.get().recording && !isEditorOpen()
   const updateSW = registerSW({
     onNeedRefresh() {
       if (idle()) { void updateSW(true); return }

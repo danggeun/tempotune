@@ -2,6 +2,17 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow [SemVer](https://semver.org/).
 
+## [2.4.1] — 2026-09-27
+- DRONE — a new button next to ☰. Pick one of the 12 notes and it keeps sounding (octave 4, a pure tone) while you practice; tap the red note to stop. Like the metronome, it keeps the screen awake and stops when you leave the app. The first time you open it, a line explains what it's for
+- The tuner keeps reading you over the drone — it cuts out the drone's exact frequency, so an octave or a fifth above the drone reads as your note, not the drone's. With only the drone sounding the tuner shows nothing, and the practice timer doesn't count it
+- Play A follows your instrument — Settings › Play A pitch: A4 violin and viola, A3 cello, A2 double bass
+- Play A and the drone never sound together; turning one on turns the other off
+- Play A lights red while it sounds, like the other buttons that are on
+- The MIC button is gone — the tuner's start button turns the mic on, and REC turns it on and starts recording
+- Reference tones left the menu; the drone replaces them
+- The metronome, Play A and the drone share one soft limiter, so a click over the drone no longer clips
+- When the mic closes, the tuner clears the last note right away instead of sometimes redrawing it
+
 ## [2.4.0] — 2026-09-25
 - Renamed to **Intonome** (intonation + metronome), with a new web address: danggeun.github.io/intonome. Settings and recordings saved under the old name are cleared once
 - English — Settings › Language switches between 한국어 and English (Korean stays the default). Every screen, message and label is translated; note names are C D E in English

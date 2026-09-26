@@ -21,7 +21,10 @@ export const KO = {
   // 헤더
   'hdr.menu': '메뉴',
   'hdr.settings': '설정',
-  'hdr.micOn': '마이크가 켜졌어요',
+  'hdr.drone': 'DRONE',
+  'drone.pick': '드론 음 고르기',
+  'drone.stop': '드론 {note} 끄기',
+  'drone.hint': '고른 음이 계속 울려요. 그 위에서 음정을 맞춰 보세요',
 
   // 마이크 안내
   'mic.titleOff': '마이크를 켜 주세요',
@@ -49,7 +52,6 @@ export const KO = {
   'tuner.playA': 'A 듣기',
   'tuner.playAAria': '기준음 A 듣기',
   'tuner.startSub': '마이크 사용을 물어볼게요',
-  'tuner.micHint': 'MIC 를 켜면 시작해요',
   'tuner.doubleStop': '더블스톱 · {note} {cents} ¢',
 
   // 오디오
@@ -83,10 +85,6 @@ export const KO = {
   'menu.played': '소리 낸 시간',
   'menu.reset': '초기화',
   'menu.resetDone': '초기화됨',
-  'menu.ref': '기준음',
-  'menu.octave': '옥타브',
-  'menu.octDown': '옥타브 내리기',
-  'menu.octUp': '옥타브 올리기',
   'menu.rec': '녹음',
 
   // 녹음
@@ -173,6 +171,8 @@ export const KO = {
   'set.sensDesc': "작은 소리까지 잡으려면 '높음'을 선택해요",
   'set.names': '음이름 표기',
   'set.namesDesc': '선택하지 않은 쪽은 작게 함께 보여요',
+  'set.aPitch': 'A 듣기 높이',
+  'set.aPitchDesc': '바이올린·비올라는 A4, 첼로는 A3, 콘트라베이스는 A2',
   'set.wake': '화면 항상 켜짐',
   'set.wakeDesc': '연습 중 화면이 꺼지지 않아요',
   'set.wakeUnsupported': '이 브라우저는 화면 켜짐 유지를 지원하지 않아요',

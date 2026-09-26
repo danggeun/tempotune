@@ -40,11 +40,14 @@ export interface Settings {
   autoDelete: boolean
   theme: 'dark' | 'light'
   lang: 'ko' | 'en'
+  /** 'A 듣기' 의 옥타브 — 악기 A 선의 높이: 4 바이올린·비올라 / 3 첼로 / 2 콘트라베이스 */
+  aOctave: 2 | 3 | 4
 }
 export const settingsStore = createStore<Settings>({
   tolCents: 15, rmsMin: RMS_LEVELS[1], smoothing: SMOOTH_LEVELS[1], wakeLock: true,
   // metroVol 기본 1.0 — 슬라이더는 줄이는 용도. 이미 저장된 값이 있으면 그 값 유지
   bpm: 80, timeSig: 4, subDiv: 1, refHz: CFG.ref.default, metroVol: 1.0, noteNames: 'ko', autoDelete: true, theme: 'light', lang: 'ko',
+  aOctave: 4,
 })
 
 // 튜너 (고빈도)
@@ -89,9 +92,13 @@ export interface MetroState {
 }
 export const metroStore = createStore<MetroState>({ playing: false, collapsed: true, full: false, lastTick: { tick: -1, n: 0 } })
 
-// 기준음
-export interface RefToneState { octave: number; active: string | null }
-export const refToneStore = createStore<RefToneState>({ octave: 4, active: null })
+// A 듣기 (튜너 헤더)
+export interface RefToneState { active: boolean }
+export const refToneStore = createStore<RefToneState>({ active: false })
+
+// 드론 — 계속 울리는 한 음 (0 = 도 … 11 = 시, 옥타브는 core/drone 의 DRONE_OCTAVE 고정)
+export interface DroneState { pitchClass: number | null }
+export const droneStore = createStore<DroneState>({ pitchClass: null })
 
 // 세션 (타이머 / 녹음)
 export interface SessionState {

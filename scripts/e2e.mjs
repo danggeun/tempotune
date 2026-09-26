@@ -128,7 +128,7 @@ await scenario('settings: note names C D E — tuner shows A with 라 as seconda
   await p.click('#settings-hdr-btn')
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('fullscreen-row')).display), 'flex', '브라우저(비 standalone)에서는 전체화면 행이 보인다')
   await p.click('#notenames-steps .step-btn[data-v="1"]'); await p.click('#settings-back-btn')
-  assert.equal(await p.evaluate(() => document.querySelector('#menu-overlay .ref-note-btn[data-note="라"]').textContent), 'A')
+  assert.equal(await p.evaluate(() => document.querySelector('#drone-pop .drone-note-btn[data-pc="9"]').textContent), 'A')
   const t = await waitNote(p, t => t.note === 'A'); assert.equal(t.oct, '4')
   assert.equal(await p.evaluate(() => document.getElementById('tuner-enharmonic').textContent), '라')
   await p.reload(); await waitNote(p, t => t.note === 'A', 5000) // 영속
@@ -259,7 +259,7 @@ await scenario('metro: full mode is the second expanded step — only the tuner 
   await sleep(p, 400)
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('hdr')).display), 'flex', '전용 모드에도 헤더는 그대로')
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '전용 모드는 마이크를 놓지 않는다')
-  assert.equal(await p.evaluate(() => document.getElementById('rec-hdr-btn').style.opacity), '1', 'REC 는 바로 누를 수 있다')
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('rec-hdr-btn')).opacity), '1', 'REC 는 바로 누를 수 있다')
   assert.deepEqual(await p.evaluate(() => ({ title: getComputedStyle(document.getElementById('metro-hdr-title')).display, label: getComputedStyle(document.getElementById('metro-hdr-label')).display })), { title: 'flex', label: 'none' }, '펼침2 상단은 ♩80 대신 METRONOME')
   assert.equal(await p.evaluate(() => document.getElementById('tuner-card').style.height + document.getElementById('metro-card').style.height), '', '애니메이션이 끝나면 인라인 높이를 지운다')
   assert.equal(await p.evaluate(() => document.querySelectorAll('#sweep-leds .led').length), 13)
@@ -299,7 +299,7 @@ await scenario('metro: full mode is the second expanded step — only the tuner 
   await sizeTap(p); await sizeTap(p) // 접힘 → 펼침 → 전용
   // 나가면 튜너가 돌아온다. 마이크는 놓지 않았으니 안내 문구가 한 프레임도 뜨면 안 된다
   await p.click('#metro-size-btn')
-  const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 800) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; await new Promise(r => setTimeout(r, 16)) } return hint })
+  const seenHint = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 800) { if (document.getElementById('tuner-card').classList.contains('tap-hint')) hint = true; await new Promise(r => setTimeout(r, 16)) } return hint })
   assert.equal(seenHint, false, '나가는 동안 "켜라" 고 말하지 않는다')
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById('tuner-card')).display), 'flex')
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '마이크는 내내 켜져 있다')
@@ -541,7 +541,7 @@ await scenario('i18n: English — no Korean on any screen, nothing clipped, surv
   await sizeTap(p)
   await p.click('#rec-hdr-btn'); await sleep(p, 1500); await p.click('#rec-hdr-btn'); await sleep(p, 900)
   await p.click('#menu-btn'); await sleep(p, 400); await check('menu with a recording')
-  assert.match(await p.evaluate(() => document.querySelector('.ref-note-btn[data-note="도"]').textContent), /^C$/)
+  assert.match(await p.evaluate(() => document.querySelector('.drone-note-btn[data-pc="0"]').textContent), /^C$/)
   await p.click('[data-action="edit"][data-idx="0"]'); await sleep(p, 500); await check('editor')
   await p.click('#ed-a-btn'); await sleep(p, 100); await p.click('#ed-zoom-btn'); await sleep(p, 200); await check('editor toast')
   await p.click('#ed-back-btn'); await sleep(p, 500)
@@ -818,15 +818,29 @@ await scenario('timer: elapsed counts, detected counts while playing, reset', 'v
   await p.click('#timer-toggle-btn'); await sleep(p, 1200); await p.click('#timer-reset-btn'); await p.click('#toast'); await sleep(p, 100)
   assert.equal(await p.evaluate(() => document.getElementById('timer-toggle-btn').textContent), '정지', 'undo restores running state')
 })
-await scenario('ref tone: toggle on/off, octave label both places, C↑ (도↑)', 'violin_A4.wav', async p => {
+await scenario('drone: pick → red note, tap stops; Play A and the drone turn each other off; outside tap only closes', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  await p.click('#menu-btn'); await p.click('#menu-overlay .ref-note-btn[data-note="라"]')
-  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 1, 'note on')
-  await p.click('#menu-overlay .ref-note-btn[data-note="도2"]'); assert.equal(await p.evaluate(() => document.querySelector('.ref-note-btn.on').dataset.note), '도2')
-  await p.click('#menu-overlay .ref-note-btn[data-note="도2"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 0)
-  await p.click('#menu-overlay .ref-oct-btn:nth-of-type(2)')
-  assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '5')
-  for (let i = 0; i < 3; i++) await p.click('#menu-overlay .ref-oct-btn:nth-of-type(2)'); assert.equal(await p.evaluate(() => document.getElementById('ref-oct-num-menu').textContent), '6', 'clamp 6')
+  const st = () => p.evaluate(() => ({ label: document.getElementById('drone-btn').textContent, on: document.getElementById('drone-btn').classList.contains('on'), pop: document.getElementById('drone-pop').classList.contains('open'), a: document.getElementById('ref-a-btn').classList.contains('on') }))
+  assert.deepEqual(await st(), { label: 'DRONE', on: false, pop: false, a: false })
+  await p.click('#drone-btn'); await sleep(p, 250); assert.equal((await st()).pop, true, 'DRONE 을 누르면 창')
+  await p.click('#drone-pop .drone-note-btn[data-pc="2"]'); await sleep(p, 250)
+  assert.deepEqual(await st(), { label: '레', on: true, pop: false, a: false }, '레가 울리고 창은 닫힌다')
+  await p.click('#drone-btn'); await sleep(p, 250)
+  assert.deepEqual(await st(), { label: 'DRONE', on: false, pop: false, a: false }, '켜진 채 누르면 끈다 (창을 열지 않는다)')
+  await p.click('#drone-btn'); await p.click('#drone-pop .drone-note-btn[data-pc="7"]'); await sleep(p, 250)
+  await p.click('#ref-a-btn'); await sleep(p, 200)
+  assert.deepEqual(await st(), { label: 'DRONE', on: false, pop: false, a: true }, 'A 듣기를 켜면 드론은 꺼진다')
+  await p.click('#drone-btn'); await p.click('#drone-pop .drone-note-btn[data-pc="7"]'); await sleep(p, 250)
+  assert.deepEqual(await st(), { label: '솔', on: true, pop: false, a: false }, '드론을 켜면 A 듣기는 꺼진다')
+  await p.click('#drone-btn'); await sleep(p, 200)
+  // 바깥(메트로놈 재생 버튼 위)을 누르면 창만 닫힌다
+  await p.click('#drone-btn'); await sleep(p, 250)
+  const b = await p.evaluate(() => { const r = document.getElementById('metro-play-hdr-btn').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 } })
+  await p.mouse.click(b.x, b.y); await sleep(p, 300)
+  assert.equal((await st()).pop, false, '창이 닫힌다')
+  assert.equal(await p.evaluate(() => document.getElementById('metro-play-hdr-btn').textContent), '▶', '그 터치로 메트로놈이 켜지지 않는다')
+  await p.click('#drone-btn'); await sleep(p, 200); await p.keyboard.press('Escape'); await sleep(p, 250)
+  assert.equal((await st()).pop, false, 'Esc 로 닫힌다')
 })
 // 아이폰 웹은 시작 버튼을 먼저 받는다 (그 탭 안에서 화면 켜짐 + 마이크). UA 로 isIOS() 를 흉내 낸다
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'
@@ -857,12 +871,15 @@ await scenario('lifecycle: hidden while the mic is opening → not left open in 
   await sleep(p, 400)
   assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), false, '돌아가는 튜너 위에 시작 버튼이 남지 않는다')
 })
-await scenario('mic off: closeMic resets tuner and shows MIC button', 'violin_A4.wav', async p => {
+await scenario('mic off: no MIC button — the tuner shows a start button, and REC turns the mic on and records', 'violin_A4.wav', async p => {
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
-  await p.evaluate(() => { document.dispatchEvent(new Event('__nop')) })
-  // 15분 무활동 대신: hdr-mic-btn 은 마이크 켜짐 시 숨김
-  assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn').style.display), 'none')
-  assert.equal(await p.evaluate(() => document.getElementById('rec-hdr-btn').style.opacity), '1')
+  assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn')), null, 'MIC 버튼 없음')
+  await p.evaluate(() => window.__tt.closeMic()); await sleep(p, 300)
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), true, '꺼진 튜너에는 시작 버튼')
+  await p.click('#rec-hdr-btn'); await waitUntil(p, () => window.__tt.stats().micOpen, 4000, 'REC 가 마이크를 켠다')
+  await waitUntil(p, () => document.getElementById('rec-hdr-btn').classList.contains('rec-on'), 3000, '바로 녹음한다')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), false, '켜지면 시작 버튼은 걷힌다')
+  await sleep(p, 1200); await p.click('#rec-hdr-btn'); await sleep(p, 800)
 })
 
 // 연주 감지 품질
@@ -927,12 +944,13 @@ await scenario('metro: bpm change while playing does not restart (beats keep com
   assert.ok(seen.size >= 2, 'beat dots advancing after bpm change: ' + [...seen].join(','))
   await p.click('#metro-play-btn') // U1: 펼친 채 재생 중이라 헤더 버튼은 없다
 })
-await scenario('ref tone plays without mic (single AudioContext)', 'silence_lowfloor.wav', async p => {
+await scenario('drone and Play A sound without the mic (single AudioContext); A 듣기 does not ask for the mic', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 800); await p.click('#mic-popup-cancel')
-  await p.click('#menu-btn'); await p.click('#menu-overlay .ref-note-btn[data-note="라"]')
-  assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 1, 'note on without mic')
-  await p.click('#menu-overlay .ref-note-btn[data-note="라"]'); assert.equal(await p.evaluate(() => document.querySelectorAll('.ref-note-btn.on').length), 0)
-  await p.click('.menu-close-btn'); await p.click('#ref-a-btn'); assert.equal(await p.evaluate(() => document.getElementById('ref-a-btn').classList.contains('on')), true, 'A 듣기 on without mic')
+  await p.click('#drone-btn'); await p.click('#drone-pop .drone-note-btn[data-pc="9"]'); await sleep(p, 200)
+  assert.equal(await p.evaluate(() => document.getElementById('drone-btn').classList.contains('on')), true, 'drone on without mic')
+  await p.click('#drone-btn'); assert.equal(await p.evaluate(() => document.getElementById('drone-btn').classList.contains('on')), false)
+  await p.click('#ref-a-btn'); assert.equal(await p.evaluate(() => document.getElementById('ref-a-btn').classList.contains('on')), true, 'A 듣기 on without mic')
+  assert.equal(await p.evaluate(() => document.getElementById('mic-popup-bg').classList.contains('show')), false, 'A 듣기는 마이크 권한을 묻지 않는다')
   await p.click('#ref-a-btn'); assert.equal(await p.evaluate(() => document.getElementById('ref-a-btn').classList.contains('on')), false)
 }, { permissions: [] })
 
@@ -1115,7 +1133,7 @@ await scenario('lifecycle: hidden → mic released and metronome stopped; the ti
   assert.equal(await p.evaluate(() => document.getElementById('metro-play-btn').textContent), '▶', '숨김: 메트로놈은 멈춘다')
   // 복귀: waitNote 는 숨기기 전 텍스트를 보고 바로 통과하므로 micOpen 을 직접 기다린다
   await setVisibility(p, 'visible')
-  const hintOnReturn = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 3000) { if (document.getElementById('tuner-note').textContent === 'MIC 를 켜면 시작해요') hint = true; if (window.__tt.stats().micOpen) break; await new Promise(r => setTimeout(r, 16)) } return hint })
+  const hintOnReturn = await p.evaluate(async () => { const t0 = performance.now(); let hint = false; while (performance.now() - t0 < 3000) { if (document.getElementById('tuner-card').classList.contains('tap-hint')) hint = true; if (window.__tt.stats().micOpen) break; await new Promise(r => setTimeout(r, 16)) } return hint })
   assert.equal(hintOnReturn, false, '복귀 재개 중에도 "켜라" 고 말하지 않는다')
   await waitUntil(p, () => window.__tt.stats().micOpen === true, 5000, '복귀: 마이크 다시 열림')
   await waitNote(p, t => t.note === '라', 5000)
@@ -1157,13 +1175,13 @@ await scenario('lifecycle: inactivity watch closes the mic without the practice 
   await p.evaluate(() => { window.__tt.backdate(16 * 60 * 1000) })
   await sleep(p, 31000)
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), false, 'mic closed by inactivity watch')
-  assert.equal(await p.evaluate(() => document.getElementById('hdr-mic-btn').style.display), 'flex')
+  assert.equal(await p.evaluate(() => document.getElementById('tuner-card').classList.contains('tap-hint')), true, '시작 버튼으로 다시 켠다')
 })
 await scenario('lifecycle: turning the mic back on after a long session doesn’t switch it off immediately', 'silence_lowfloor.wav', async p => {
   await p.goto(URL_); await sleep(p, 1500); assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true)
   await p.evaluate(() => { window.__tt.backdate(20 * 60 * 1000); window.__tt.closeMic() })
   await sleep(p, 300)
-  await p.click('#hdr-mic-btn'); await sleep(p, 1200)
+  await p.click('#tuner-start-btn'); await sleep(p, 1200)
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, 'mic opened')
   await sleep(p, 35000) // 감시 주기 30 s 를 한 번 넘긴다
   assert.equal(await p.evaluate(() => window.__tt.stats().micOpen), true, '켠 시각 기준이라 바로 꺼지지 않는다')

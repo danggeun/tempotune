@@ -1,7 +1,7 @@
 {
   "name": "intonome",
-  "version": "2.4.0",
-  "description": "Intonome — tuner, metronome, reference tones and practice recorder for string players (PWA + Capacitor Android)",
+  "version": "2.4.1",
+  "description": "Intonome — tuner, metronome, drone and practice recorder for string players (PWA + Capacitor Android)",
   "private": true,
   "license": "MIT",
   "author": "Yeonho (danggeun)",

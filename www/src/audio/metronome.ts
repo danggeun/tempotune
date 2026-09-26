@@ -4,8 +4,7 @@
  */
 import { metroStore, sessionStore, settingsStore, CFG, type SubDiv, type TimeSig } from '../state/index.ts'
 import { totalTicks as _totalTicks } from '../core/metro/sequencer.ts'
-import { getContext, micOpen, muteAnalysis, audioSupported, suspendIfIdle } from './engine.ts'
-import { softClipCurve } from '../core/softclip.ts'
+import { getContext, micOpen, muteAnalysis, audioSupported, suspendIfIdle, output, outputLatency } from './engine.ts'
 import { t } from '../core/i18n/index.ts'
 import metroWorkletUrl from './metro.worklet.ts?worker&url'
 
@@ -29,15 +28,14 @@ async function ensureNode(): Promise<AudioWorkletNode> {
       const m = e.data; if (m?.type !== 'click' || !metroStore.get().playing) return
       if (m.t < ac.currentTime - 0.1) return // 백그라운드에서 밀린 과거 이벤트는 버림
       // 시각 피드백은 실제 스피커 재생 시각에 맞춘다 — Android 는 outputLatency(40–100 ms) ≫ baseLatency
-      const outLat = (ac as AudioContext & { outputLatency?: number }).outputLatency || ac.baseLatency || 0
+      const outLat = outputLatency(ac)
       const delay = Math.max(0, (m.t - ac.currentTime + outLat) * 1000)
       setTimeout(() => { if (metroStore.get().playing) metroStore.set({ lastTick: { tick: m.tick, n: ++tickN } }) }, delay)
       // 클릭 누설 구간 = 마이크 도착 시각(t + 출력지연) ~ 클릭 길이 + 60 ms. 여유를 더 주면 빠른 템포에서 모든 창이 걸린다
       if (micOpen() && !m.muted) { const at = m.t + outLat; muteAnalysis(at - 0.01, at + m.dur + 0.06, at) }
     }
-    // 소프트 리미터 — 클릭 꼬리 겹침·어택에서 합이 1.0 을 넘을 수 있다. 무릎(0.7) 아래는 항등
-    const shaper = ac.createWaveShaper(); shaper.curve = softClipCurve(); shaper.oversample = '2x'
-    n.connect(shaper); shaper.connect(ac.destination)
+    // 소프트 리미터는 공용 출력에 있다 — 클릭 꼬리 겹침·어택, 드론과 겹칠 때 합이 1.0 을 넘을 수 있다
+    n.connect(output())
     n.port.postMessage({ type: 'pattern', pattern: pattern() })
     node = n; nodeCtx = ac
     return n
