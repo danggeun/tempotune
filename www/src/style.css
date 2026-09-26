@@ -206,10 +206,18 @@ button{font-family:inherit;color:inherit;}
 #metro-card.full #metro-bpm-wrap{display:none;}                    /* 숫자는 다이얼 가운데에 */
 #metro-card.full #metro-bpm-row{justify-content:center;gap:0;}
 #metro-card.full #metro-adj-col{flex:0 0 auto;}
-#metro-card.full #metro-btn-row{gap:var(--s5);align-items:center;}
-#metro-card.full .m-adj{width:56px;height:56px;flex:none;border-radius:50%;font-size:26px;order:0;}
-#metro-card.full .m-adj + .m-adj{order:2;}                        /* [−] [▶] [+] — 재생이 가운데 */
-#metro-card.full #metro-play-btn{width:72px;height:72px;flex:none;border-radius:50%;font-size:30px;order:1;}
+#metro-card.full #metro-btn-row{gap:var(--s2);align-items:center;--adj:clamp(44px, calc((100vw - 94px) / 5.4), 56px);}
+/* [−5] [−] [▶] [+] [+5] — 네 버튼은 같은 크기(자주 누르는 버튼끼리 크기가 다르면 손이 매번 조준을 바꾼다), 재생만 1.29 배.
+   크기는 폭을 따라: 본문 폭 = 100vw − 58, 틈 8·12·12·8 = 36 → 360 px 폰 50 / 375 52 / 393 55 / 412↑ 56 (최대). 한 줄이 본문을 넘지 않는다 */
+#metro-card.full .m-adj,#metro-card.full .m-adj5{width:var(--adj);height:var(--adj);flex:none;border-radius:50%;padding:0;order:0;}
+#metro-card.full .m-adj{font-size:26px;}
+#metro-card.full .m-adj + .m-adj{order:2;}
+#metro-card.full #metro-play-btn{width:calc(var(--adj) * 1.286);height:calc(var(--adj) * 1.286);flex:none;border-radius:50%;font-size:30px;order:1;margin:0 var(--s1);}
+/* 5 단위: 전용 모드에서만, ± 와 같은 모양 — 글자(−5 · +5)만 다르다 */
+.m-adj5,.m-adj5-pad{display:none;}
+#metro-card.full .m-adj5{display:flex;background:transparent;border:1px solid var(--line-ctl);color:var(--text);font-size:19px;font-variant-numeric:tabular-nums;align-items:center;justify-content:center;cursor:pointer;}
+#metro-card.full [data-step="-5"]{order:-1;}
+#metro-card.full [data-step="5"]{order:3;}
 #metro-card.full #metro-vol-row{display:none!important;}
 #metro-card.full #metro-vol-pad{display:flex!important;padding:0 var(--s2);}
 #metro-card.full #metro-vol-pad input{flex:1;}
@@ -439,11 +447,12 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   #metro-bpm-hint{text-align:left;}
   #metro-adj-col{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;}
   #metro-btn-row{display:flex;gap:0;}
-  .m-adj{display:none!important;}
+  .m-adj,.m-adj5{display:none!important;}
   #metro-play-btn{width:76px;height:76px;font-size:34px;border-radius:var(--r-lg);flex:none;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;}
   #metro-vol-row{display:none!important;}
   #metro-adj-pad{display:flex!important;gap:8px;}
   .m-adj-pad{flex:1;height:52px;background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  #metro-card.full .m-adj5-pad{flex:1;height:52px;background:transparent;border:1px solid var(--line-ctl);border-radius:var(--r-md);color:var(--text);font-size:22px;font-variant-numeric:tabular-nums;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   #metro-vol-pad{display:flex!important;}
   #metro-grids-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   #ts-grid,#sd-grid{display:flex;flex-direction:column;gap:6px;}

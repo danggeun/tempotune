@@ -66,6 +66,8 @@ export const KO = {
   'metro.drag': '↕ 드래그',
   'metro.bpmDown': 'BPM 내리기',
   'metro.bpmUp': 'BPM 올리기',
+  'metro.bpmDown5': 'BPM 5 내리기',
+  'metro.bpmUp5': 'BPM 5 올리기',
   'metro.tsNone': '없음',
   'metro.tsNoneAria': '박자표 없음 — 정박만',
   'metro.sd1': '세분 없음',

@@ -62,6 +62,8 @@ export const EN: Record<TKey, string> = {
   'metro.drag': '↕ drag',
   'metro.bpmDown': 'BPM down',
   'metro.bpmUp': 'BPM up',
+  'metro.bpmDown5': 'BPM down 5',
+  'metro.bpmUp5': 'BPM up 5',
   'metro.tsNone': 'None',
   'metro.tsNoneAria': 'No time signature — beats only',
   'metro.sd1': 'No subdivision',

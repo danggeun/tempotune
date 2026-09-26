@@ -234,6 +234,21 @@ await scenario('metro: beats-only mode — no bars, no first-beat accent', 'sile
   await p.click('#metro-play-btn')
   assert.equal(sawAccent, false, '정박 모드에서는 액센트가 없어야 한다')
 })
+await scenario('metro: full mode adds −5/+5 at both ends — steps of 5, clamped, not shown outside full mode', 'silence_lowfloor.wav', async p => {
+  await p.goto(URL_); await sleep(p, 500); await sizeTap(p) // 접힘 → 펼침
+  const bpm = () => p.evaluate(() => +document.getElementById('dial-bpm').textContent)
+  const shown = () => p.evaluate(() => [...document.querySelectorAll('#metro-btn-row .m-adj5')].map(b => getComputedStyle(b).display))
+  assert.deepEqual(await shown(), ['none', 'none'], '펼침에는 없다')
+  await sizeTap(p) // → 전용
+  assert.deepEqual(await shown(), ['flex', 'flex'], '전용 모드에만')
+  const order = await p.evaluate(() => [...document.querySelectorAll('#metro-btn-row > button')].filter(b => getComputedStyle(b).display !== 'none')
+    .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map(b => b.textContent))
+  assert.deepEqual(order, ['−5', '−', '▶', '+', '+5'], '재생이 가운데, 5 단위가 양 끝')
+  await p.click('.m-adj5[data-step="5"]'); assert.equal(await bpm(), 85)
+  await p.click('.m-adj5[data-step="-5"]'); await p.click('.m-adj5[data-step="-5"]'); assert.equal(await bpm(), 75)
+  for (let i = 0; i < 30; i++) await p.click('.m-adj5[data-step="5"]'); assert.equal(await bpm(), 200, 'clamp max')
+  for (let i = 0; i < 40; i++) await p.click('.m-adj5[data-step="-5"]'); assert.equal(await bpm(), 40, 'clamp min')
+})
 await scenario('metro: full mode is the second expanded step — only the tuner hides, header and mic stay, LEDs sweep end to end and hit green at the ends', 'violin_A4.wav', async p => {
   await darkTheme(p) // 아래 색 단언은 다크 토큰 값
   await p.goto(URL_); await waitNote(p, t => t.note === '라')
@@ -331,11 +346,11 @@ await scenario('metro: full-mode dial — BPM follows the ring, stops at the end
   await rot(20, 10); await sleep(p, 100)                                   // 되감을 필요 없이 바로 올라간다
   bpm = await p.evaluate(() => +document.getElementById('dial-bpm').textContent)
   assert.ok(bpm >= 50 && bpm <= 53, `끝에서 되돌리면 즉시 반응: ${bpm}`)
-  // 배치: 위에서부터 LED → 다이얼 → [− ▶ +] → 음량 → 박자표 → 분할, 재생이 가운데
+  // 배치: 위에서부터 LED → 다이얼 → [−5 − ▶ + +5] → 음량 → 박자표 → 분할, 재생이 가운데
   const ys = await p.evaluate(() => ['sweep-leds', 'dial', 'metro-play-btn', 'metro-vol-pad', 'ts-grid', 'sd-grid'].map(id => document.getElementById(id).getBoundingClientRect().top))
   for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1], `순서: ${ys}`)
   const xs = await p.evaluate(() => { const b = Array.from(document.querySelectorAll('#metro-btn-row button')); return b.map(e => [e.id || e.textContent, Math.round(e.getBoundingClientRect().left)]).sort((a, b) => a[1] - b[1]).map(e => e[0]) })
-  assert.deepEqual(xs, ['−', 'metro-play-btn', '+'])
+  assert.deepEqual(xs, ['−5', '−', 'metro-play-btn', '+', '+5'])
   await p.click('#metro-size-btn')
 })
 // 카드 끌기: 손가락을 따라 높이가 바뀌고, 조금 끌다 멈춰 놓으면 제자리, 충분히 끌면 다음 단계. 위아래 모두
@@ -426,13 +441,18 @@ for (const [name, w, h, top, bot] of LAYOUT_MATRIX) await scenario(`layout: full
     const num = document.querySelector('#dial-svg .dial-num').getBoundingClientRect()
     const names = Array.from(document.querySelectorAll('#dial-svg .dial-name')).filter(n => getComputedStyle(n).display !== 'none').length
     const last = document.getElementById('sd-grid').getBoundingClientRect()
-    return { overflowY: clip.scrollHeight - clip.clientHeight, segOverflow: Math.max(0, ...segs.map(s => s.right - card.right)), glyphOverflow: Math.max(0, ...glyphs),
+    const body = document.getElementById('metro-body'), bcs = getComputedStyle(body), bb = body.getBoundingClientRect()
+    const btns = Array.from(document.querySelectorAll('#metro-btn-row > button, #metro-adj-pad > button')).filter(b => b.offsetParent && getComputedStyle(b).display !== 'none').map(b => b.getBoundingClientRect())
+    const btnOverflow = Math.max(0, ...btns.map(v => Math.max(bb.left + parseFloat(bcs.paddingLeft) - v.left, v.right - (bb.right - parseFloat(bcs.paddingRight)))))
+    const adj5 = Array.from(document.querySelectorAll('#metro-card.full [data-step]')).filter(b => b.offsetParent && getComputedStyle(b).display !== 'none').length
+    return { btnOverflow, adj5, overflowY: clip.scrollHeight - clip.clientHeight, segOverflow: Math.max(0, ...segs.map(s => s.right - card.right)), glyphOverflow: Math.max(0, ...glyphs),
       dial: dial.width, numBoxH: num.height, names, lastRowInside: last.bottom <= card.bottom + 0.5 && last.bottom <= window.innerHeight,
       hdr: getComputedStyle(document.getElementById('hdr')).display, logo: document.getElementById('logo') }
   })
   assert.equal(r.hdr, 'flex', '전용 모드에도 헤더는 그대로'); assert.equal(r.logo, null, '워드마크는 없다')
   assert.ok(r.overflowY <= 0, `세로 넘침 ${r.overflowY}px — 스크롤이 필요하면 안 된다`)
   assert.ok(r.segOverflow <= 0.5, `pill 가로 넘침 ${r.segOverflow}px`)
+  assert.ok(r.btnOverflow <= 0.5, `−5 · − · ▶ · + · +5 줄 가로 넘침 ${r.btnOverflow}px`); assert.equal(r.adj5, 2, '−5 · +5 가 보인다')
   assert.ok(r.glyphOverflow <= 0.5, `음표 글리프가 버튼 밖으로 ${r.glyphOverflow}px`)
   assert.ok(r.lastRowInside, '리듬 줄이 카드·화면 안에 있어야 한다')
   assert.ok(r.dial >= 150 && r.dial <= 320.5, `다이얼 ${r.dial}px`)

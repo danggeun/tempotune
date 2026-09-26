@@ -13,6 +13,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Light theme is the default for new installs; a theme you already use is kept
 - The collapsed metronome has a play button in its header even when stopped, so it starts and stops without expanding
 - Header beat dots are one size — they no longer grow when the metronome starts
+- The full-screen metronome has −5 and +5 buttons at the two ends of the row, for bigger tempo steps
 
 ## [2.3.8] — 2026-09-25
 - Tuner ♭/♯ looked stretched on the iPhone start screen

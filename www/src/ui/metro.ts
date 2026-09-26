@@ -159,6 +159,7 @@ export function mountMetro(): void {
   attachVDrag(q('metro-hdr'), drag)
   attachVDrag(q('metro-body'), drag)
   qsa('.m-adj, .m-adj-pad').forEach(b => on(b, 'click', () => adjBPM(b.textContent === '−' ? -1 : 1)))
+  qsa<HTMLElement>('[data-step]').forEach(b => on(b, 'click', () => adjBPM(+b.dataset.step!))) // 전용 모드의 −5·+5
   const volMain = q<HTMLInputElement>('metro-vol'), volPad = q<HTMLInputElement>('metro-vol-pad-input')
   on(volMain, 'input', () => { setMetroVol(+volMain.value); volPad.value = volMain.value })
   on(volPad, 'input', () => { setMetroVol(+volPad.value); volMain.value = volPad.value })

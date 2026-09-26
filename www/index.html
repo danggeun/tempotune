@@ -119,6 +119,9 @@
               <button class="m-adj" aria-label="BPM 내리기" data-t-aria="metro.bpmDown">−</button>
               <button class="m-adj" aria-label="BPM 올리기" data-t-aria="metro.bpmUp">+</button>
               <button id="metro-play-btn" aria-label="메트로놈 재생/정지" data-t-aria="metro.playStop">▶</button>
+              <!-- 5 단위는 전용 모드에서만 양 끝에 — DOM 은 뒤에 두고 자리는 CSS order 로(−·+·▶ 순서는 그대로) -->
+              <button class="m-adj5" data-step="-5" aria-label="BPM 5 내리기" data-t-aria="metro.bpmDown5">−5</button>
+              <button class="m-adj5" data-step="5" aria-label="BPM 5 올리기" data-t-aria="metro.bpmUp5">+5</button>
             </div>
             <div id="metro-vol-row">
               <span class="m-vol-lbl" data-t="common.volume">음량</span>
@@ -129,6 +132,8 @@
         <div id="metro-adj-pad" style="display:none;">
           <button class="m-adj-pad">−</button>
           <button class="m-adj-pad">+</button>
+          <button class="m-adj5-pad" data-step="-5" aria-label="BPM 5 내리기" data-t-aria="metro.bpmDown5">−5</button>
+          <button class="m-adj5-pad" data-step="5" aria-label="BPM 5 올리기" data-t-aria="metro.bpmUp5">+5</button>
         </div>
         <div id="metro-vol-pad" style="display:none;align-items:center;gap:8px;">
           <span class="m-vol-lbl" data-t="common.volume">음량</span>
